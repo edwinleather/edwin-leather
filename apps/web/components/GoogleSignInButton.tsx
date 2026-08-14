@@ -20,41 +20,43 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 export function GoogleSignInButton({ onSuccess, onError, label }: { onSuccess?: (email: string) => void; onError?: (message: string) => void; label?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const renderedRef = useRef(false);
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!CLIENT_ID || !containerRef.current) return;
-    const container = containerRef.current;
-
-    const init = () => {
-      if (!window.google?.accounts) return;
-      window.google.accounts.id.initialize({
-        client_id: CLIENT_ID,
-        auto_select: false,
-        callback: async (response) => {
-          try {
-            setState("loading");
-            const result = await loginWithGoogle(response.credential);
-            if (!result.ok) {
-              setError(result.error);
-              setState("error");
-              onError?.(result.error);
-            } else {
-              setState("idle");
-              onSuccess?.(result.user.email);
-            }
-          } catch {
-            setError("Google sign-in failed. Please try again.");
+  function initializeGoogle() {
+    if (!window.google?.accounts) return;
+    window.google.accounts.id.initialize({
+      client_id: CLIENT_ID!,
+      auto_select: false,
+      callback: async (response) => {
+        try {
+          setState("loading");
+          const result = await loginWithGoogle(response.credential);
+          if (!result.ok) {
+            setError(result.error);
             setState("error");
+            onError?.(result.error);
+          } else {
+            setState("ready");
+            onSuccess?.(result.user.email);
           }
+        } catch {
+          setError("Google sign-in failed. Please try again.");
+          setState("error");
         }
-      });
-      window.google.accounts.id.renderButton(container, { theme: "outline", size: "large", width: 320, shape: "rectangular", text: "continue_with" });
-    };
+      }
+    });
+    setState("ready");
+  }
+
+  function handleClick() {
+    if (state === "loading" || state === "ready") return;
+    setError(null);
+    setState("loading");
 
     if (window.google?.accounts) {
-      init();
+      initializeGoogle();
       return;
     }
 
@@ -62,12 +64,19 @@ export function GoogleSignInButton({ onSuccess, onError, label }: { onSuccess?: 
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-    script.onload = init;
-    document.head.appendChild(script);
-    return () => {
-      script.remove();
+    script.onload = initializeGoogle;
+    script.onerror = () => {
+      setError("Google sign-in could not load. Please try again.");
+      setState("idle");
     };
-  }, [onError, onSuccess]);
+    document.head.appendChild(script);
+  }
+
+  useEffect(() => {
+    if (state !== "ready" || !containerRef.current || renderedRef.current) return;
+    renderedRef.current = true;
+    window.google?.accounts.id.renderButton(containerRef.current, { theme: "outline", size: "large", width: 320, shape: "rectangular", text: "continue_with" });
+  }, [state]);
 
   if (!CLIENT_ID) {
     return (
@@ -82,9 +91,16 @@ export function GoogleSignInButton({ onSuccess, onError, label }: { onSuccess?: 
   return (
     <>
       <div className="google-button">
-        <div ref={containerRef} aria-label="Continue with Google" />
+        {state === "ready" ? (
+          <div ref={containerRef} aria-label="Continue with Google" />
+        ) : (
+          <button type="button" className="google-button__trigger" onClick={handleClick} disabled={state === "loading"}>
+            <GoogleIcon />
+            <span>{label ?? "Continue with Google"}</span>
+          </button>
+        )}
       </div>
-      {state === "loading" && <p className="auth-note">Signing you in…</p>}
+      {state === "loading" && <p className="auth-note">Loading Google sign-in…</p>}
       {error && <p className="auth-error">{error}</p>}
     </>
   );
