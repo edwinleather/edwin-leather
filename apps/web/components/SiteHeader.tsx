@@ -8,6 +8,7 @@ import { useAuth } from "./useAuth";
 import { useCart } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
 import { ThemeToggle } from "./ThemeToggle";
+import { useAuth } from "./useAuth";
 import { siteConfig } from "@/lib/site-config";
 
 const nav = [
@@ -21,7 +22,11 @@ const nav = [
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { count, openCart } = useCart();
+<<<<<<< Updated upstream
   const { user } = useAuth();
+=======
+  const { authed } = useAuth();
+>>>>>>> Stashed changes
   const pathname = usePathname();
   const accountHref = user ? "/account" : "/login";
 
@@ -48,7 +53,11 @@ export function SiteHeader() {
           <div className="header-actions">
             <ThemeToggle />
             <SmoothLink href="/shop" className="header-action desktop-only" ariaLabel="Search products"><Search size={18} /></SmoothLink>
+<<<<<<< Updated upstream
             <SmoothLink href={accountHref} className="header-action desktop-only" ariaLabel="Account"><UserRound size={18} /></SmoothLink>
+=======
+            <SmoothLink href={authed ? "/account" : "/login"} className="header-action desktop-only" ariaLabel={authed ? "Account" : "Log in"}><UserRound size={18} /></SmoothLink>
+>>>>>>> Stashed changes
             <SmoothLink href="/shop" className="button button--cream header-cta desktop-only">Shop now</SmoothLink>
             <button className="header-action cart-button" onClick={openCart} aria-label={`Open cart with ${count} items`}>
               <ShoppingBag size={18} />
@@ -78,7 +87,11 @@ export function SiteHeader() {
               ))}
             </motion.nav>
             <div className="mobile-menu__footer">
+<<<<<<< Updated upstream
               <SmoothLink href={accountHref} onClick={() => setMenuOpen(false)}>Account</SmoothLink>
+=======
+              <SmoothLink href={authed ? "/account" : "/login"} onClick={() => setMenuOpen(false)}>{authed ? "Account" : "Log in"}</SmoothLink>
+>>>>>>> Stashed changes
               <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>
             </div>
           </motion.div>

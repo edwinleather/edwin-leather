@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 const { Schema, model, models } = mongoose;
 
 const variantSchema = new Schema(

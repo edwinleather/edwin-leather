@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 const { Schema, model, models } = mongoose;
 
 const couponSchema = new Schema(
@@ -15,6 +18,7 @@ const couponSchema = new Schema(
     expiresAt: Date,
     applicableProductIds: [{ type: Schema.Types.ObjectId, ref: "Product" }],
     applicableCategories: [String],
+    usedCount: { type: Number, default: 0 },
     active: { type: Boolean, default: true }
   },
   { timestamps: true }

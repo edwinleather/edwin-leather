@@ -4,24 +4,28 @@ import { ProductPurchasePanel } from "@/components/ProductPurchasePanel";
 import { ProductCard } from "@/components/ProductCard";
 import { Reveal } from "@/components/Reveal";
 import { SmartImage } from "@/components/SmartImage";
-import { getProductBySlug, products } from "@/lib/demo-data";
+import { getCatalog, getProductBySlug } from "@/lib/catalog";
+import { products as demoProducts } from "@/lib/demo-data";
 
-export function generateStaticParams() {
-  return products.map((product) => ({ slug: product.slug }));
+export async function generateStaticParams() {
+  const catalog = await getCatalog();
+  const slugs = catalog.length ? catalog.map((product) => ({ slug: product.slug })) : demoProducts.map((product) => ({ slug: product.slug }));
+  return slugs;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) return { title: "Product not found" };
   return { title: product.name, description: product.description };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) notFound();
-  const related = products.filter((item) => item.id !== product.id && (item.category === product.category || item.collection === product.collection)).slice(0, 3);
+  const catalog = await getCatalog();
+  const related = catalog.filter((item) => item.id !== product.id && (item.category === product.category || item.collection === product.collection)).slice(0, 3);
 
   return (
     <div className="product-page">

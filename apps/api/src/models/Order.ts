@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 const { Schema, model, models } = mongoose;
 
 const lineSchema = new Schema(
@@ -25,6 +28,11 @@ const orderSchema = new Schema(
     subtotal: { type: Number, required: true },
     shippingAmount: { type: Number, default: 0 },
     discountAmount: { type: Number, default: 0 },
+    coupon: {
+      couponId: { type: Schema.Types.ObjectId, ref: "Coupon" },
+      code: String,
+      discountType: { type: String, enum: ["percentage", "fixed", "free_shipping"] }
+    },
     total: { type: Number, required: true },
     currency: { type: String, default: "INR" },
     orderStatus: {

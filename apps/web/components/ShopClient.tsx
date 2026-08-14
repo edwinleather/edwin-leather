@@ -2,12 +2,21 @@
 
 import { useMemo, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
-import { categories, products } from "@/lib/demo-data";
+import type { Product } from "@/lib/types";
+import { categories as demoCategories, products as demoProducts } from "@/lib/demo-data";
 import { ProductGrid } from "./ProductGrid";
 
 type SortKey = "featured" | "price-low" | "price-high" | "name";
 
-export function ShopClient({ initialCategory = "All" }: { initialCategory?: string }) {
+export function ShopClient({
+  initialCategory = "All",
+  products = demoProducts,
+  categories = demoCategories
+}: {
+  initialCategory?: string;
+  products?: Product[];
+  categories?: string[];
+}) {
   const [category, setCategory] = useState(categories.includes(initialCategory) ? initialCategory : "All");
   const [sort, setSort] = useState<SortKey>("featured");
 

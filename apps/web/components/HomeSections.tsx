@@ -1,19 +1,20 @@
 import { ArrowUpRight, CircleCheck, Sparkles } from "lucide-react";
-import { featuredProducts, newArrivals } from "@/lib/demo-data";
+import type { Product } from "@/lib/types";
+import { Parallax } from "./Parallax";
 import { ProductCard } from "./ProductCard";
 import { ProductGrid } from "./ProductGrid";
 import { Reveal } from "./Reveal";
 import { SmartImage } from "./SmartImage";
 import { SmoothLink } from "./SmoothLink";
 
-export function FeaturedSection() {
+export function FeaturedSection({ products }: { products: Product[] }) {
   return (
     <section className="section container" id="featured">
       <div className="section-heading">
         <Reveal><div><span className="eyebrow">Current selection</span><h2>Objects for the everyday.</h2></div></Reveal>
         <Reveal delay={0.08}><SmoothLink href="/shop" className="underlined-link">Shop all <ArrowUpRight size={14} /></SmoothLink></Reveal>
       </div>
-      <ProductGrid products={featuredProducts} />
+      <ProductGrid products={products} />
     </section>
   );
 }
@@ -22,11 +23,13 @@ export function EditorialSplit() {
   return (
     <section className="editorial-split">
       <div className="editorial-split__media">
-        <SmartImage
-          src="https://images.unsplash.com/photo-1523779917675-b6ed3a42a561?auto=format&fit=crop&w=1600&q=82"
-          alt="Leather craft detail"
-          sizes="(max-width: 800px) 100vw, 58vw"
-        />
+        <Parallax className="parallax-fill" speed={70}>
+          <SmartImage
+            src="https://images.unsplash.com/photo-1523779917675-b6ed3a42a561?auto=format&fit=crop&w=1600&q=82"
+            alt="Leather craft detail"
+            sizes="(max-width: 800px) 100vw, 58vw"
+          />
+        </Parallax>
       </div>
       <div className="editorial-split__copy">
         <Reveal>
@@ -61,7 +64,9 @@ export function CategoryRail() {
         {cards.map(([title, copy, image], index) => (
           <Reveal key={title} delay={index * 0.07}>
             <SmoothLink href={`/shop?category=${title}`} className="category-card">
-              <SmartImage src={image} alt={title} sizes="(max-width: 720px) 85vw, 32vw" />
+              <Parallax className="category-card__media" speed={45}>
+                <SmartImage src={image} alt={title} sizes="(max-width: 720px) 85vw, 32vw" />
+              </Parallax>
               <div className="category-card__shade" />
               <div className="category-card__content"><span>0{index + 1}</span><div><h3>{title}</h3><p>{copy}</p></div><ArrowUpRight size={18} /></div>
             </SmoothLink>
@@ -72,13 +77,14 @@ export function CategoryRail() {
   );
 }
 
-export function NewArrivalsSection() {
+export function NewArrivalsSection({ products }: { products: Product[] }) {
+  const newArrivals = [...products].sort((a, b) => Number(Boolean(b.newArrival)) - Number(Boolean(a.newArrival)));
   return (
     <section className="section section--sand">
       <div className="container">
         <div className="section-heading">
           <Reveal><div><span className="eyebrow">Recently cut</span><h2>New to the bench.</h2></div></Reveal>
-          <Reveal delay={0.08}><span className="section-note"><Sparkles size={15} /> Demo collection</span></Reveal>
+          <Reveal delay={0.08}><span className="section-note"><Sparkles size={15} /> From the workshop</span></Reveal>
         </div>
         <div className="new-arrivals-grid">
           {newArrivals.slice(0, 3).map((product, index) => <ProductCard key={product.id} product={product} priority={index === 0} />)}

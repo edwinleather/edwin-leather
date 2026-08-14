@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { CartDrawer } from "./CartDrawer";
+import { ScrollProgress } from "./ScrollProgress";
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
 
@@ -13,6 +14,7 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <ScrollProgress />
       <SiteHeader />
       <main>{children}</main>
       <SiteFooter />

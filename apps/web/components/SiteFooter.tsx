@@ -25,10 +25,11 @@ export function SiteFooter() {
         </div>
         <div>
           <div className="footer-label">Edwin</div>
+          <SmoothLink href="/about">About us</SmoothLink>
           <SmoothLink href="/story">Our story</SmoothLink>
-          <a href="mailto:care@edwinleathers.example">Contact</a>
-          <a href="#">Care guide</a>
-          <a href="#">Shipping & returns</a>
+          <SmoothLink href="/discount">Offers</SmoothLink>
+          <SmoothLink href="/contact">Contact</SmoothLink>
+          <SmoothLink href="/feedback">Feedback</SmoothLink>
         </div>
         <div>
           <div className="footer-label">Newsletter</div>
@@ -45,7 +46,7 @@ export function SiteFooter() {
       </div>
       <div className="container footer-bottom">
         <span>© {new Date().getFullYear()} Edwin Leathers</span>
-        <div><a href="#">Privacy</a><a href="#">Terms</a></div>
+        <div><SmoothLink href="/terms">Terms</SmoothLink><a href="#">Privacy</a></div>
         <span>Made for a long life.</span>
       </div>
     </footer>
