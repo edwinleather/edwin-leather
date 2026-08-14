@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/components/useAuth";
 import { CartProvider } from "@/components/CartProvider";
 import { SiteChrome } from "@/components/SiteChrome";
 import { siteConfig } from "@/lib/site-config";
@@ -17,16 +18,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className={`${manrope.variable} ${fraunces.variable}`}>
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("el-theme");if(!t){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}})();`
           }}
         />
-        <CartProvider>
-          <SiteChrome>{children}</SiteChrome>
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            <SiteChrome>{children}</SiteChrome>
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );

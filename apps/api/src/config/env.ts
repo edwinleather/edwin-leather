@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 function value(name: string, fallback = "") {
   return process.env[name] ?? fallback;
 }
@@ -11,6 +13,9 @@ export const env = {
   jwtSecret: value("JWT_SECRET", "DEMO_REPLACE_ME"),
   jwtExpiresIn: value("JWT_EXPIRES_IN", "7d"),
   cookieName: value("COOKIE_NAME", "edwin_session"),
+  googleClientId: value("GOOGLE_CLIENT_ID"),
+  emailApiKey: value("EMAIL_API_KEY"),
+  emailFrom: value("EMAIL_FROM", "Edwin Leathers <onboarding@resend.dev>"),
   razorpayKeyId: value("RAZORPAY_KEY_ID"),
   razorpayKeySecret: value("RAZORPAY_KEY_SECRET"),
   razorpayWebhookSecret: value("RAZORPAY_WEBHOOK_SECRET"),

@@ -1,4 +1,6 @@
-import { Schema, model, models } from "mongoose";
+import mongoose from "mongoose";
+
+const { Schema, model, models } = mongoose;
 
 const addressSchema = new Schema(
   {
@@ -19,7 +21,9 @@ const addressSchema = new Schema(
 const userSchema = new Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-    passwordHash: { type: String, required: true },
+    passwordHash: String,
+    provider: { type: String, enum: ["email", "google"], default: "email", index: true },
+    googleId: { type: String, index: true },
     firstName: String,
     lastName: String,
     phone: String,

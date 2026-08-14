@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useAuth } from "./useAuth";
 import { useCart } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
 import { ThemeToggle } from "./ThemeToggle";
@@ -20,7 +21,9 @@ const nav = [
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { count, openCart } = useCart();
+  const { user } = useAuth();
   const pathname = usePathname();
+  const accountHref = user ? "/account" : "/login";
 
   return (
     <>
@@ -45,7 +48,7 @@ export function SiteHeader() {
           <div className="header-actions">
             <ThemeToggle />
             <SmoothLink href="/shop" className="header-action desktop-only" ariaLabel="Search products"><Search size={18} /></SmoothLink>
-            <SmoothLink href="/account" className="header-action desktop-only" ariaLabel="Account"><UserRound size={18} /></SmoothLink>
+            <SmoothLink href={accountHref} className="header-action desktop-only" ariaLabel="Account"><UserRound size={18} /></SmoothLink>
             <SmoothLink href="/shop" className="button button--cream header-cta desktop-only">Shop now</SmoothLink>
             <button className="header-action cart-button" onClick={openCart} aria-label={`Open cart with ${count} items`}>
               <ShoppingBag size={18} />
@@ -75,7 +78,7 @@ export function SiteHeader() {
               ))}
             </motion.nav>
             <div className="mobile-menu__footer">
-              <SmoothLink href="/account" onClick={() => setMenuOpen(false)}>Account</SmoothLink>
+              <SmoothLink href={accountHref} onClick={() => setMenuOpen(false)}>Account</SmoothLink>
               <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>
             </div>
           </motion.div>

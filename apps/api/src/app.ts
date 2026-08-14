@@ -4,6 +4,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { env } from "./config/env.js";
+import { accountRouter } from "./routes/account.js";
 import { authRouter } from "./routes/auth.js";
 import { healthRouter } from "./routes/health.js";
 import { ordersRouter } from "./routes/orders.js";
@@ -27,6 +28,7 @@ app.use(express.json({ limit: "1mb" }));
 
 app.use("/api/v1/health", healthRouter);
 app.use("/api/v1/products", productsRouter);
+app.use("/api/v1/account", accountRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/orders", ordersRouter);
 app.use("/api/v1/payments", paymentsRouter);
