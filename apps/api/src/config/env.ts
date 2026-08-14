@@ -19,10 +19,7 @@ export const env = {
   razorpayKeyId: value("RAZORPAY_KEY_ID"),
   razorpayKeySecret: value("RAZORPAY_KEY_SECRET"),
   razorpayWebhookSecret: value("RAZORPAY_WEBHOOK_SECRET"),
-  shiprocketTrackingBaseUrl: value("SHIPROCKET_TRACKING_BASE_URL", "https://shiprocket.co/tracking/"),
-  googleClientId: value("GOOGLE_CLIENT_ID"),
-  emailApiKey: value("EMAIL_API_KEY"),
-  emailFrom: value("EMAIL_FROM", "Edwin Leathers <orders@example.com>")
+  shiprocketTrackingBaseUrl: value("SHIPROCKET_TRACKING_BASE_URL", "https://shiprocket.co/tracking/")
 };
 
 export const isConfigured = (input: string) => Boolean(input && !input.includes("DEMO") && !input.includes("demo"));

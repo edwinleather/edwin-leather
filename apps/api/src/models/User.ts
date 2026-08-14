@@ -1,8 +1,5 @@
 import mongoose from "mongoose";
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
 const { Schema, model, models } = mongoose;
 
 const addressSchema = new Schema(
@@ -24,13 +21,7 @@ const addressSchema = new Schema(
 const userSchema = new Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-<<<<<<< Updated upstream
-    passwordHash: String,
-    provider: { type: String, enum: ["email", "google"], default: "email", index: true },
-    googleId: { type: String, index: true },
-=======
     passwordHash: { type: String, required: false },
->>>>>>> Stashed changes
     firstName: String,
     lastName: String,
     phone: { type: String, trim: true },

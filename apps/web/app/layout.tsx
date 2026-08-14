@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "@/components/useAuth";
 import { CartProvider } from "@/components/CartProvider";
 import { SiteChrome } from "@/components/SiteChrome";
 import { siteConfig } from "@/lib/site-config";
@@ -25,11 +24,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             __html: `(function(){try{var t=localStorage.getItem("el-theme");if(!t){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}})();`
           }}
         />
-        <AuthProvider>
-          <CartProvider>
-            <SiteChrome>{children}</SiteChrome>
-          </CartProvider>
-        </AuthProvider>
+        <CartProvider>
+          <SiteChrome>{children}</SiteChrome>
+        </CartProvider>
       </body>
     </html>
   );
