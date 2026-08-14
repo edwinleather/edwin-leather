@@ -35,7 +35,7 @@ export default function AccountPage() {
       return;
     }
     fetchMe().catch(() => {});
-    Promise.all([fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1"}/account/orders`, { credentials: "include" }).then((r) => r.json()).catch(() => ({ orders: [] })), fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1"}/account/addresses`, { credentials: "include" }).then((r) => r.json()).catch(() => ({ addresses: [] }))]).then(([o, a]) => {
+    Promise.all([fetch(`${process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1"}/account/orders`, { credentials: "include" }).then((r) => r.json()).catch(() => ({ orders: [] })), fetch(`${process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1"}/account/addresses`, { credentials: "include" }).then((r) => r.json()).catch(() => ({ addresses: [] }))]).then(([o, a]) => {
       setOrders(o.orders ?? []);
       setAddresses(a.addresses ?? []);
       setOrdersLoading(false);

@@ -18,6 +18,7 @@
     "node": ">=20.11.0"
   },
   "devDependencies": {
-    "concurrently": "latest"
+    "concurrently": "latest",
+    "serverless-http": "^4.0.0"
   }
 }

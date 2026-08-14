@@ -1,7 +1,7 @@
 import type { Product } from "./types";
 import { products as demoProducts, categories as demoCategories } from "./demo-data";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
 type ApiImage = { url: string; alt?: string };
 type ApiVariant = { _id: string; label: string; sku: string; color: string; size?: string; inventoryAvailable: number };
