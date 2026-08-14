@@ -6,7 +6,7 @@ function value(name: string, fallback = "") {
 
 export const env = {
   port: Number(value("PORT", "4000")),
-  nodeEnv: value("NODE_ENV", "development"),
+  nodeEnv: value("NODE_ENV") || value("APP_ENV", "development"),
   demoMode: value("DEMO_MODE", "true") === "true",
   clientUrl: value("CLIENT_URL", "http://localhost:3000"),
   mongoUri: value("MONGODB_URI"),
