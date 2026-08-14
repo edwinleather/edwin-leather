@@ -1,0 +1,23 @@
+{
+  "name": "edwin-leathers",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c auto \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace @edwin/web",
+    "dev:api": "npm run dev --workspace @edwin/api",
+    "build": "npm run build --workspace @edwin/web && npm run build --workspace @edwin/api",
+    "start:web": "npm run start --workspace @edwin/web",
+    "start:api": "npm run start --workspace @edwin/api"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "devDependencies": {
+    "concurrently": "latest"
+  }
+}
