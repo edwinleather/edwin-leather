@@ -1,13 +1,18 @@
-import { ArrowUpRight } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { ArrowUpRight, Check } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
 import { SmoothLink } from "./SmoothLink";
 
 export function SiteFooter() {
+  const [joined, setJoined] = useState(false);
+
   return (
     <footer className="site-footer">
       <div className="container footer-grid">
         <div className="footer-brand">
-          <div className="brand brand--footer"><span className="brand__mark">E</span><span className="brand__word">EDWIN <i>LEATHERS</i></span></div>
+          <div className="brand brand--footer"><span className="brand__mark">E</span><span className="brand__word">EDWIN <i>Leathers</i></span></div>
           <p>{siteConfig.description}</p>
           <a href={siteConfig.instagram} target="_blank" rel="noreferrer">Instagram <ArrowUpRight size={14} /></a>
         </div>
@@ -28,10 +33,14 @@ export function SiteFooter() {
         <div>
           <div className="footer-label">Newsletter</div>
           <p className="muted">Occasional notes about new leather, new objects, and the workshop.</p>
-          <form className="newsletter-form">
-            <input type="email" placeholder="Email address" aria-label="Email address" />
-            <button type="button" aria-label="Join newsletter"><ArrowUpRight size={18} /></button>
-          </form>
+          {joined ? (
+            <p className="newsletter-success">You&rsquo;re on the list. First letters hit your inbox soon. <Check size={14} /></p>
+          ) : (
+            <form className="newsletter-form" onSubmit={(event) => { event.preventDefault(); setJoined(true); }}>
+              <input required type="email" placeholder="Email address" aria-label="Email address" />
+              <button type="submit" aria-label="Join newsletter"><ArrowUpRight size={18} /></button>
+            </form>
+          )}
         </div>
       </div>
       <div className="container footer-bottom">

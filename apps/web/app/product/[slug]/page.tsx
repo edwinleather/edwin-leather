@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ProductPurchasePanel } from "@/components/ProductPurchasePanel";
 import { ProductCard } from "@/components/ProductCard";
 import { Reveal } from "@/components/Reveal";
+import { SmartImage } from "@/components/SmartImage";
 import { getProductBySlug, products } from "@/lib/demo-data";
 
 export function generateStaticParams() {
@@ -28,17 +28,18 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <div className="product-detail container-wide">
         <div className="product-gallery">
           <div className="product-gallery__primary">
-            <Image
+            <SmartImage
               src={product.images[0]}
               alt={product.name}
-              fill
               priority
               sizes="(max-width: 900px) 100vw, 58vw"
+              className="product-gallery__image"
               style={{ viewTransitionName: `product-${product.slug}` }}
             />
+            <span className="gallery-count">01 / {Math.min(product.images.length, 2).toString().padStart(2, "0")}</span>
           </div>
           {product.images[1] && (
-            <div className="product-gallery__secondary"><Image src={product.images[1]} alt={`${product.name} detail`} fill sizes="(max-width: 900px) 100vw, 58vw" /></div>
+            <div className="product-gallery__secondary"><SmartImage src={product.images[1]} alt={`${product.name} detail`} sizes="(max-width: 900px) 100vw, 58vw" className="product-gallery__image" /></div>
           )}
         </div>
         <ProductPurchasePanel product={product} />

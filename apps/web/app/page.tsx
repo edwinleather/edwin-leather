@@ -1,5 +1,7 @@
 import { Hero } from "@/components/Hero";
 import { BrandMarquee, CategoryRail, EditorialSplit, FeaturedSection, NewArrivalsSection } from "@/components/HomeSections";
+import { StatsBar } from "@/components/StatsBar";
+import { Testimonials } from "@/components/Testimonials";
 
 export default function HomePage() {
   return (
@@ -8,7 +10,9 @@ export default function HomePage() {
       <BrandMarquee />
       <FeaturedSection />
       <EditorialSplit />
+      <StatsBar />
       <CategoryRail />
+      <Testimonials />
       <NewArrivalsSection />
       <section className="closing-statement">
         <div className="container">

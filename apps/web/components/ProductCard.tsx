@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { ArrowUpRight, Plus } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { SmoothLink } from "./SmoothLink";
+import { SmartImage } from "./SmartImage";
 import { useCart } from "./CartProvider";
 
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
@@ -15,20 +15,19 @@ export function ProductCard({ product, priority = false }: { product: Product; p
     <article className="product-card">
       <div className="product-card__media">
         <SmoothLink href={`/product/${product.slug}`} ariaLabel={`View ${product.name}`}>
-          <Image
+          <SmartImage
             src={product.images[0]}
             alt={product.name}
-            fill
             priority={priority}
             sizes="(max-width: 700px) 82vw, (max-width: 1100px) 44vw, 31vw"
             className="product-card__image"
             style={{ viewTransitionName: `product-${product.slug}` }}
           />
           {product.images[1] && (
-            <Image
+            <SmartImage
               src={product.images[1]}
               alt=""
-              fill
+              crossfade={false}
               sizes="(max-width: 700px) 82vw, (max-width: 1100px) 44vw, 31vw"
               className="product-card__image product-card__image--alt"
             />

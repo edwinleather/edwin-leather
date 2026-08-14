@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useCart } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
+import { ThemeToggle } from "./ThemeToggle";
 import { siteConfig } from "@/lib/site-config";
 
 const nav = [
@@ -18,6 +20,7 @@ const nav = [
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { count, openCart } = useCart();
+  const pathname = usePathname();
 
   return (
     <>
@@ -28,17 +31,22 @@ export function SiteHeader() {
             <Menu size={20} />
           </button>
           <nav className="desktop-nav" aria-label="Primary navigation">
-            {nav.slice(0, 3).map(([label, href]) => <SmoothLink key={label} href={href}>{label}</SmoothLink>)}
+            {nav.slice(0, 3).map(([label, href]) => (
+              <SmoothLink key={label} href={href} className={pathname.startsWith("/shop") && !href.includes("?category=") && href === "/shop" ? "active" : ""}>{label}</SmoothLink>
+            ))}
+            <SmoothLink href="/shop?category=Travel">Travel</SmoothLink>
           </nav>
 
           <SmoothLink href="/" className="brand" ariaLabel="Edwin Leathers home">
             <span className="brand__mark">E</span>
-            <span className="brand__word">EDWIN <i>LEATHERS</i></span>
+            <span className="brand__word">EDWIN <i>Leathers</i></span>
           </SmoothLink>
 
           <div className="header-actions">
+            <ThemeToggle />
             <SmoothLink href="/shop" className="header-action desktop-only" ariaLabel="Search products"><Search size={18} /></SmoothLink>
             <SmoothLink href="/account" className="header-action desktop-only" ariaLabel="Account"><UserRound size={18} /></SmoothLink>
+            <SmoothLink href="/shop" className="button button--cream header-cta desktop-only">Shop now</SmoothLink>
             <button className="header-action cart-button" onClick={openCart} aria-label={`Open cart with ${count} items`}>
               <ShoppingBag size={18} />
               <span className="cart-count">{count}</span>
@@ -51,7 +59,7 @@ export function SiteHeader() {
         {menuOpen && (
           <motion.div className="mobile-menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="mobile-menu__top">
-              <div className="brand brand--light"><span className="brand__mark">E</span><span className="brand__word">EDWIN <i>LEATHERS</i></span></div>
+              <div className="brand brand--light"><span className="brand__mark">E</span><span className="brand__word">EDWIN <i>Leathers</i></span></div>
               <button className="icon-button icon-button--light" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button>
             </div>
             <motion.nav

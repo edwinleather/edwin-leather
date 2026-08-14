@@ -1,17 +1,17 @@
-import Image from "next/image";
 import { ArrowUpRight, CircleCheck, Sparkles } from "lucide-react";
 import { featuredProducts, newArrivals } from "@/lib/demo-data";
 import { ProductCard } from "./ProductCard";
 import { ProductGrid } from "./ProductGrid";
 import { Reveal } from "./Reveal";
+import { SmartImage } from "./SmartImage";
 import { SmoothLink } from "./SmoothLink";
 
 export function FeaturedSection() {
   return (
     <section className="section container" id="featured">
       <div className="section-heading">
-        <div><span className="eyebrow">Current selection</span><h2>Objects for the everyday.</h2></div>
-        <SmoothLink href="/shop" className="underlined-link">Shop all <ArrowUpRight size={14} /></SmoothLink>
+        <Reveal><div><span className="eyebrow">Current selection</span><h2>Objects for the everyday.</h2></div></Reveal>
+        <Reveal delay={0.08}><SmoothLink href="/shop" className="underlined-link">Shop all <ArrowUpRight size={14} /></SmoothLink></Reveal>
       </div>
       <ProductGrid products={featuredProducts} />
     </section>
@@ -22,10 +22,9 @@ export function EditorialSplit() {
   return (
     <section className="editorial-split">
       <div className="editorial-split__media">
-        <Image
-          src="https://images.unsplash.com/photo-1523779917675-b6ed3a42a561?auto=format&fit=crop&w=1800&q=88"
+        <SmartImage
+          src="https://images.unsplash.com/photo-1523779917675-b6ed3a42a561?auto=format&fit=crop&w=1600&q=82"
           alt="Leather craft detail"
-          fill
           sizes="(max-width: 800px) 100vw, 58vw"
         />
       </div>
@@ -57,12 +56,12 @@ export function CategoryRail() {
 
   return (
     <section className="category-section section">
-      <div className="container section-heading"><div><span className="eyebrow">Shop by ritual</span><h2>Where will it go with you?</h2></div></div>
+      <div className="container section-heading"><Reveal><div><span className="eyebrow">Shop by ritual</span><h2>Where will it go with you?</h2></div></Reveal></div>
       <div className="category-rail container-wide">
         {cards.map(([title, copy, image], index) => (
           <Reveal key={title} delay={index * 0.07}>
             <SmoothLink href={`/shop?category=${title}`} className="category-card">
-              <Image src={image} alt={title} fill sizes="(max-width: 720px) 85vw, 32vw" />
+              <SmartImage src={image} alt={title} sizes="(max-width: 720px) 85vw, 32vw" />
               <div className="category-card__shade" />
               <div className="category-card__content"><span>0{index + 1}</span><div><h3>{title}</h3><p>{copy}</p></div><ArrowUpRight size={18} /></div>
             </SmoothLink>
@@ -78,8 +77,8 @@ export function NewArrivalsSection() {
     <section className="section section--sand">
       <div className="container">
         <div className="section-heading">
-          <div><span className="eyebrow">Recently cut</span><h2>New to the bench.</h2></div>
-          <span className="section-note"><Sparkles size={15} /> Demo collection</span>
+          <Reveal><div><span className="eyebrow">Recently cut</span><h2>New to the bench.</h2></div></Reveal>
+          <Reveal delay={0.08}><span className="section-note"><Sparkles size={15} /> Demo collection</span></Reveal>
         </div>
         <div className="new-arrivals-grid">
           {newArrivals.slice(0, 3).map((product, index) => <ProductCard key={product.id} product={product} priority={index === 0} />)}

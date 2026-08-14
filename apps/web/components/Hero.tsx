@@ -1,12 +1,14 @@
 "use client";
 
-import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
-import { ArrowDown, ArrowUpRight } from "lucide-react";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { ArrowDown, ArrowUpRight, Sparkles } from "lucide-react";
 import { SmoothLink } from "./SmoothLink";
+import { SmartImage } from "./SmartImage";
 
 export function Hero() {
   const reduce = useReducedMotion();
+  const { scrollY } = useScroll();
+  const parallax = useTransform(scrollY, [0, 700], [0, reduce ? 0 : 110]);
   return (
     <section className="hero">
       <motion.div
@@ -14,11 +16,11 @@ export function Hero() {
         initial={reduce ? false : { scale: 1.04, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
+        style={{ y: parallax }}
       >
-        <Image
-          src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=2200&q=92"
+        <SmartImage
+          src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1920&q=80"
           alt="Rich brown leather travel bag"
-          fill
           priority
           sizes="100vw"
           className="hero__image"
@@ -33,11 +35,14 @@ export function Hero() {
           animate="show"
           variants={{ show: { transition: { staggerChildren: 0.09, delayChildren: 0.16 } } }}
         >
+          <motion.span className="hero__badge" variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
+            <Sparkles size={13} /> New season · The Everyday Edit
+          </motion.span>
           <motion.span className="hero__eyebrow" variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
             Leather goods, made to gather stories
           </motion.span>
           <motion.h1 variants={{ hidden: { opacity: 0, y: 22 }, show: { opacity: 1, y: 0 } }}>
-            Better with<br /><em>every year.</em>
+            Objects for<br /><em>your next decade.</em>
           </motion.h1>
           <motion.p variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0 } }}>
             Full-grain leather. Considered proportions. Hardware that earns its patina. Objects for the everyday, without the disposable part.
@@ -48,6 +53,9 @@ export function Hero() {
           </motion.div>
         </motion.div>
 
+        <div className="hero__meta">
+          <span>Est. 2026</span><i /><span>Hand-finished in India</span><i /><span>Free shipping over ₹2,499</span>
+        </div>
         <div className="hero__index">EST. / 2026</div>
         <a href="#featured" className="hero__scroll" aria-label="Scroll to products"><ArrowDown size={17} /></a>
       </div>

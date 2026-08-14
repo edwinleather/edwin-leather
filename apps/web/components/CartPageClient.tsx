@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
+import { SmartImage } from "./SmartImage";
 import { formatPrice } from "@/lib/format";
 
 export function CartPageClient() {
@@ -17,7 +17,7 @@ export function CartPageClient() {
           <div className="cart-page-lines">
             {items.map((item) => (
               <article className="cart-page-line" key={item.lineId}>
-                <SmoothLink href={`/product/${item.slug}`} className="cart-page-line__media"><Image src={item.image} alt={item.name} fill sizes="160px" /></SmoothLink>
+                <SmoothLink href={`/product/${item.slug}`} className="cart-page-line__media"><SmartImage src={item.image} alt={item.name} sizes="160px" /></SmoothLink>
                 <div className="cart-page-line__copy">
                   <div><SmoothLink href={`/product/${item.slug}`} className="cart-page-line__name">{item.name}</SmoothLink><p>{item.variantLabel}</p></div>
                   <div className="cart-page-line__actions">

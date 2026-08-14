@@ -13,7 +13,8 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
   const variant = useMemo(() => product.variants.find((item) => item.id === variantId) ?? product.variants[0], [product, variantId]);
 
   return (
-    <div className="purchase-panel">
+    <>
+      <div className="purchase-panel">
       <div className="product-detail__heading">
         <span className="eyebrow">{product.collection}</span>
         <h1>{product.name}</h1>
@@ -60,6 +61,12 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
       <details className="product-accordion" open><summary>Details</summary><ul>{product.details.map((detail) => <li key={detail}>{detail}</li>)}</ul></details>
       <details className="product-accordion"><summary>Leather & care</summary><p>Natural leather develops a patina. Wipe gently with a dry cloth, condition sparingly, and store away from prolonged moisture or direct heat.</p></details>
       <details className="product-accordion"><summary>Shipping & returns</summary><p>Demo policy: ships in 2–4 business days. Replace this copy with your real shipping, exchange, and return policy before launch.</p></details>
-    </div>
+      </div>
+
+      <div className="purchase-bar" hidden={variant.inventory <= 0}>
+        <div className="purchase-bar__price"><b>{formatPrice(product.price * quantity)}</b><span>{variant.label}</span></div>
+        <button className="button button--dark" onClick={() => addItem(product, variant, quantity)}>Add to bag <Plus size={15} /></button>
+      </div>
+    </>
   );
 }
