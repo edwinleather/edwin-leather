@@ -1,5 +1,4 @@
 import type { Product } from "./types";
-import { products as demoProducts, categories as demoCategories } from "./demo-data";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
@@ -21,25 +20,27 @@ type ApiProduct = {
 };
 
 function mapProduct(api: ApiProduct): Product {
-  const demo = demoProducts.find((item) => item.slug === api.slug);
   return {
     id: String(api._id),
     slug: api.slug,
     name: api.name,
-    subtitle: api.subtitle ?? demo?.subtitle ?? "",
+    subtitle: api.subtitle ?? "",
     category: api.category,
-    collection: api.collection ?? demo?.collection ?? "",
+    collection: api.collection ?? "",
     price: api.price,
-    compareAtPrice: api.compareAtPrice ?? demo?.compareAtPrice,
-    badge: demo?.badge,
+    compareAtPrice: api.compareAtPrice,
     description: api.description,
-    details: demo?.details ?? [],
-    images: api.images?.length ? api.images.map((image) => image.url) : (demo?.images ?? []),
-    variants: api.variants?.length
-      ? api.variants.map((variant) => ({ id: String(variant._id), label: variant.label, sku: variant.sku, color: variant.color, size: variant.size, inventory: variant.inventoryAvailable }))
-      : (demo?.variants ?? []),
-    featured: api.featured ?? demo?.featured,
-    newArrival: demo?.newArrival
+    details: [],
+    images: (api.images ?? []).map((image) => image.url),
+    variants: (api.variants ?? []).map((variant) => ({
+      id: String(variant._id),
+      label: variant.label,
+      sku: variant.sku,
+      color: variant.color,
+      size: variant.size,
+      inventory: variant.inventoryAvailable
+    })),
+    featured: api.featured
   };
 }
 
@@ -58,18 +59,16 @@ async function fetchJson<T>(path: string): Promise<T | null> {
 
 export async function getCatalog(): Promise<Product[]> {
   const body = await fetchJson<{ data?: ApiProduct[] }>("/products");
-  if (body?.data?.length && Boolean((body.data[0] as ApiProduct)._id)) return body.data.map(mapProduct);
-  return demoProducts;
+  if (!body?.data?.length) return [];
+  return body.data.map(mapProduct);
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   const body = await fetchJson<{ data?: ApiProduct }>(`/products/${slug}`);
-  if (body?.data?._id) return mapProduct(body.data);
-  return demoProducts.find((item) => item.slug === slug) ?? null;
+  return body?.data?._id ? mapProduct(body.data) : null;
 }
 
 export async function getCategories(): Promise<string[]> {
   const body = await fetchJson<{ data?: { name: string }[] }>("/categories");
-  if (body?.data?.length) return ["All", ...body.data.map((item) => item.name)];
-  return demoCategories;
+  return body?.data?.length ? ["All", ...body.data.map((item) => item.name)] : ["All"];
 }

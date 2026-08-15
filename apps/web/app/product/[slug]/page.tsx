@@ -5,12 +5,10 @@ import { ProductCard } from "@/components/ProductCard";
 import { Reveal } from "@/components/Reveal";
 import { SmartImage } from "@/components/SmartImage";
 import { getCatalog, getProductBySlug } from "@/lib/catalog";
-import { products as demoProducts } from "@/lib/demo-data";
 
 export async function generateStaticParams() {
   const catalog = await getCatalog();
-  const slugs = catalog.length ? catalog.map((product) => ({ slug: product.slug })) : demoProducts.map((product) => ({ slug: product.slug }));
-  return slugs;
+  return catalog.map((product) => ({ slug: product.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

@@ -7,13 +7,11 @@ import { SmoothLink } from "./SmoothLink";
 import { SmartImage } from "./SmartImage";
 import { formatPrice } from "@/lib/format";
 import { siteConfig } from "@/lib/site-config";
-import { products } from "@/lib/demo-data";
 
 export function CartDrawer() {
-  const { items, subtotal, isOpen, closeCart, removeItem, setQuantity, addItem } = useCart();
+  const { items, subtotal, isOpen, closeCart, removeItem, setQuantity } = useCart();
   const progress = Math.min((subtotal / siteConfig.shippingThreshold) * 100, 100);
   const remaining = Math.max(siteConfig.shippingThreshold - subtotal, 0);
-  const suggestions = items.length > 0 ? products.filter((item) => !items.some((cart) => cart.productId === item.id)).slice(0, 2) : [];
 
   return (
     <AnimatePresence>
@@ -88,23 +86,6 @@ export function CartDrawer() {
 
             {items.length > 0 && (
               <>
-                <div className="drawer-suggestions">
-                  <div className="drawer-suggestions__head">Complete your edit</div>
-                  {suggestions.map((product) => {
-                    const variant = product.variants.find((item) => item.inventory > 0) ?? product.variants[0];
-                    return (
-                      <div className="drawer-suggestion" key={product.id}>
-                        <SmoothLink href={`/product/${product.slug}`} className="drawer-suggestion__img" onClick={closeCart}>
-                          <SmartImage src={product.images[0]} alt={product.name} sizes="46px" />
-                        </SmoothLink>
-                        <SmoothLink href={`/product/${product.slug}`} onClick={closeCart}>
-                          <strong>{product.name}</strong><span>{formatPrice(product.price)}</span>
-                        </SmoothLink>
-                        <button onClick={() => addItem(product, variant)} aria-label={`Add ${product.name}`}><Plus size={16} /></button>
-                      </div>
-                    );
-                  })}
-                </div>
                 <div className="drawer-footer">
                 <div className="drawer-total"><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div>
                 <p className="muted tiny">Taxes included where applicable. Shipping calculated at checkout.</p>

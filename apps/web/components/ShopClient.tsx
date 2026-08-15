@@ -3,15 +3,14 @@
 import { useMemo, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import type { Product } from "@/lib/types";
-import { categories as demoCategories, products as demoProducts } from "@/lib/demo-data";
 import { ProductGrid } from "./ProductGrid";
 
 type SortKey = "featured" | "price-low" | "price-high" | "name";
 
 export function ShopClient({
   initialCategory = "All",
-  products = demoProducts,
-  categories = demoCategories
+  products = [],
+  categories = ["All"]
 }: {
   initialCategory?: string;
   products?: Product[];
