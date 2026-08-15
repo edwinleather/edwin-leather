@@ -1,8 +1,14 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
-import rateLimit from "express-rate-limit";
-import helmet from "helmet";
+import * as helmetModule from "helmet";
+import * as rateLimitModule from "express-rate-limit";
+
+// helmet@8 and express-rate-limit@8 are dual ESM/CJS packages; under NodeNext
+// the default import resolves to the module namespace, so grab the callable
+// from the `default` export (works in both CJS and ESM at runtime).
+const helmet = helmetModule.default;
+const rateLimit = rateLimitModule.default;
 import { env } from "./config/env.js";
 import { accountRouter } from "./routes/account.js";
 import { adminRouter } from "./routes/admin.js";
