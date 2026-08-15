@@ -12,3 +12,5 @@ dist
 *.log
 *.tsbuildinfo
 coverage
+vercel.env
+netlify.env
