@@ -12,6 +12,10 @@ type ApiProduct = {
   description: string;
   category: string;
   collection?: string;
+  brand?: string;
+  hsn?: string;
+  gst?: number;
+  deliveryBy?: string;
   price: number;
   compareAtPrice?: number;
   images?: ApiImage[];
@@ -27,6 +31,10 @@ function mapProduct(api: ApiProduct): Product {
     subtitle: api.subtitle ?? "",
     category: api.category,
     collection: api.collection ?? "",
+    brand: api.brand,
+    hsn: api.hsn,
+    gst: api.gst,
+    deliveryBy: api.deliveryBy,
     price: api.price,
     compareAtPrice: api.compareAtPrice,
     description: api.description,

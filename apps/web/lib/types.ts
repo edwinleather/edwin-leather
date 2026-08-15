@@ -14,6 +14,10 @@ export type Product = {
   subtitle: string;
   category: string;
   collection: string;
+  brand?: string;
+  hsn?: string;
+  gst?: number;
+  deliveryBy?: string;
   price: number;
   compareAtPrice?: number;
   badge?: string;

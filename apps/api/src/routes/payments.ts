@@ -5,7 +5,9 @@ import Razorpay from "razorpay";
 import { env, isConfigured } from "../config/env.js";
 import { databaseReady } from "../config/db.js";
 import { ApiError } from "../middleware/error.js";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { Order } from "../models/Order.js";
+import { sendOrderEmail } from "../services/email.js";
 
 export const paymentsRouter = Router();
 
@@ -22,12 +24,12 @@ const createOrderSchema = z.object({
 });
 
 // Server-authoritative amount; creates a real Razorpay order (test mode with test keys).
-paymentsRouter.post("/create-order", async (req, res, next) => {
+paymentsRouter.post("/create-order", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     if (!databaseReady()) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
     const input = createOrderSchema.parse(req.body);
 
-    const order = await Order.findById(input.orderId);
+    const order = await Order.findOne({ _id: input.orderId, customerId: req.auth!.sub });
     if (!order) return next(new ApiError(404, "Order not found"));
 
     const amount = Math.round(order.total * 100);
@@ -53,12 +55,12 @@ paymentsRouter.post("/create-order", async (req, res, next) => {
 const verifySchema = z.object({ orderId: z.string().min(1), paymentId: z.string().min(1), signature: z.string().min(1) });
 
 // Client returns here after Razorpay checkout completes; verifies the signature and marks the order paid.
-paymentsRouter.post("/verify", async (req, res, next) => {
+paymentsRouter.post("/verify", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     if (!databaseReady()) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
     const input = verifySchema.parse(req.body);
 
-    const order = await Order.findOne({ "payment.gatewayOrderId": input.orderId });
+    const order = await Order.findOne({ "payment.gatewayOrderId": input.orderId, customerId: req.auth!.sub });
     if (!order) return next(new ApiError(404, "Order not found"));
 
     const client = razorpay();
@@ -67,9 +69,10 @@ paymentsRouter.post("/verify", async (req, res, next) => {
 
     order.payment.status = "paid";
     order.payment.gatewayPaymentId = input.paymentId;
-    if (order.orderStatus === "pending_payment") order.orderStatus = "confirmed";
-    order.timeline.push({ type: "confirmed", message: "Payment received", at: new Date(), actorId: order.customerId });
+    if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
+    order.timeline.push({ type: "order_received", message: "Payment received — order received", at: new Date(), actorId: order.customerId });
     await order.save();
+    if (order.orderStatus === "order_received") sendOrderEmail(order as never, "paid").catch(() => undefined);
 
     return res.json({ ok: true, status: order.orderStatus });
   } catch (error) {
@@ -99,9 +102,10 @@ paymentsRouter.post("/webhook", async (req, res, next) => {
       if (order) {
         order.payment.status = "paid";
         order.payment.gatewayPaymentId = entity.id;
-        if (order.orderStatus === "pending_payment") order.orderStatus = "confirmed";
-        order.timeline.push({ type: "confirmed", message: "Payment confirmed (webhook)", at: new Date() });
+        if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
+        order.timeline.push({ type: "order_received", message: "Payment confirmed — order received", at: new Date() });
         await order.save();
+        if (order.orderStatus === "order_received") sendOrderEmail(order as never, "paid").catch(() => undefined);
       }
     }
 

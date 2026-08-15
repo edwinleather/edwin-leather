@@ -52,6 +52,16 @@ export async function seedDatabase() {
       );
     }
 
+    // Merge newly-added features (inventory, reviews, shipping, homepage, …) into
+    // roles that were saved before those features existed, so existing admins get
+    // them without needing a manual re-save.
+    for (const role of ADMIN_ROLES) {
+      await RolePermission.updateOne(
+        { role },
+        { $addToSet: { features: { $each: DEFAULT_FEATURES[role] } } }
+      );
+    }
+
     for (const [email, role] of [
       ...env.superadminEmails.map((e) => [e, "superadmin"] as const),
       ...env.adminEmails.map((e) => [e, "admin"] as const)

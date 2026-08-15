@@ -3,7 +3,8 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Phone, UserRound } from "lucide-react";
-import { login, signup, verifyOtp, resendOtp } from "@/lib/api";
+import { completeFirebaseAuth } from "@/lib/api";
+import { createAccountWithEmail, signInWithPassword, sendPasswordReset, currentIdToken, firebaseConfigured } from "@/lib/firebase";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useAuth } from "@/components/useAuth";
 
@@ -24,7 +25,7 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
   const { refresh } = useAuth();
 
   const [mode, setMode] = useState<Mode>(initialMode);
-  const [view, setView] = useState<"form" | "otp">("form");
+  const [view, setView] = useState<"form" | "reset">("form");
   const [showPassword, setShowPassword] = useState(false);
 
   const [email, setEmail] = useState("");
@@ -33,7 +34,6 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [code, setCode] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -42,89 +42,98 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
   function switchMode(next: Mode) {
     setMode(next);
     setView("form");
-    setCode("");
     setError(null);
     setNote(null);
+  }
+
+  async function finishSession(idToken: string, extra?: { firstName?: string; lastName?: string; phone?: string }) {
+    const result = await completeFirebaseAuth(idToken, extra);
+    if (!result.ok) throw new Error(result.error);
+    await refresh();
+    router.push(returnTo);
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
 
+    if (!firebaseConfigured()) {
+      setError("Firebase isn't configured yet. Add your NEXT_PUBLIC_FIREBASE_* values first.");
+      return;
+    }
+
     if (mode === "signup") {
       if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
       if (password !== confirmPassword) { setError("Passwords do not match."); return; }
       setBusy(true);
-      const result = await signup({ firstName, lastName: lastName || undefined, email, phone, password });
-      setBusy(false);
-      if (!result.ok) { setError(result.error ?? "Could not create your account."); return; }
-      setView("otp");
-      setNote(result.devOtp ? `Dev mode — your code is ${result.devOtp}` : "We sent a one-time code to your email. Enter it below to activate your account.");
+      try {
+        await createAccountWithEmail(email, password);
+        try {
+          localStorage.setItem("el-pending-profile", JSON.stringify({ firstName, lastName: lastName || undefined, phone }));
+        } catch { /* ignore */ }
+        setView("reset");
+        setNote("We've created your account and sent a verification link to your email. Open it to activate your account.");
+      } catch (cause) {
+        setError(messageOf(cause));
+      } finally {
+        setBusy(false);
+      }
       return;
     }
 
     setBusy(true);
-    const result = await login({ email, password });
-    setBusy(false);
-    if (!result.ok) {
-      if (result.code === "EMAIL_NOT_VERIFIED") {
-        setView("otp");
-        setNote("Your email isn't verified yet. Enter the code we sent, or resend it.");
-        const resent = await resendOtp(email);
-        if (resent.devOtp) setNote(`Dev mode — your code is ${resent.devOtp}`);
+    try {
+      const user = await signInWithPassword(email, password);
+      if (!user.emailVerified) {
+        setError("Please verify your email before signing in. Check your inbox for the verification link.");
         return;
       }
-      setError(result.error);
-      return;
+      let extra: { firstName?: string; lastName?: string; phone?: string } | undefined;
+      try {
+        const pending = localStorage.getItem("el-pending-profile");
+        if (pending) {
+          extra = JSON.parse(pending);
+          localStorage.removeItem("el-pending-profile");
+        }
+      } catch { /* ignore */ }
+      const idToken = await currentIdToken();
+      await finishSession(idToken, extra);
+    } catch (cause) {
+      setError(messageOf(cause));
+    } finally {
+      setBusy(false);
     }
-    await refresh();
-    router.push(returnTo);
   }
 
-  async function handleVerify(event: React.FormEvent) {
+  async function handleForgot(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    if (!firebaseConfigured()) { setError("Firebase isn't configured yet."); return; }
     setBusy(true);
-    const result = await verifyOtp({ email, code });
-    setBusy(false);
-    if (!result.ok) { setError(result.error); return; }
-    await refresh();
-    router.push(returnTo);
+    try {
+      await sendPasswordReset(email);
+      setView("reset");
+      setNote("If an account exists for that email, a password reset link is on its way. Open it to set a new password.");
+    } catch (cause) {
+      setError(messageOf(cause));
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function handleResend() {
-    setError(null);
-    const result = await resendOtp(email);
-    if (!result.ok) setError(result.error ?? "Could not resend the code.");
-    else setNote(result.devOtp ? `Dev mode — your code is ${result.devOtp}` : "A new code has been sent.");
-  }
+  const goBackToForm = () => { setView("form"); setError(null); setNote(null); };
 
-  const goBackToForm = () => { setView("form"); setCode(""); setError(null); };
-
-  if (view === "otp") {
+  if (view === "reset") {
     return (
       <div className="auth-card">
         <div className="auth-card__heading">
-          <span className="eyebrow">Confirm your email</span>
-          <h1>One last step.</h1>
-          <p>Enter the code we sent to <strong>{email}</strong>. It expires in 10 minutes.</p>
+          <span className="eyebrow">Check your inbox</span>
+          <h1>Almost there.</h1>
+          <p><strong>{email || "Your email"}</strong> should receive a link from Edwin. Open it to continue, then come back and sign in.</p>
         </div>
         {error && <p className="auth-error">{error}</p>}
         {note && <p className="auth-note">{note}</p>}
-        <form className="auth-form" onSubmit={handleVerify}>
-          <label>
-            One-time code
-            <span className="input-shell">
-              <LockKeyhole size={16} />
-              <input required inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="••••••" />
-            </span>
-          </label>
-          <button className="button button--dark button--full" type="submit" disabled={code.length !== 6 || busy}>
-            {busy ? "Verifying…" : "Verify & continue"} <ArrowRight size={15} />
-          </button>
-          <button type="button" className="text-button" onClick={handleResend}>Resend code</button>
-        </form>
-        <p className="auth-switch"><button type="button" className="text-button" onClick={goBackToForm}>Back to {mode === "login" ? "log in" : "sign up"}</button></p>
+        <p className="auth-switch"><button type="button" className="text-button" onClick={goBackToForm}>Back to sign in</button></p>
       </div>
     );
   }
@@ -182,13 +191,14 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
         <button className="button button--dark button--full" type="submit" disabled={busy}>
           {busy ? (mode === "login" ? "Signing in…" : "Creating account…") : (mode === "login" ? "Sign in" : "Create account")} <ArrowRight size={15} />
         </button>
+        {mode === "login" && <button type="button" className="text-button" onClick={handleForgot}>Forgot your password?</button>}
       </form>
 
       <div className="auth-divider"><span>or</span></div>
 
       <GoogleSignInButton
         label={mode === "login" ? "Continue with Google" : "Sign up with Google"}
-        onSuccess={() => router.push(returnTo)}
+        onSuccess={async () => { await refresh(); router.push(returnTo); }}
         onError={(message) => setError(message)}
       />
 
@@ -198,4 +208,15 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
       </p>
     </div>
   );
+}
+
+function messageOf(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (/email-already-in-use/i.test(message)) return "An account with that email already exists. Try signing in instead.";
+  if (/wrong-password|invalid-credential|invalid-login/i.test(message)) return "Invalid email or password.";
+  if (/user-not-found/i.test(message)) return "No account found for that email.";
+  if (/weak-password/i.test(message)) return "Password must be at least 6 characters.";
+  if (/network-request-failed/i.test(message)) return "Could not reach Firebase. Check your connection.";
+  if (/configuration-not-found/i.test(message)) return "Firebase isn't configured for this project yet.";
+  return message || "Something went wrong. Please try again.";
 }

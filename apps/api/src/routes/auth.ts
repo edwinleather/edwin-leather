@@ -1,29 +1,21 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import { OAuth2Client } from "google-auth-library";
 import { z } from "zod";
 import { databaseReady } from "../config/db.js";
 import { env, isConfigured } from "../config/env.js";
+import { verifyFirebaseToken } from "../config/firebase.js";
 import { User } from "../models/User.js";
+import { AdminUser } from "../models/backoffice.js";
 import { ApiError } from "../middleware/error.js";
-import { createAndSendOtp, verifyOtp } from "../services/otp.js";
 
 export const authRouter = Router();
 
-const credentialsSchema = z.object({ email: z.string().email(), password: z.string().min(8).max(128) });
-
-const signupSchema = z.object({
-  firstName: z.string().min(2).max(60),
+const firebaseSchema = z.object({
+  idToken: z.string().min(10),
+  firstName: z.string().min(2).max(60).optional(),
   lastName: z.string().max(60).optional(),
-  email: z.string().email(),
-  phone: z.string().min(8).max(16),
-  password: z.string().min(8).max(128)
+  phone: z.string().min(8).max(16).optional()
 });
-
-const otpSchema = z.object({ email: z.string().email(), code: z.string().regex(/^\d{6}$/) });
-const resendSchema = z.object({ email: z.string().email() });
-const googleSchema = z.object({ credential: z.string().min(10) });
 
 function issueSession(res: import("express").Response, payload: { sub: string; role: string; email: string }) {
   if (!isConfigured(env.jwtSecret)) throw new ApiError(503, "JWT_SECRET is not configured");
@@ -41,126 +33,72 @@ function publicUser(user: { _id: unknown; email: string; role: string; firstName
   return { id: user._id, email: user.email, role: user.role, firstName: user.firstName, phone: user.phone, emailVerified: Boolean(user.emailVerifiedAt) };
 }
 
-async function googleClient() {
-  if (!isConfigured(env.googleClientId)) throw new ApiError(503, "Google sign-in is not configured. Add GOOGLE_CLIENT_ID.");
-  return new OAuth2Client(env.googleClientId);
-}
-
-authRouter.post("/signup", async (req, res, next) => {
+// Every Firebase sign-in (email/password, Google, magic link) lands here with an
+// ID token. The backend verifies it, links a MongoDB user by Firebase UID, and
+// issues the same httpOnly session cookie used by every protected route.
+authRouter.post("/firebase", async (req, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "MongoDB is required for signup. Configure MONGODB_URI first."));
-    const input = signupSchema.parse(req.body);
-    const existing = await User.findOne({ email: input.email });
-    if (existing) return next(new ApiError(409, "An account with that email already exists"));
+    if (!databaseReady()) return next(new ApiError(503, "MongoDB is required for authentication. Configure MONGODB_URI first."));
+    const input = firebaseSchema.parse(req.body);
+    const payload = await verifyFirebaseToken(input.idToken);
+    if (!payload?.uid || !payload.email) return next(new ApiError(401, "Invalid or expired session token"));
 
-    const passwordHash = await bcrypt.hash(input.password, 12);
-    await User.create({
-      email: input.email,
-      passwordHash,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      phone: input.phone,
-      provider: "local",
-      role: "customer"
-    });
-
-    const otp = await createAndSendOtp(input.email, "signup");
-    return res.status(201).json({
-      ok: true,
-      message: "Verification code sent to your email",
-      devOtp: env.nodeEnv === "production" ? undefined : otp.devCode,
-      cooldownMs: otp.cooldownMs
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid signup input", error.flatten()));
-    return next(error);
-  }
-});
-
-authRouter.post("/verify-otp", async (req, res, next) => {
-  try {
-    if (!databaseReady()) return next(new ApiError(503, "MongoDB is required for verification. Configure MONGODB_URI first."));
-    const input = otpSchema.parse(req.body);
-    const result = await verifyOtp(input.email, input.code, "signup");
-    if (!result.ok) return next(new ApiError(400, result.error));
-
-    const user = await User.findOne({ email: input.email });
-    if (!user) return next(new ApiError(404, "No account found for that email"));
-    if (user.provider === "google") return next(new ApiError(400, "This account uses Google sign-in"));
-
-    user.emailVerifiedAt = new Date();
-    await user.save();
-    issueSession(res, { sub: String(user._id), role: user.role, email: user.email });
-    return res.json({ ok: true, user: publicUser(user) });
-  } catch (error) {
-    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid verification input", error.flatten()));
-    return next(error);
-  }
-});
-
-authRouter.post("/resend-otp", async (req, res, next) => {
-  try {
-    if (!databaseReady()) return next(new ApiError(503, "MongoDB is required for verification. Configure MONGODB_URI first."));
-    const input = resendSchema.parse(req.body);
-    const otp = await createAndSendOtp(input.email, "signup");
-    if (otp.cooldownMs > 0) return next(new ApiError(429, "Please wait before requesting another code", { cooldownMs: otp.cooldownMs }));
-    return res.json({ ok: true, message: "Verification code sent", devOtp: env.nodeEnv === "production" ? undefined : otp.devCode });
-  } catch (error) {
-    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
-    return next(error);
-  }
-});
-
-authRouter.post("/login", async (req, res, next) => {
-  try {
-    if (!databaseReady()) return next(new ApiError(503, "MongoDB is required for login. Configure MONGODB_URI first."));
-    const input = credentialsSchema.parse(req.body);
-    const user = await User.findOne({ email: input.email });
-    if (!user || !user.passwordHash || !(await bcrypt.compare(input.password, user.passwordHash))) {
-      return next(new ApiError(401, "Invalid email or password"));
+    if (!payload.email_verified) {
+      return next(new ApiError(403, "Please verify your email before continuing.", { code: "EMAIL_NOT_VERIFIED" }));
     }
-    if (!user.emailVerifiedAt) return next(new ApiError(403, "Please verify your email first", { code: "EMAIL_NOT_VERIFIED" }));
-    issueSession(res, { sub: String(user._id), role: user.role, email: user.email });
-    return res.json({ ok: true, user: publicUser(user) });
-  } catch (error) {
-    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid login input", error.flatten()));
-    return next(error);
-  }
-});
 
-authRouter.post("/google", async (req, res, next) => {
-  try {
-    if (!databaseReady()) return next(new ApiError(503, "MongoDB is required for Google sign-in. Configure MONGODB_URI first."));
-    const input = googleSchema.parse(req.body);
-    const client = await googleClient();
-    const ticket = await client.verifyIdToken({ idToken: input.credential, audience: env.googleClientId });
-    const payload = ticket.getPayload();
-    if (!payload?.email) return next(new ApiError(400, "Google did not return an email address"));
+    const email = payload.email.toLowerCase().trim();
+    let user = await User.findOne({ email });
 
-    let user = await User.findOne({ email: payload.email });
     if (!user) {
       user = await User.create({
-        email: payload.email,
-        firstName: payload.given_name,
-        lastName: payload.family_name,
-        provider: "google",
-        googleId: payload.sub,
+        email,
+        firebaseUid: payload.uid,
+        provider: "firebase",
         role: "customer",
+        firstName: input.firstName ?? payload.name?.split(" ")[0],
+        lastName: input.lastName,
+        phone: input.phone,
         emailVerifiedAt: new Date()
       });
     } else {
-      if (!user.googleId) {
-        user.googleId = payload.sub;
-        if (user.provider === "local" && payload.email_verified) user.emailVerifiedAt = user.emailVerifiedAt ?? new Date();
-      }
-      user.firstName = user.firstName ?? payload.given_name;
+      if (!user.firebaseUid) user.firebaseUid = payload.uid;
+      user.provider = "firebase";
+      user.emailVerifiedAt = user.emailVerifiedAt ?? new Date();
+      if (input.firstName && !user.firstName) user.firstName = input.firstName;
+      if (input.lastName && !user.lastName) user.lastName = input.lastName;
+      if (input.phone && !user.phone) user.phone = input.phone;
       await user.save();
+    }
+
+    // Bootstrap / re-link the superadmin backoffice user.
+    if (env.firebaseSuperadminEmail && email === env.firebaseSuperadminEmail) {
+      const existingAdmin = await AdminUser.findOne({ email });
+      if (existingAdmin) {
+        if (String(existingAdmin.appUserId) !== String(user._id)) {
+          existingAdmin.appUserId = user._id;
+          existingAdmin.role = "superadmin";
+          existingAdmin.active = true;
+          await existingAdmin.save();
+        }
+      } else {
+        await AdminUser.create({
+          email,
+          role: "superadmin",
+          name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          appUserId: user._id,
+          active: true,
+          permissions: []
+        });
+      }
     }
 
     issueSession(res, { sub: String(user._id), role: user.role, email: user.email });
     return res.json({ ok: true, user: publicUser(user) });
   } catch (error) {
-    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid sign-in input", error.flatten()));
     return next(error);
   }
 });

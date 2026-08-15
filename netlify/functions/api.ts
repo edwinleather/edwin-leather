@@ -3,6 +3,7 @@ import { app } from "../../apps/api/src/app.js";
 import { connectDatabase, databaseReady } from "../../apps/api/src/config/db.js";
 import { seedDatabase } from "../../apps/api/src/config/seed.js";
 import { Product } from "../../apps/api/src/models/Product.js";
+import { seedDeliveryConfig } from "../../apps/api/src/services/delivery.js";
 
 const FUNCTION_PREFIX = "/.netlify/functions/api";
 
@@ -22,6 +23,7 @@ let connecting: Promise<void> | null = null;
 async function seedIfCatalogEmpty(): Promise<void> {
   try {
     if ((await Product.countDocuments()) === 0) await seedDatabase();
+    await seedDeliveryConfig();
   } catch (error) {
     console.error("[api] Seeding skipped:", error);
   }

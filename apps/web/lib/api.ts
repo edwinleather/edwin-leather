@@ -1,7 +1,52 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
+export type DeliveryConfig = {
+  defaultFee: number;
+  stateFees: { state: string; fee: number }[];
+  freeDeliveryThreshold: number;
+};
+
+export async function getDeliveryConfig(): Promise<DeliveryConfig | null> {
+  try {
+    const response = await fetch(`${API_URL}/delivery/config`, { credentials: "include" });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function adminSaveDelivery(config: DeliveryConfig): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/admin/delivery`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(config)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || `Save failed (${response.status})` };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Could not reach the admin service." };
+  }
+}
+
+export async function adminGetDelivery(): Promise<DeliveryConfig | null> {
+  try {
+    const response = await fetch(`${API_URL}/admin/delivery`, { credentials: "include" });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export type PlaceOrderPayload = {
   email: string;
+  customerId?: string;
   paymentMethod: "razorpay" | "cod";
   items: { productId: string; variantId: string; quantity: number }[];
   couponCode?: string;
@@ -22,16 +67,22 @@ export type OrderResponse = {
   email: string;
   orderStatus: string;
   paymentStatus: string;
+  paymentMethod: string;
   subtotal: number;
   shippingAmount: number;
   discountAmount: number;
   total: number;
   currency: string;
+  lines: { productId: string; sku: string; name: string; variantLabel?: string; quantity: number; unitPrice: number; lineTotal: number }[];
+  shippingAddress?: { fullName?: string; line1?: string; line2?: string; city?: string; state?: string; postalCode?: string; phone?: string };
+  tracking?: { awb?: string; trackingId?: string; courier?: string; deliveryPartnerName?: string; trackingUrl?: string };
+  timeline?: { type: string; message?: string; at: string }[];
+  createdAt?: string;
 };
 
 export type PlaceOrderResult =
-  | { ok: true; demo: boolean; order: OrderResponse }
-  | { ok: false; demo?: boolean; error: string };
+  | { ok: true; order: OrderResponse }
+  | { ok: false; error: string };
 
 export async function placeOrder(payload: PlaceOrderPayload): Promise<PlaceOrderResult> {
   try {
@@ -43,11 +94,144 @@ export async function placeOrder(payload: PlaceOrderPayload): Promise<PlaceOrder
     });
     const body = await response.json().catch(() => null);
     if (!response.ok) {
-      return { ok: false, demo: Boolean(body?.demo), error: body?.error || `Request failed (${response.status})` };
+      return { ok: false, error: body?.error || `Request failed (${response.status})` };
     }
-    return { ok: true, demo: Boolean(body?.demo), order: body?.order };
+    return { ok: true, order: body?.order };
   } catch {
     return { ok: false, error: "Could not reach the checkout service. Your order was not charged." };
+  }
+}
+
+export type CouponValidation = { valid: boolean; amount: number; freeShipping: boolean; note: string };
+
+export async function validateCoupon(payload: { code: string; state?: string; items: { productId: string; variantId: string; quantity: number }[] }): Promise<CouponValidation | null> {
+  try {
+    const response = await fetch(`${API_URL}/orders/validate-coupon`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.ok) return null;
+    return body.data as CouponValidation;
+  } catch {
+    return null;
+  }
+}
+
+export async function getOrder(orderId: string): Promise<OrderResponse | null> {
+  try {
+    const response = await fetch(`${API_URL}/account/orders/${orderId}`, { credentials: "include" });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.ok) return null;
+    return body.order as OrderResponse;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateProfile(payload: { firstName?: string; lastName?: string; phone?: string }): Promise<{ ok: boolean; error?: string; user?: { _id: string; firstName?: string; lastName?: string; phone?: string; email: string; provider?: string } }> {
+  try {
+    const response = await fetch(`${API_URL}/account/me`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error };
+    return { ok: true, user: body?.user };
+  } catch {
+    return { ok: false, error: "Could not update your profile." };
+  }
+}
+
+export async function changePassword(payload: { currentPassword: string; newPassword: string }): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { changePassword: firebaseChangePassword } = await import("@/lib/firebase");
+    await firebaseChangePassword(payload.currentPassword, payload.newPassword);
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not change your password.";
+    if (/wrong-password|invalid-credential|invalid/i.test(message)) {
+      return { ok: false, error: "Your current password is incorrect." };
+    }
+    return { ok: false, error: "Could not change your password." };
+  }
+}
+
+export async function logout() {
+  try {
+    await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include" });
+  } catch {
+    // ignore — session will be cleared client-side regardless
+  }
+}
+
+export type Address = {
+  _id?: string;
+  label?: string;
+  fullName: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  phone: string;
+  isDefault?: boolean;
+};
+
+export async function getAddresses(): Promise<Address[] | null> {
+  try {
+    const response = await fetch(`${API_URL}/account/addresses`, { credentials: "include" });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.ok) return null;
+    return body.addresses;
+  } catch {
+    return null;
+  }
+}
+
+export async function addAddress(address: Address): Promise<{ ok: boolean; error?: string; addresses?: Address[] }> {
+  try {
+    const response = await fetch(`${API_URL}/account/addresses`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(address)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error };
+    return { ok: true, addresses: body.addresses };
+  } catch {
+    return { ok: false, error: "Could not add the address." };
+  }
+}
+
+export async function updateAddress(addressId: string, address: Partial<Address>): Promise<{ ok: boolean; error?: string; addresses?: Address[] }> {
+  try {
+    const response = await fetch(`${API_URL}/account/addresses/${addressId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(address)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error };
+    return { ok: true, addresses: body.addresses };
+  } catch {
+    return { ok: false, error: "Could not update the address." };
+  }
+}
+
+export async function deleteAddress(addressId: string): Promise<{ ok: boolean; addresses?: Address[] }> {
+  try {
+    const response = await fetch(`${API_URL}/account/addresses/${addressId}`, { method: "DELETE", credentials: "include" });
+    const body = await response.json().catch(() => null);
+    return { ok: response.ok, addresses: body?.addresses };
+  } catch {
+    return { ok: false };
   }
 }
 
@@ -87,6 +271,43 @@ export async function verifyPayment(orderId: string, paymentId: string, signatur
   }
 }
 
+export type CartLine = {
+  lineId: string;
+  productId: string;
+  variantId: string;
+  slug?: string;
+  name?: string;
+  image?: string;
+  price?: number;
+  variantLabel?: string;
+  quantity: number;
+};
+
+export async function getCart(): Promise<CartLine[] | null> {
+  try {
+    const response = await fetch(`${API_URL}/cart`, { credentials: "include" });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return Array.isArray(body?.items) ? body.items : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveCart(items: CartLine[]): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_URL}/cart`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ items })
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export type AuthUser = {
   id: string;
   email: string;
@@ -97,63 +318,25 @@ export type AuthUser = {
 };
 
 export type AuthResult =
-  | { ok: true; user: AuthUser }
-  | { ok: false; error: string; code?: string; devOtp?: string };
+  | { ok: true; user: AuthUser; message?: string }
+  | { ok: false; error: string; code?: string };
 
-async function authRequest(path: string, payload: unknown): Promise<AuthResult> {
+// Exchange a Firebase ID token for the httpOnly session cookie.
+export async function completeFirebaseAuth(idToken: string, extra?: { firstName?: string; lastName?: string; phone?: string }): Promise<AuthResult> {
   try {
-    const response = await fetch(`${API_URL}/auth/${path}`, {
+    const response = await fetch(`${API_URL}/auth/firebase`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ idToken, ...extra })
     });
     const body = await response.json().catch(() => null);
     if (!response.ok) {
-      return { ok: false, error: body?.error || `Request failed (${response.status})`, code: body?.details?.code, devOtp: body?.devOtp };
+      return { ok: false, error: body?.error || `Request failed (${response.status})`, code: body?.details?.code };
     }
-    return { ok: true, user: body?.user };
+    return { ok: true, user: body?.user, message: body?.message };
   } catch {
     return { ok: false, error: "Could not reach the authentication service." };
-  }
-}
-
-export function signup(payload: { firstName: string; lastName?: string; email: string; phone: string; password: string }) {
-  return authRequest("signup", payload) as Promise<{ ok: boolean } & { devOtp?: string; cooldownMs?: number; message?: string; error?: string; code?: string }>;
-}
-
-export function verifyOtp(payload: { email: string; code: string }) {
-  return authRequest("verify-otp", payload);
-}
-
-export function resendOtp(email: string) {
-  return authRequest("resend-otp", { email }) as Promise<{ ok: boolean } & { devOtp?: string; message?: string; error?: string; code?: string }>;
-}
-
-export function login(payload: { email: string; password: string }) {
-  return authRequest("login", payload);
-}
-
-const DB_NOT_READY = /mongodb is required|database unavailable|database.*not ready/i;
-
-async function retryWhenDbCold(request: () => Promise<AuthResult>): Promise<AuthResult> {
-  let result = await request();
-  for (let attempt = 0; attempt < 2 && !result.ok && DB_NOT_READY.test(result.error || ""); attempt++) {
-    await new Promise((r) => setTimeout(r, 1200 + attempt * 600));
-    result = await request();
-  }
-  return result;
-}
-
-export function loginWithGoogle(credential: string) {
-  return retryWhenDbCold(() => authRequest("google", { credential }));
-}
-
-export async function logout() {
-  try {
-    await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include" });
-  } catch {
-    // ignore — session will be cleared client-side regardless
   }
 }
 

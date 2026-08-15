@@ -79,26 +79,7 @@ Frontend checkout surface:
 
 Do not mark an order as paid from browser state. Verify Razorpay signatures/webhooks on the API.
 
-## 5. Shiprocket
-
-Dashboard: `https://app.shiprocket.in/`
-API docs: `https://apidocs.shiprocket.in/`
-
-Replace:
-
-```env
-SHIPROCKET_EMAIL=
-SHIPROCKET_PASSWORD=
-SHIPROCKET_TRACKING_BASE_URL=
-```
-
-Backend boundary:
-
-- `apps/api/src/routes/shipping.ts`
-
-Store AWB, courier, shipment ID, and tracking URL on the order after shipment creation.
-
-## 6. Cloudinary
+## 5. Cloudinary
 
 Console: `https://console.cloudinary.com/`
 Docs: `https://cloudinary.com/documentation`
@@ -117,7 +98,7 @@ Then replace demo image URLs in:
 
 For production uploads, validate MIME type, file size, dimensions, and authenticated upload signatures on the backend.
 
-## 7. Resend transactional email
+## 6. Resend transactional email
 
 Dashboard: `https://resend.com/`
 Docs: `https://resend.com/docs`
@@ -140,32 +121,32 @@ Recommended events:
 - cancellation
 - refund initiated
 
-## 8. Authentication
+## 7. Authentication
 
-Replace:
+Auth is Firebase (credential verification) + the `edwin_session` httpOnly JWT cookie.
 
-```env
-JWT_SECRET=
-JWT_EXPIRES_IN=7d
-COOKIE_NAME=edwin_session
-```
+The web app signs in with Firebase (email/password, Google popup), then posts the ID token to the backend, which verifies it with the Admin SDK, upserts the Mongo user, and issues the session cookie.
 
-Complete production auth in:
+Backend:
 
-- `apps/api/src/routes/auth.ts`
-- `apps/api/src/middleware/auth.ts`
+- `apps/api/src/config/firebase.ts` — Admin SDK init (`FIREBASE_PROJECT_ID` + `FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY`, or `GOOGLE_APPLICATION_CREDENTIALS`)
+- `apps/api/src/routes/auth.ts` — `POST /auth/firebase` exchanges the ID token for the session; `POST /auth/logout`
+- `apps/api/src/middleware/auth.ts` — verifies the `edwin_session` cookie
+
+Web:
+
+- `apps/web/lib/firebase.ts` — client SDK wrappers (email/password, Google, password reset, change password)
+- `apps/web/components/AuthPanel.tsx` — login / signup / forgot-password UI
 
 Required before launch:
 
-- bcrypt password hashing
-- HttpOnly secure cookies
-- CSRF strategy if using cookie auth
-- email verification if desired
-- password-reset token workflow
-- backend role checks for admin/superadmin
-- login throttling / brute-force protection
+- Firebase console: enable Email/Password + Google sign-in providers
+- `FIREBASE_SUPERADMIN_EMAIL` set to the store owner's email (bootstraps the backoffice superadmin on first sign-in)
+- Firebase accounts must have verified emails (the backend rejects unverified sign-ins)
+- `JWT_SECRET` — long random value; `JWT_EXPIRES_IN=7d`; `COOKIE_NAME=edwin_session`
+- HttpOnly secure cookies (production), login throttling via `express-rate-limit`
 
-## 9. Domain and Vercel
+## 8. Domain and Vercel
 
 Vercel: `https://vercel.com/`
 
@@ -185,7 +166,7 @@ NEXT_PUBLIC_SITE_URL=https://edwinleathers.in
 
 Deploy `apps/web` and `apps/api` as separate Vercel projects for the simplest setup.
 
-## 10. Analytics and monitoring
+## 9. Analytics and monitoring
 
 Google Analytics: `https://analytics.google.com/`
 Sentry: `https://sentry.io/`
@@ -205,7 +186,7 @@ Recommended commerce events:
 - `begin_checkout`
 - `purchase`
 
-## 11. Brand assets
+## 10. Brand assets
 
 Replace:
 
@@ -219,7 +200,7 @@ Optional later:
 - add real product photography via Cloudinary
 - add custom licensed brand font files only if you own redistribution/webfont rights
 
-## 12. Legal / operational content before launch
+## 11. Legal / operational content before launch
 
 Add your actual pages for:
 

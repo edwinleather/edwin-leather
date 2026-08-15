@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "firebase": "^12.17.1",
     "framer-motion": "latest",
     "lucide-react": "latest",
     "next": "latest",

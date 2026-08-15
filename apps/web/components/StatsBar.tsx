@@ -2,11 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { animate, useInView, useReducedMotion } from "framer-motion";
+import { useSiteSettings } from "@/lib/site-settings";
 import { Reveal } from "./Reveal";
 
 type Stat = { value: number; mark?: string; label: string };
 
-const stats: Stat[] = [
+const DEFAULT_STATS = [
   { value: 8, label: "Objects in the collection" },
   { value: 60, label: "Hours of craft per piece" },
   { value: 100, mark: "%", label: "Full-grain leather, always" },
@@ -39,15 +40,18 @@ function StatValue({ stat }: { stat: Stat }) {
 }
 
 export function StatsBar() {
+  const { settings } = useSiteSettings();
+  const s = settings?.homepage?.stats;
+  const items = s?.items?.length ? s.items : DEFAULT_STATS;
   return (
     <section className="stats-section container">
       <div className="stats-head">
-        <Reveal><span className="eyebrow">By the numbers</span><h2>Slow is the point.</h2></Reveal>
-        <Reveal delay={0.08}><p>Small batches, deliberate choices, and a workshop that measures quality in decades rather than drops.</p></Reveal>
+        <Reveal><span className="eyebrow">{s?.eyebrow || "By the numbers"}</span><h2>{s?.title || "Slow is the point."}</h2></Reveal>
+        <Reveal delay={0.08}><p>{s?.note || "Small batches, deliberate choices, and a workshop that measures quality in decades rather than drops."}</p></Reveal>
       </div>
       <div className="stats-grid">
-        {stats.map((stat, index) => (
-          <Reveal key={stat.label} delay={index * 0.06} className="stat">
+        {items.map((stat, index) => (
+          <Reveal key={`${stat.label}-${index}`} delay={index * 0.06} className="stat">
             <StatValue stat={stat} />
             <div className="stat__label">{stat.label}</div>
           </Reveal>

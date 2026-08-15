@@ -101,3 +101,27 @@ accountRouter.get("/orders", async (req: AuthenticatedRequest, res, next) => {
     return next(error);
   }
 });
+
+accountRouter.get("/orders/:orderId", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    const order = await Order.findOne({ _id: req.params.orderId, customerId: req.auth!.sub });
+    if (!order) return next(new ApiError(404, "Order not found"));
+    return res.json({ ok: true, order: orderResponse(order) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+accountRouter.patch("/me", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    const input = z.object({ firstName: z.string().min(2).max(60).optional(), lastName: z.string().max(60).optional(), phone: z.string().min(8).max(16).optional() }).parse(req.body);
+    const user = await User.findByIdAndUpdate(req.auth!.sub, { $set: input }, { new: true, runValidators: true }).select("-passwordHash -passwordResetTokenHash");
+    if (!user) return next(new ApiError(404, "Account not found"));
+    return res.json({ ok: true, user });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid profile input", error.flatten()));
+    return next(error);
+  }
+});

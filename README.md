@@ -6,7 +6,6 @@ A polished, responsive leather-goods storefront and commerce API scaffold built 
 - **Backend:** Node.js + Express
 - **Database:** MongoDB Atlas + Mongoose
 - **Payments:** Razorpay-ready integration boundary
-- **Shipping:** Shiprocket-ready integration boundary
 - **Images:** Cloudinary-ready configuration
 - **Email:** Resend-ready configuration
 - **Deployment:** Vercel-friendly monorepo
@@ -24,7 +23,7 @@ The project runs in **demo mode by default**, so the UI works before any paid/ex
 - Demo checkout with Razorpay / COD presentation
 - Account and order-history UI
 - Admin dashboard foundation
-- Express API with product, order, auth, payment, and shipping route boundaries
+- Express API with product, order, auth, and payment route boundaries
 - Mongoose models for users, products, orders, and coupons
 - Security middleware foundations: Helmet, CORS, rate limiting, validation-ready structure
 - Separate configuration guide with every placeholder you need to replace
@@ -56,7 +55,7 @@ npm run dev:api
 - The storefront uses local demo product data so it renders even without MongoDB.
 - Cart state is stored in localStorage.
 - Checkout does **not** charge a card or create a real shipment.
-- API payment/shipping endpoints return safe integration placeholders until credentials are added.
+- API payment endpoints return safe integration placeholders until credentials are added.
 - Authentication screens are UI foundations only; production session flows should be completed before launch.
 
 ## Project map
@@ -80,4 +79,4 @@ edwin-leathers/
 
 ## Production checklist
 
-Before using this for real orders, complete the items in `CONFIGURE_ME.md`, especially database backups, secure production secrets, Razorpay webhook verification, proper authentication, production Cloudinary upload validation, shipping credentials, email sender verification, and legal/policy pages.
+Before using this for real orders, complete the items in `CONFIGURE_ME.md`, especially database backups, secure production secrets, Razorpay webhook verification, proper authentication, production Cloudinary upload validation, email sender verification, and legal/policy pages.

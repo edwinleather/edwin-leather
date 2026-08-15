@@ -5,8 +5,10 @@ import { Minus, Plus, ShieldCheck, Truck } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
 import { useCart } from "./CartProvider";
+import { useDeliveryConfig } from "@/lib/delivery";
 
 export function ProductPurchasePanel({ product }: { product: Product }) {
+  const delivery = useDeliveryConfig();
   const [variantId, setVariantId] = useState(product.variants.find((variant) => variant.inventory > 0)?.id ?? product.variants[0].id);
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
@@ -54,7 +56,7 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
       </div>
 
       <div className="purchase-notes">
-        <span><Truck size={17} /> Complimentary shipping over ₹2,499</span>
+        <span><Truck size={17} /> Free delivery over {formatPrice(delivery.freeDeliveryThreshold)}</span>
         <span><ShieldCheck size={17} /> Secure checkout / COD available</span>
       </div>
 

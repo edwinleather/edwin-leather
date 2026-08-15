@@ -9,6 +9,9 @@ import { useCart } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
 import { ThemeToggle } from "./ThemeToggle";
 import { siteConfig } from "@/lib/site-config";
+import { useDeliveryConfig } from "@/lib/delivery";
+import { useSiteSettings } from "@/lib/site-settings";
+import { formatPrice } from "@/lib/format";
 
 const nav = [
   ["Shop", "/shop"],
@@ -23,10 +26,13 @@ export function SiteHeader() {
   const { count, openCart } = useCart();
   const { authed } = useAuth();
   const pathname = usePathname();
+  const delivery = useDeliveryConfig();
+  const { loaded, settings } = useSiteSettings();
+  const announcement = settings?.announcement?.trim() || `Free delivery across India on orders above ${formatPrice(delivery.freeDeliveryThreshold)}`;
 
   return (
     <>
-      <div className="announcement-bar">{siteConfig.announcement}</div>
+      <div className="announcement-bar" aria-hidden={!loaded ? true : undefined}>{loaded ? announcement : ""}</div>
       <header className="site-header">
         <div className="site-header__inner container-wide">
           <button className="mobile-menu-button icon-button" onClick={() => setMenuOpen(true)} aria-label="Open menu">
@@ -40,7 +46,7 @@ export function SiteHeader() {
           </nav>
 
           <SmoothLink href="/" className="brand" ariaLabel="Edwin Leathers home">
-            <span className="brand__mark">E</span>
+            <img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} />
             <span className="brand__word">EDWIN <i>Leathers</i></span>
           </SmoothLink>
 
@@ -61,7 +67,7 @@ export function SiteHeader() {
         {menuOpen && (
           <motion.div className="mobile-menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="mobile-menu__top">
-              <div className="brand brand--light"><span className="brand__mark">E</span><span className="brand__word">EDWIN <i>Leathers</i></span></div>
+              <div className="brand brand--light"><img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} /><span className="brand__word">EDWIN <i>Leathers</i></span></div>
               <button className="icon-button icon-button--light" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button>
             </div>
             <motion.nav

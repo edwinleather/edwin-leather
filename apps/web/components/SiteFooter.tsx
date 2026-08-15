@@ -1,18 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowUpRight, Check } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
 import { SmoothLink } from "./SmoothLink";
 
 export function SiteFooter() {
-  const [joined, setJoined] = useState(false);
-
   return (
     <footer className="site-footer">
       <div className="container footer-grid">
         <div className="footer-brand">
-          <div className="brand brand--footer"><span className="brand__mark">E</span><span className="brand__word">EDWIN <i>Leathers</i></span></div>
+          <div className="brand brand--footer"><img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} /><span className="brand__word">EDWIN <i>Leathers</i></span></div>
           <p>{siteConfig.description}</p>
           <a href={siteConfig.instagram} target="_blank" rel="noreferrer">Instagram <ArrowUpRight size={14} /></a>
         </div>
@@ -32,22 +29,21 @@ export function SiteFooter() {
           <SmoothLink href="/feedback">Feedback</SmoothLink>
         </div>
         <div>
-          <div className="footer-label">Newsletter</div>
-          <p className="muted">Occasional notes about new leather, new objects, and the workshop.</p>
-          {joined ? (
-            <p className="newsletter-success">You&rsquo;re on the list. First letters hit your inbox soon. <Check size={14} /></p>
-          ) : (
-            <form className="newsletter-form" onSubmit={(event) => { event.preventDefault(); setJoined(true); }}>
-              <input required type="email" placeholder="Email address" aria-label="Email address" />
-              <button type="submit" aria-label="Join newsletter"><ArrowUpRight size={18} /></button>
-            </form>
-          )}
+          <div className="footer-label">Help</div>
+          <SmoothLink href="/shipping-policy">Shipping policy</SmoothLink>
+          <SmoothLink href="/returns-policy">Returns &amp; refunds</SmoothLink>
+          <SmoothLink href="/terms">Terms &amp; conditions</SmoothLink>
+          <SmoothLink href="/privacy">Privacy policy</SmoothLink>
         </div>
       </div>
       <div className="container footer-bottom">
         <span>© {new Date().getFullYear()} Edwin Leathers</span>
-        <div><SmoothLink href="/terms">Terms</SmoothLink><a href="#">Privacy</a></div>
+        <div><SmoothLink href="/terms">Terms</SmoothLink><SmoothLink href="/privacy">Privacy</SmoothLink></div>
         <span>Made for a long life.</span>
+      </div>
+      <div className="container footer-business">
+        <span>{siteConfig.storeName} · {siteConfig.phone} · {siteConfig.supportEmail}</span>
+        <span>© {new Date().getFullYear()} Edwin Leathers. All rights reserved.</span>
       </div>
     </footer>
   );

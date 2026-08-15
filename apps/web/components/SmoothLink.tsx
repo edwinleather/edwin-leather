@@ -24,11 +24,21 @@ export function SmoothLink({
     onClick?.();
 
     const documentWithTransitions = document as Document & {
-      startViewTransition?: (callback: () => void) => void;
+      startViewTransition?: (callback: () => void) => {
+        finished: Promise<void>;
+      };
     };
 
     if (documentWithTransitions.startViewTransition) {
-      documentWithTransitions.startViewTransition(() => router.push(href));
+      try {
+        const transition = documentWithTransitions.startViewTransition(() => router.push(href));
+        // Transitions are aborted (InvalidStateError) on rapid navigation or
+        // when a new transition starts before the previous one finished.
+        // The navigation itself already happened, so swallow the rejection.
+        transition.finished.catch(() => undefined);
+      } catch {
+        router.push(href);
+      }
     } else {
       router.push(href);
     }

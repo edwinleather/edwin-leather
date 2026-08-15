@@ -1,89 +1,51 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { loginWithGoogle } from "@/lib/api";
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: { client_id: string; callback: (response: { credential: string }) => void; auto_select?: boolean }) => void;
-          renderButton: (parent: HTMLElement, options: { theme?: string; size?: string; width?: number; shape?: string; text?: string }) => void;
-        };
-      };
-    };
-  }
-}
-
-const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+import { useState } from "react";
+import { signInWithGoogle, currentIdToken, firebaseConfigured } from "@/lib/firebase";
+import { completeFirebaseAuth } from "@/lib/api";
 
 export function GoogleSignInButton({ onSuccess, onError, label }: { onSuccess?: (email: string) => void; onError?: (message: string) => void; label?: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const renderedRef = useRef(false);
-  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!CLIENT_ID) return;
-    if (window.google?.accounts) {
-      setReady(true);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => setReady(true);
-    script.onerror = () => setError("Google sign-in could not load. Please try again.");
-    document.head.appendChild(script);
-  }, []);
-
-  useEffect(() => {
-    if (!ready || !window.google?.accounts || !containerRef.current || renderedRef.current) return;
-    renderedRef.current = true;
-    window.google.accounts.id.initialize({
-      client_id: CLIENT_ID!,
-      auto_select: false,
-      callback: async (response) => {
-        try {
-          const result = await loginWithGoogle(response.credential);
-          if (!result.ok) {
-            setError(result.error);
-            onError?.(result.error);
-          } else {
-            onSuccess?.(result.user.email);
-          }
-        } catch {
-          setError("Google sign-in failed. Please try again.");
-          onError?.("Google sign-in failed. Please try again.");
-        }
+  async function handleClick() {
+    if (busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const user = await signInWithGoogle();
+      const idToken = await user.getIdToken();
+      const result = await completeFirebaseAuth(idToken);
+      if (!result.ok) {
+        setError(result.error);
+        onError?.(result.error);
+      } else {
+        onSuccess?.(result.user.email);
       }
-    });
-    window.google.accounts.id.renderButton(containerRef.current, {
-      theme: "outline",
-      size: "large",
-      width: 320,
-      shape: "rectangular",
-      text: (label?.toLowerCase().includes("sign in") ? "signin_with" : "continue_with") as "signin_with" | "continue_with"
-    });
-  }, [ready, label]);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Google sign-in failed. Please try again.";
+      setError(message);
+      onError?.(message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
-  if (!CLIENT_ID) {
+  if (!firebaseConfigured()) {
     return (
-      <div className="google-button google-button--disabled" title="Add NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google sign-in">
+      <button type="button" className="google-button google-button--button google-button--disabled" disabled title="Add NEXT_PUBLIC_FIREBASE_* to enable Google sign-in">
         <GoogleIcon />
         <span>{label ?? "Continue with Google"}</span>
-        <small>Not configured</small>
-      </div>
+      </button>
     );
   }
 
   return (
     <>
-      <div className="google-button">
-        {ready ? <div ref={containerRef} aria-label="Continue with Google" /> : <div className="google-button__placeholder">Loading Google sign-in…</div>}
-      </div>
+      <button type="button" className="google-button google-button--button" onClick={handleClick} disabled={busy}>
+        <GoogleIcon />
+        <span>{busy ? "Connecting…" : label ?? "Continue with Google"}</span>
+      </button>
       {error && <p className="auth-error">{error}</p>}
     </>
   );

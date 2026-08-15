@@ -5,8 +5,13 @@ import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "fr
 import { ArrowDown, ArrowUpRight, Sparkles } from "lucide-react";
 import { SmoothLink } from "./SmoothLink";
 import { SmartImage } from "./SmartImage";
+import { useDeliveryConfig } from "@/lib/delivery";
+import { useSiteSettings } from "@/lib/site-settings";
+import { formatPrice } from "@/lib/format";
 
 export function Hero() {
+  const delivery = useDeliveryConfig();
+  const { settings } = useSiteSettings();
   const reduce = useReducedMotion();
   const sectionRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start start", "end start"] });
@@ -39,7 +44,7 @@ export function Hero() {
             transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
           >
             <SmartImage
-              src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1920&q=80"
+              src={settings?.heroImage?.trim() || "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1920&q=80"}
               alt="Rich brown leather travel bag"
               priority
               sizes="100vw"
@@ -61,16 +66,17 @@ export function Hero() {
             variants={{ show: { transition: { staggerChildren: 0.09, delayChildren: 0.16 } } }}
           >
             <motion.span className="hero__badge" variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
-              <Sparkles size={13} /> New season · The Everyday Edit
+              <Sparkles size={13} /> {settings?.heroBadge || "New season · The Everyday Edit"}
             </motion.span>
             <motion.span className="hero__eyebrow" variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
-              Leather goods, made to gather stories
+              {settings?.heroEyebrow || "Leather goods, made to gather stories"}
             </motion.span>
             <motion.h1 variants={{ hidden: { opacity: 0, y: 22 }, show: { opacity: 1, y: 0 } }}>
-              Objects for<br /><em>your next decade.</em>
+              {settings?.heroTitleLine1 || "Objects for"}<br /><em>{settings?.heroTitleLine2 || "your next decade."}</em>
             </motion.h1>
             <motion.p variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0 } }}>
-              Full-grain leather. Considered proportions. Hardware that earns its patina. Objects for the everyday, without the disposable part.
+              {settings?.heroSubtitle ||
+                "Full-grain leather. Considered proportions. Hardware that earns its patina. Objects for the everyday, without the disposable part."}
             </motion.p>
             <motion.div className="hero__actions" variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0 } }}>
               <SmoothLink href="/shop" className="button button--cream">Shop the collection <ArrowUpRight size={16} /></SmoothLink>
@@ -80,7 +86,7 @@ export function Hero() {
         </motion.div>
 
         <div className="hero__meta">
-          <span>Est. 2026</span><i /><span>Hand-finished in India</span><i /><span>Free shipping over ₹2,499</span>
+          <span>Est. 2026</span><i /><span>Hand-finished in India</span><i /><span>Free delivery over {formatPrice(delivery.freeDeliveryThreshold)}</span>
         </div>
         <div className="hero__index">EST. / 2026</div>
         <a href="#featured" className="hero__scroll" aria-label="Scroll to products"><ArrowDown size={17} /></a>

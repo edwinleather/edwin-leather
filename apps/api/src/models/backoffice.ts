@@ -7,6 +7,7 @@ export type AdminRole = (typeof ADMIN_ROLES)[number];
 export const BACKOFFICE_FEATURES = [
   "overview",
   "products",
+  "inventory",
   "categories",
   "orders",
   "customers",
@@ -15,6 +16,7 @@ export const BACKOFFICE_FEATURES = [
   "refunds",
   "shipping",
   "homepage",
+  "reviews",
   "admins",
   "roles",
   "media"

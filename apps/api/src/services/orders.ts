@@ -3,9 +3,8 @@ import { Product } from "../models/Product.js";
 import { ApiError } from "../middleware/error.js";
 import { reserveStock, type StockLine } from "./inventory.js";
 import { recordCouponUsage, validateCoupon } from "./coupons.js";
-
-export const FREE_SHIPPING_THRESHOLD = 2499;
-export const STANDARD_SHIPPING = 149;
+import { computeDeliveryFee, getDeliveryConfig } from "./delivery.js";
+import { sendOrderEmail } from "./email.js";
 
 export type OrderLineInput = { productId: string; variantId: string; quantity: number };
 
@@ -73,7 +72,8 @@ export async function createOrder(input: CreateOrderInput) {
   if (orderLines.length === 0) throw new ApiError(400, "One or more cart items could not be found");
 
   const subtotal = orderLines.reduce((sum, line) => sum + line.lineTotal, 0);
-  const shippingAmount = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING;
+  const deliveryConfig = await getDeliveryConfig();
+  const shippingAmount = computeDeliveryFee(deliveryConfig, subtotal, input.shippingAddress.state);
 
   let discountAmount = 0;
   let coupon: { couponId?: string; code?: string; discountType?: string } = {};
@@ -104,7 +104,7 @@ export async function createOrder(input: CreateOrderInput) {
     coupon: discountAmount > 0 ? coupon : undefined,
     total,
     currency: "INR",
-    orderStatus: input.paymentMethod === "cod" ? "confirmed" : "pending_payment",
+    orderStatus: input.paymentMethod === "cod" ? "order_received" : "pending_payment",
     payment: {
       method: input.paymentMethod,
       status: input.paymentMethod === "cod" ? "cod_pending" : "pending"
@@ -112,10 +112,12 @@ export async function createOrder(input: CreateOrderInput) {
     shippingAddress: input.shippingAddress
   });
 
-  pushTimeline(order, input.paymentMethod === "cod" ? "confirmed" : "placed", input.paymentMethod === "cod" ? "Order confirmed, payment due on delivery" : "Order placed, payment pending");
+  pushTimeline(order, input.paymentMethod === "cod" ? "order_received" : "placed", input.paymentMethod === "cod" ? "Order received, payment due on delivery" : "Order placed, payment pending");
   await order.save();
 
   if (coupon.couponId) await recordCouponUsage(coupon.couponId);
+
+  sendOrderEmail(order as never, "placed").catch(() => undefined);
 
   return order;
 }
@@ -145,8 +147,14 @@ export function orderResponse(order: InstanceType<typeof Order>) {
     paymentStatus: order.payment.status,
     paymentMethod: order.payment.method,
     shippingStatus: order.shipping.status,
-    tracking: order.shipping.awb
-      ? { awb: order.shipping.awb, courier: order.shipping.courier, trackingUrl: order.shipping.trackingUrl }
+    tracking: order.shipping.trackingId
+      ? {
+          awb: order.shipping.awb,
+          trackingId: order.shipping.trackingId,
+          courier: order.shipping.deliveryPartnerName || order.shipping.courier,
+          deliveryPartnerName: order.shipping.deliveryPartnerName,
+          trackingUrl: order.shipping.trackingUrl
+        }
       : undefined,
     timeline: order.timeline.map((entry: { type: string; message?: string; at: Date }) => ({ type: entry.type, message: entry.message, at: entry.at })),
     createdAt: order.createdAt

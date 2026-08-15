@@ -11,7 +11,6 @@ Express API (Vercel / later move independently if needed)
    |
    +--> MongoDB Atlas (products, variants, inventory, users, carts, orders, coupons, returns)
    +--> Razorpay (online payments + refunds + webhooks)
-   +--> Shiprocket (shipment creation, AWB, tracking)
    +--> Cloudinary (product media)
    +--> Resend (transactional email)
 ```

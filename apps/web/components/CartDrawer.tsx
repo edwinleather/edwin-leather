@@ -6,12 +6,14 @@ import { useCart } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
 import { SmartImage } from "./SmartImage";
 import { formatPrice } from "@/lib/format";
-import { siteConfig } from "@/lib/site-config";
+import { useDeliveryConfig } from "@/lib/delivery";
 
 export function CartDrawer() {
   const { items, subtotal, isOpen, closeCart, removeItem, setQuantity } = useCart();
-  const progress = Math.min((subtotal / siteConfig.shippingThreshold) * 100, 100);
-  const remaining = Math.max(siteConfig.shippingThreshold - subtotal, 0);
+  const delivery = useDeliveryConfig();
+  const threshold = delivery.freeDeliveryThreshold;
+  const progress = Math.min((subtotal / threshold) * 100, 100);
+  const remaining = Math.max(threshold - subtotal, 0);
 
   return (
     <AnimatePresence>
@@ -45,7 +47,7 @@ export function CartDrawer() {
 
             <div className="shipping-progress">
               <div className="shipping-progress__copy">
-                {remaining > 0 ? `${formatPrice(remaining)} away from complimentary shipping` : "Complimentary shipping unlocked"}
+                {remaining > 0 ? `${formatPrice(remaining)} away from free delivery` : "Free delivery unlocked"}
               </div>
               <div className="shipping-progress__track"><span style={{ width: `${progress}%` }} /></div>
             </div>

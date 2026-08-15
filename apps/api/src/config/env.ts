@@ -21,7 +21,11 @@ export const env = {
   jwtSecret: value("JWT_SECRET", "DEMO_REPLACE_ME"),
   jwtExpiresIn: value("JWT_EXPIRES_IN", "7d"),
   cookieName: value("COOKIE_NAME", "edwin_session"),
-  googleClientId: value("GOOGLE_CLIENT_ID"),
+  googleApplicationCredentials: value("GOOGLE_APPLICATION_CREDENTIALS"),
+  firebaseProjectId: value("FIREBASE_PROJECT_ID"),
+  firebaseClientEmail: value("FIREBASE_CLIENT_EMAIL"),
+  firebasePrivateKey: value("FIREBASE_PRIVATE_KEY"),
+  firebaseSuperadminEmail: value("FIREBASE_SUPERADMIN_EMAIL", "").toLowerCase().trim(),
   emailApiKey: value("EMAIL_API_KEY"),
   emailFrom: value("EMAIL_FROM", "Edwin Leathers <onboarding@resend.dev>"),
   razorpayKeyId: value("RAZORPAY_KEY_ID"),
@@ -32,8 +36,7 @@ export const env = {
   cloudinaryApiSecret: value("CLOUDINARY_API_SECRET"),
   superadminEmails: list("SUPERADMIN_EMAIL"),
   adminEmails: list("ADMIN_EMAILS"),
-  sentryDsn: value("SENTRY_DSN"),
-  shiprocketTrackingBaseUrl: value("SHIPROCKET_TRACKING_BASE_URL", "https://shiprocket.co/tracking/")
+  sentryDsn: value("SENTRY_DSN")
 };
 
 export const isConfigured = (input: string) => Boolean(input && !input.includes("DEMO") && !input.includes("demo"));

@@ -8,6 +8,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 const FEATURE_LABELS: Record<string, string> = {
   overview: "Overview",
   products: "Products",
+  inventory: "Inventory",
   categories: "Categories",
   orders: "Orders",
   customers: "Customers",
@@ -16,6 +17,7 @@ const FEATURE_LABELS: Record<string, string> = {
   refunds: "Refunds",
   shipping: "Shipping",
   homepage: "Homepage editor",
+  reviews: "Reviews",
   media: "Media / Cloudinary",
   admins: "Admin users",
   roles: "Roles & permissions"

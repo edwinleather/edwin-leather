@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, CreditCard, Landmark, ShieldCheck, Tag, Truck, XCircle } from "lucide-react";
 import { useCart } from "./CartProvider";
+import { useAuth } from "./useAuth";
 import { formatPrice } from "@/lib/format";
-import { placeOrder, createRazorpayOrder, verifyPayment, type OrderResponse } from "@/lib/api";
+import { placeOrder, validateCoupon, createRazorpayOrder, verifyPayment, type OrderResponse } from "@/lib/api";
+import { INDIAN_STATES, deliveryFeeFor, useDeliveryConfig } from "@/lib/delivery";
 
-type Placed = { order: OrderResponse; demo: boolean } | null;
+type Placed = OrderResponse | null;
 
 type RazorpayResponse = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
 
@@ -27,21 +30,10 @@ function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
-function previewDiscount(code: string, subtotal: number, shipping: number): { amount: number; freeShipping: boolean; valid: boolean; note: string } {
-  const normalized = code.trim().toUpperCase();
-  if (normalized === "WELCOME10") {
-    if (subtotal < 999) return { amount: 0, freeShipping: false, valid: false, note: "Minimum order ₹999" };
-    return { amount: Math.min(Math.round(subtotal * 0.1), 500), freeShipping: false, valid: true, note: "10% off" };
-  }
-  if (normalized === "FREESHIP") {
-    if (subtotal < 1499) return { amount: 0, freeShipping: false, valid: false, note: "Minimum order ₹1,499" };
-    return { amount: shipping, freeShipping: true, valid: true, note: "Free shipping" };
-  }
-  return { amount: 0, freeShipping: false, valid: false, note: "Validated at confirmation" };
-}
-
 export function CheckoutClient() {
   const { items, subtotal, clearCart } = useCart();
+  const { authed, loading } = useAuth();
+  const router = useRouter();
   const [method, setMethod] = useState<"razorpay" | "cod">("razorpay");
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<{ amount: number; freeShipping: boolean; valid: boolean; note: string } | null>(null);
@@ -50,15 +42,39 @@ export function CheckoutClient() {
   const [placed, setPlaced] = useState<Placed>(null);
   const [pendingOrder, setPendingOrder] = useState<OrderResponse | null>(null);
   const [failed, setFailed] = useState<OrderResponse | null>(null);
+  const [state, setState] = useState("");
+  const deliveryConfig = useDeliveryConfig();
 
-  const shipping = subtotal >= 2499 || subtotal === 0 ? 0 : 149;
+  useEffect(() => {
+    if (!loading && !authed) {
+      router.replace(`/login?returnTo=${encodeURIComponent("/checkout")}&utm_source=checkout`);
+    }
+  }, [loading, authed, router]);
+
+  if (loading) {
+    return <div className="checkout-grid"><div className="muted" style={{ padding: "60px 0", textAlign: "center" }}>Checking your session…</div></div>;
+  }
+  if (!authed) {
+    return null;
+  }
+
+  const freeDelivery = subtotal === 0 || subtotal >= deliveryConfig.freeDeliveryThreshold;
+  const shipping = freeDelivery ? 0 : deliveryFeeFor(deliveryConfig, state);
   const discount = applied?.valid && applied.freeShipping ? applied.amount : (applied?.valid ? applied.amount : 0);
   const total = Math.max(0, subtotal + shipping - discount);
+  const remainingToFree = Math.max(deliveryConfig.freeDeliveryThreshold - subtotal, 0);
 
   function applyCoupon() {
     setError(null);
-    if (!coupon.trim()) return;
-    setApplied(previewDiscount(coupon, subtotal, shipping));
+    const code = coupon.trim();
+    if (!code) return;
+    validateCoupon({ code, state, items: items.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })) }).then((result) => {
+      if (!result) {
+        setApplied({ amount: 0, freeShipping: false, valid: false, note: "Could not validate the coupon." });
+        return;
+      }
+      setApplied({ amount: result.amount, freeShipping: result.freeShipping, valid: result.valid, note: result.note });
+    });
   }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -77,7 +93,7 @@ export function CheckoutClient() {
         fullName: `${String(form.get("firstName") ?? "")} ${String(form.get("lastName") ?? "")}`.trim(),
         line1: String(form.get("address") ?? ""),
         city: String(form.get("city") ?? ""),
-        state: String(form.get("state") ?? ""),
+        state,
         postalCode: String(form.get("pin") ?? ""),
         phone: String(form.get("phone") ?? "")
       }
@@ -87,13 +103,14 @@ export function CheckoutClient() {
 
     if (!result.ok) {
       setSubmitting(false);
-      setError(result.demo ? (result.error || "The order service is not live yet. Your order was not charged.") : (result.error || "Something went wrong placing your order."));
+      setError(result.error || "Something went wrong placing your order.");
       return;
     }
 
     if (method === "cod") {
       setSubmitting(false);
-      setPlaced({ order: result.order, demo: false });
+      setPlaced(result.order);
+      clearCart();
       return;
     }
 
@@ -130,7 +147,8 @@ export function CheckoutClient() {
         const verified = await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
         setSubmitting(false);
         if (verified.ok) {
-          setPlaced({ order: { ...order, orderStatus: "confirmed" }, demo: false });
+          setPlaced({ ...order, orderStatus: "order_received" });
+          clearCart();
         } else {
           setFailed(order);
         }
@@ -158,7 +176,7 @@ export function CheckoutClient() {
         </p>
         <div className="checkout-success__totals">
           <div><span>Subtotal</span><strong>{formatPrice(failed.subtotal)}</strong></div>
-          <div><span>Shipping</span><strong>{failed.shippingAmount ? formatPrice(failed.shippingAmount) : "Complimentary"}</strong></div>
+          <div><span>Delivery</span><strong>{failed.shippingAmount ? formatPrice(failed.shippingAmount) : "Free"}</strong></div>
           {failed.discountAmount > 0 && <div><span>Discount</span><strong>− {formatPrice(failed.discountAmount)}</strong></div>}
           <div className="total"><span>Total</span><strong>{formatPrice(failed.total)}</strong></div>
         </div>
@@ -170,24 +188,25 @@ export function CheckoutClient() {
     );
   }
 
-  if (placed) {
+if (placed) {
     return (
       <div className="checkout-success">
         <div className="checkout-success__icon"><Check size={28} /></div>
-        <span className="eyebrow">{placed.demo ? "Demo order" : "Order received"}</span>
-        <h2>{placed.demo ? "The flow works." : `Thank you, ${placed.order.orderNumber}.`}</h2>
+        <span className="eyebrow">Order received</span>
+        <h2>Thank you, {placed.orderNumber}.</h2>
         <p>
-          {placed.demo
-            ? "Demo confirmation. No charge, inventory mutation, email, or shipment was created. Connect MongoDB and the integrations in CONFIGURE_ME.md to go live."
-            : `Order ${placed.order.orderNumber} is ${placed.order.orderStatus === "confirmed" ? "confirmed" : "awaiting payment"}. We emailed the receipt to the address you provided.`}
+          Your order is {placed.orderStatus === "confirmed" ? "confirmed" : "awaiting payment"}. We emailed the receipt to the address you provided.
         </p>
         <div className="checkout-success__totals">
-          <div><span>Subtotal</span><strong>{formatPrice(placed.order.subtotal)}</strong></div>
-          <div><span>Shipping</span><strong>{placed.order.shippingAmount ? formatPrice(placed.order.shippingAmount) : "Complimentary"}</strong></div>
-          {placed.order.discountAmount > 0 && <div><span>Discount</span><strong>− {formatPrice(placed.order.discountAmount)}</strong></div>}
-          <div className="total"><span>Total</span><strong>{formatPrice(placed.order.total)}</strong></div>
+          <div><span>Subtotal</span><strong>{formatPrice(placed.subtotal)}</strong></div>
+          <div><span>Delivery</span><strong>{placed.shippingAmount ? formatPrice(placed.shippingAmount) : "Free"}</strong></div>
+          {placed.discountAmount > 0 && <div><span>Discount</span><strong>− {formatPrice(placed.discountAmount)}</strong></div>}
+          <div className="total"><span>Total</span><strong>{formatPrice(placed.total)}</strong></div>
         </div>
-        <button className="button button--dark" onClick={() => { clearCart(); setPlaced(null); setApplied(null); setCoupon(""); }}>Continue shopping</button>
+        <div className="checkout-success__actions">
+          <button className="button button--dark" onClick={() => router.push(`/thank-you?order=${placed.id}`)}>View order details</button>
+          <button className="button button--ghost" onClick={() => { setPlaced(null); setApplied(null); setCoupon(""); router.push("/"); }}>Continue shopping</button>
+        </div>
       </div>
     );
   }
@@ -206,7 +225,12 @@ export function CheckoutClient() {
             <label>Last name<input required name="lastName" placeholder="Sharma" /></label>
             <label className="field-wide">Address<input required name="address" placeholder="House / street / area" /></label>
             <label>City<input required name="city" placeholder="New Delhi" /></label>
-            <label>State<input required name="state" placeholder="Delhi" /></label>
+            <label className="field-wide">State
+              <select required name="state" value={state} onChange={(event) => setState(event.target.value)}>
+                <option value="" disabled>Select a state</option>
+                {INDIAN_STATES.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
             <label>PIN code<input required inputMode="numeric" name="pin" placeholder="110001" /></label>
             <label>Phone<input required inputMode="tel" name="phone" placeholder="+91 98765 43210" /></label>
           </div>
@@ -238,7 +262,8 @@ export function CheckoutClient() {
         <label className="coupon-row"><Tag size={15} /><input value={coupon} onChange={(event) => setCoupon(event.target.value)} placeholder="Coupon code" /><button type="button" onClick={applyCoupon}>Apply</button></label>
         {applied && <p className={`coupon-status ${applied.valid ? "is-valid" : "is-invalid"}`}>{applied.valid ? `${coupon.trim().toUpperCase()} applied — ${applied.note}` : applied.note}</p>}
         <div className="summary-row"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
-        <div className="summary-row"><span>Shipping</span><span>{shipping ? formatPrice(shipping) : "Complimentary"}</span></div>
+        <div className="summary-row"><span>Delivery</span><span>{shipping ? formatPrice(shipping) : "Free"}</span></div>
+        {!freeDelivery && remainingToFree > 0 && <div className="summary-row summary-row--hint"><span>Add {formatPrice(remainingToFree)} more for free delivery</span><span /></div>}
         {discount > 0 && <div className="summary-row summary-row--discount"><span>Discount</span><span>− {formatPrice(discount)}</span></div>}
         <div className="summary-row summary-row--total"><span>Total</span><strong>{formatPrice(total)}</strong></div>
         <div className="checkout-benefits"><span><Truck size={16} /> Tracked shipping</span><span><ShieldCheck size={16} /> Secure payment boundary</span></div>

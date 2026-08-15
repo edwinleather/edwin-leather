@@ -34,7 +34,7 @@ const orderSchema = new Schema(
     currency: { type: String, default: "INR" },
     orderStatus: {
       type: String,
-      enum: ["pending_payment", "confirmed", "processing", "packed", "shipped", "delivered", "cancelled", "return_requested", "returned", "refunded"],
+      enum: ["pending_payment", "order_received", "confirmed", "processing", "packing", "shipping", "packed", "shipped", "delivered", "cancelled", "return_requested", "returned", "refunded"],
       default: "pending_payment",
       index: true
     },
@@ -47,10 +47,12 @@ const orderSchema = new Schema(
     },
     shipping: {
       status: { type: String, enum: ["not_created", "ready_to_ship", "picked_up", "in_transit", "out_for_delivery", "delivered", "rto"], default: "not_created" },
-      shiprocketShipmentId: String,
       courier: String,
       awb: String,
-      trackingUrl: String
+      trackingUrl: String,
+      deliveryPartnerId: { type: Schema.Types.ObjectId, ref: "DeliveryPartner" },
+      deliveryPartnerName: String,
+      trackingId: String
     },
     shippingAddress: {
       fullName: String,

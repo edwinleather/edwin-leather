@@ -9,8 +9,12 @@ const variantSchema = new Schema(
     color: { type: String, required: true },
     size: String,
     priceOverride: Number,
+    inventoryTotal: { type: Number, default: 0, min: 0 },
+    inventoryStoreAllocated: { type: Number, default: 0, min: 0 },
     inventoryAvailable: { type: Number, default: 0, min: 0 },
     inventoryReserved: { type: Number, default: 0, min: 0 },
+    lowStockThreshold: { type: Number, default: 3, min: 0 },
+    allowBackorder: { type: Boolean, default: false },
     active: { type: Boolean, default: true }
   },
   { _id: true }
@@ -24,6 +28,10 @@ const productSchema = new Schema(
     description: { type: String, required: true },
     category: { type: String, required: true, index: true },
     collection: String,
+    brand: String,
+    hsn: String,
+    gst: Number,
+    deliveryBy: String,
     price: { type: Number, required: true, min: 0 },
     compareAtPrice: Number,
     images: [{ url: String, publicId: String, alt: String }],
