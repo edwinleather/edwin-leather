@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/site-url";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const SITE = siteUrl();
 
 // Keep internal, authenticated, and transactional routes out of search.
 export default function robots(): MetadataRoute.Robots {

@@ -4,7 +4,10 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { CartProvider } from "@/components/CartProvider";
 import { SiteChrome } from "@/components/SiteChrome";
 import { siteConfig } from "@/lib/site-config";
+import { siteUrl } from "@/lib/site-url";
 import { fraunces, manrope } from "@/lib/fonts";
+
+const SITE_URL = siteUrl();
 
 export const metadata: Metadata = {
   title: {
@@ -12,7 +15,7 @@ export const metadata: Metadata = {
     template: "%s — Edwin Leathers"
   },
   description: siteConfig.description,
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(SITE_URL),
   applicationName: siteConfig.name,
   keywords: ["leather goods", "leather bags", "leather wallets", "belts", "handcrafted leather", "India", siteConfig.name],
   authors: [{ name: siteConfig.name }],
@@ -22,7 +25,7 @@ export const metadata: Metadata = {
     siteName: siteConfig.name,
     title: "Edwin Leathers — Made to Age",
     description: siteConfig.description,
-    url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    url: SITE_URL,
     locale: "en_IN"
   },
   twitter: {

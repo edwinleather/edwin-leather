@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getCatalog } from "@/lib/catalog";
+import { siteUrl } from "@/lib/site-url";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const SITE = siteUrl();
 
 // Public, indexable routes only. Never list /backoffice or authenticated routes.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
