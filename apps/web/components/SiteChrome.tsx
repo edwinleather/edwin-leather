@@ -8,7 +8,7 @@ import { SiteHeader } from "./SiteHeader";
 
 export function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdmin = pathname.startsWith("/admin");
+  const isAdmin = pathname.startsWith("/backoffice");
 
   if (isAdmin) return <>{children}</>;
 

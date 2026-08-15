@@ -1,6 +1,10 @@
+import { env } from "./env.js";
 import { Category } from "../models/Category.js";
 import { Coupon } from "../models/Coupon.js";
 import { Product } from "../models/Product.js";
+import { User } from "../models/User.js";
+import { AdminUser, RolePermission, ADMIN_ROLES } from "../models/backoffice.js";
+import { DEFAULT_FEATURES } from "../services/backoffice.js";
 import { seedCategories, seedCoupons, seedProducts } from "../data/seed.js";
 
 export async function seedDatabase() {
@@ -39,6 +43,39 @@ export async function seedDatabase() {
     }
 
     console.info(`[seed] Catalog ready: ${(await Product.countDocuments()).toString()} products, ${(await Category.countDocuments()).toString()} categories, ${(await Coupon.countDocuments()).toString()} coupons.`);
+
+    for (const role of ADMIN_ROLES) {
+      await RolePermission.updateOne(
+        { role },
+        { $setOnInsert: { features: DEFAULT_FEATURES[role] } },
+        { upsert: true }
+      );
+    }
+
+    for (const [email, role] of [
+      ...env.superadminEmails.map((e) => [e, "superadmin"] as const),
+      ...env.adminEmails.map((e) => [e, "admin"] as const)
+    ]) {
+      const user = await User.findOne({ email }).lean();
+      if (!user) continue;
+      await AdminUser.updateOne(
+        { appUserId: user._id },
+        {
+          $setOnInsert: {
+            email,
+            role,
+            name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+            firstName: user.firstName,
+            lastName: user.lastName,
+            provider: user.provider,
+            googleId: user.googleId,
+            appUserId: user._id,
+            active: true
+          }
+        },
+        { upsert: true }
+      );
+    }
   } catch (error) {
     console.error("[seed] Catalog seeding skipped:", error);
   }

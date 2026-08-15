@@ -68,7 +68,7 @@ authRouter.post("/signup", async (req, res, next) => {
     return res.status(201).json({
       ok: true,
       message: "Verification code sent to your email",
-      devOtp: otp.devCode,
+      devOtp: env.nodeEnv === "production" ? undefined : otp.devCode,
       cooldownMs: otp.cooldownMs
     });
   } catch (error) {
@@ -104,7 +104,7 @@ authRouter.post("/resend-otp", async (req, res, next) => {
     const input = resendSchema.parse(req.body);
     const otp = await createAndSendOtp(input.email, "signup");
     if (otp.cooldownMs > 0) return next(new ApiError(429, "Please wait before requesting another code", { cooldownMs: otp.cooldownMs }));
-    return res.json({ ok: true, message: "Verification code sent", devOtp: otp.devCode });
+    return res.json({ ok: true, message: "Verification code sent", devOtp: env.nodeEnv === "production" ? undefined : otp.devCode });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
     return next(error);

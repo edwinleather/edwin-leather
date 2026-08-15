@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { env } from "./config/env.js";
 import { accountRouter } from "./routes/account.js";
 import { adminRouter } from "./routes/admin.js";
+import { backofficeRouter } from "./routes/backoffice.js";
 import { authRouter } from "./routes/auth.js";
 import { categoriesRouter } from "./routes/categories.js";
 import { healthRouter } from "./routes/health.js";
@@ -39,6 +40,7 @@ app.use("/api/v1/payments", paymentsRouter);
 app.use("/api/v1/shipping", shippingRouter);
 app.use("/api/v1/returns", returnsRouter);
 app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/admin", backofficeRouter);
 
 app.use(notFound);
 app.use(errorHandler);

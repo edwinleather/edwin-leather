@@ -50,6 +50,42 @@ export async function placeOrder(payload: PlaceOrderPayload): Promise<PlaceOrder
   }
 }
 
+export type RazorpayOrderResult =
+  | { ok: true; orderId: string; amount: number; currency: string; keyId: string }
+  | { ok: false; error: string };
+
+export async function createRazorpayOrder(orderId: string, receipt: string): Promise<RazorpayOrderResult> {
+  try {
+    const response = await fetch(`${API_URL}/payments/create-order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ orderId, receipt })
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || `Payment setup failed (${response.status})` };
+    return { ok: true, orderId: body.orderId, amount: body.amount, currency: body.currency, keyId: body.keyId };
+  } catch {
+    return { ok: false, error: "Could not reach the payment service." };
+  }
+}
+
+export async function verifyPayment(orderId: string, paymentId: string, signature: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/payments/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ orderId, paymentId, signature })
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || "Payment verification failed" };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Could not reach the payment service." };
+  }
+}
+
 export type AuthUser = {
   id: string;
   email: string;
@@ -97,8 +133,19 @@ export function login(payload: { email: string; password: string }) {
   return authRequest("login", payload);
 }
 
+const DB_NOT_READY = /mongodb is required|database unavailable|database.*not ready/i;
+
+async function retryWhenDbCold(request: () => Promise<AuthResult>): Promise<AuthResult> {
+  let result = await request();
+  for (let attempt = 0; attempt < 2 && !result.ok && DB_NOT_READY.test(result.error || ""); attempt++) {
+    await new Promise((r) => setTimeout(r, 1200 + attempt * 600));
+    result = await request();
+  }
+  return result;
+}
+
 export function loginWithGoogle(credential: string) {
-  return authRequest("google", { credential });
+  return retryWhenDbCold(() => authRequest("google", { credential }));
 }
 
 export async function logout() {

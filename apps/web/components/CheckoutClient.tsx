@@ -4,9 +4,28 @@ import { useState } from "react";
 import { Check, CreditCard, Landmark, ShieldCheck, Tag, Truck } from "lucide-react";
 import { useCart } from "./CartProvider";
 import { formatPrice } from "@/lib/format";
-import { placeOrder, type OrderResponse } from "@/lib/api";
+import { placeOrder, createRazorpayOrder, verifyPayment, type OrderResponse } from "@/lib/api";
 
 type Placed = { order: OrderResponse; demo: boolean } | null;
+
+type RazorpayResponse = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(Boolean(window.Razorpay));
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 function previewDiscount(code: string, subtotal: number, shipping: number): { amount: number; freeShipping: boolean; valid: boolean; note: string } {
   const normalized = code.trim().toUpperCase();
@@ -63,17 +82,54 @@ export function CheckoutClient() {
     };
 
     const result = await placeOrder(payload);
-    setSubmitting(false);
 
     if (!result.ok) {
-      if (result.demo) {
-        setError(result.error || "The order service is not live yet. Your order was not charged.");
-      } else {
-        setError(result.error || "Something went wrong placing your order.");
-      }
+      setSubmitting(false);
+      setError(result.demo ? (result.error || "The order service is not live yet. Your order was not charged.") : (result.error || "Something went wrong placing your order."));
       return;
     }
-    setPlaced({ order: result.order, demo: result.demo });
+
+    if (method === "cod") {
+      setSubmitting(false);
+      setPlaced({ order: result.order, demo: false });
+      return;
+    }
+
+    const rzp = await createRazorpayOrder(result.order.id, result.order.orderNumber);
+    if (!rzp.ok) {
+      setSubmitting(false);
+      setError(rzp.error || "Could not start the payment. Your order is saved but not charged.");
+      return;
+    }
+
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      setSubmitting(false);
+      setError("Could not load the payment window. Your order is saved but not charged.");
+      return;
+    }
+
+    const checkout = new window.Razorpay!({
+      key: rzp.keyId,
+      amount: rzp.amount,
+      currency: rzp.currency,
+      name: "Edwin Leathers",
+      description: `Order ${result.order.orderNumber}`,
+      order_id: rzp.orderId,
+      handler: async (response: RazorpayResponse) => {
+        const verified = await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
+        setSubmitting(false);
+        if (verified.ok) {
+          setPlaced({ order: { ...result.order, orderStatus: "confirmed" }, demo: false });
+        } else {
+          setError(verified.error || "Payment completed but could not be confirmed. We will reconcile it before dispatch.");
+        }
+      },
+      modal: { ondismiss: () => setSubmitting(false) },
+      prefill: { email: payload.email },
+      theme: { color: "#2b241e" }
+    });
+    checkout.open();
   }
 
   if (placed) {

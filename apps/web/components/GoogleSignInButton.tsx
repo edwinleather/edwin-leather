@@ -21,62 +21,53 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 export function GoogleSignInButton({ onSuccess, onError, label }: { onSuccess?: (email: string) => void; onError?: (message: string) => void; label?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const renderedRef = useRef(false);
-  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function initializeGoogle() {
-    if (!window.google?.accounts) return;
+  useEffect(() => {
+    if (!CLIENT_ID) return;
+    if (window.google?.accounts) {
+      setReady(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setReady(true);
+    script.onerror = () => setError("Google sign-in could not load. Please try again.");
+    document.head.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !window.google?.accounts || !containerRef.current || renderedRef.current) return;
+    renderedRef.current = true;
     window.google.accounts.id.initialize({
       client_id: CLIENT_ID!,
       auto_select: false,
       callback: async (response) => {
         try {
-          setState("loading");
           const result = await loginWithGoogle(response.credential);
           if (!result.ok) {
             setError(result.error);
-            setState("error");
             onError?.(result.error);
           } else {
-            setState("ready");
             onSuccess?.(result.user.email);
           }
         } catch {
           setError("Google sign-in failed. Please try again.");
-          setState("error");
+          onError?.("Google sign-in failed. Please try again.");
         }
       }
     });
-    setState("ready");
-  }
-
-  function handleClick() {
-    if (state === "loading" || state === "ready") return;
-    setError(null);
-    setState("loading");
-
-    if (window.google?.accounts) {
-      initializeGoogle();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = initializeGoogle;
-    script.onerror = () => {
-      setError("Google sign-in could not load. Please try again.");
-      setState("idle");
-    };
-    document.head.appendChild(script);
-  }
-
-  useEffect(() => {
-    if (state !== "ready" || !containerRef.current || renderedRef.current) return;
-    renderedRef.current = true;
-    window.google?.accounts.id.renderButton(containerRef.current, { theme: "outline", size: "large", width: 320, shape: "rectangular", text: "continue_with" });
-  }, [state]);
+    window.google.accounts.id.renderButton(containerRef.current, {
+      theme: "outline",
+      size: "large",
+      width: 320,
+      shape: "rectangular",
+      text: (label?.toLowerCase().includes("sign in") ? "signin_with" : "continue_with") as "signin_with" | "continue_with"
+    });
+  }, [ready, label]);
 
   if (!CLIENT_ID) {
     return (
@@ -91,16 +82,8 @@ export function GoogleSignInButton({ onSuccess, onError, label }: { onSuccess?: 
   return (
     <>
       <div className="google-button">
-        {state === "ready" ? (
-          <div ref={containerRef} aria-label="Continue with Google" />
-        ) : (
-          <button type="button" className="google-button__trigger" onClick={handleClick} disabled={state === "loading"}>
-            <GoogleIcon />
-            <span>{label ?? "Continue with Google"}</span>
-          </button>
-        )}
+        {ready ? <div ref={containerRef} aria-label="Continue with Google" /> : <div className="google-button__placeholder">Loading Google sign-in…</div>}
       </div>
-      {state === "loading" && <p className="auth-note">Loading Google sign-in…</p>}
       {error && <p className="auth-error">{error}</p>}
     </>
   );

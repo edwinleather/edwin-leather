@@ -15,15 +15,26 @@ const expressHandler = serverless(app, {
 
 let connected: Promise<void> | null = null;
 
+async function bootstrap(): Promise<void> {
+  const ok = await connectDatabase();
+  if (ok && databaseReady()) await seedDatabase();
+}
+
 function ensureDatabase(): Promise<void> {
   if (!connected) {
-    connected = connectDatabase()
-      .then(async () => {
-        if (databaseReady()) await seedDatabase();
-      })
-      .catch((error: unknown) => {
-        console.error("[api] Database bootstrap failed:", error);
-      });
+    connected = (async () => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await bootstrap();
+          if (databaseReady()) return;
+        } catch (error) {
+          console.error(`[api] Database bootstrap attempt ${attempt}/3 failed:`, error);
+        }
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 1500));
+      }
+      connected = null;
+      console.warn("[api] Database not ready after 3 attempts; serving demo mode.");
+    })();
   }
   return connected;
 }

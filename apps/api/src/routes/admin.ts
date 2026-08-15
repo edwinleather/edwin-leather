@@ -1,8 +1,9 @@
-import { Router, type RequestHandler } from "express";
+import { Router } from "express";
 import { z } from "zod";
 import { databaseReady } from "../config/db.js";
-import { requireAuth, requireRole, type AuthenticatedRequest } from "../middleware/auth.js";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { ApiError } from "../middleware/error.js";
+import { requireBackofficeAdmin, requireBackofficeFeature, requireBackofficeRole } from "../middleware/backoffice.js";
 import { Category } from "../models/Category.js";
 import { Coupon } from "../models/Coupon.js";
 import { Order } from "../models/Order.js";
@@ -11,15 +12,13 @@ import { Return } from "../models/Return.js";
 import { User } from "../models/User.js";
 import { commitStock, releaseStock, type StockLine } from "../services/inventory.js";
 import { orderResponse } from "../services/orders.js";
+import { cloudName, deleteAsset, isCloudinaryConfigured, uploadImage } from "../services/cloudinary.js";
 
 export const adminRouter = Router();
 
-const requireAdmin: RequestHandler = (req, res, next) => {
-  requireAuth(req as AuthenticatedRequest, res, (error?: unknown) => {
-    if (error) return next(error);
-    requireRole("admin", "superadmin")(req as AuthenticatedRequest, res, next);
-  });
-};
+const requireAdmin = requireBackofficeAdmin;
+const requireFeature = requireBackofficeFeature;
+const requireSuperadmin = requireBackofficeRole("superadmin");
 
 function requireDb() {
   if (!databaseReady()) throw new ApiError(503, "Database unavailable");
@@ -78,7 +77,7 @@ const categorySchema = z.object({
 
 // ---------------------------------------------------------------- Products
 
-adminRouter.get("/products", requireAdmin, async (_req, res, next) => {
+adminRouter.get("/products", requireAdmin, requireFeature("products"), async (_req, res, next) => {
   try {
     requireDb();
     const data = await Product.find().sort({ createdAt: -1 }).lean();
@@ -88,7 +87,7 @@ adminRouter.get("/products", requireAdmin, async (_req, res, next) => {
   }
 });
 
-adminRouter.post("/products", requireAdmin, async (req, res, next) => {
+adminRouter.post("/products", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
     requireDb();
     const input = productSchema.parse(req.body);
@@ -103,7 +102,7 @@ adminRouter.post("/products", requireAdmin, async (req, res, next) => {
   }
 });
 
-adminRouter.patch("/products/:productId", requireAdmin, async (req, res, next) => {
+adminRouter.patch("/products/:productId", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
     requireDb();
     const input = productSchema.partial().parse(req.body);
@@ -116,7 +115,7 @@ adminRouter.patch("/products/:productId", requireAdmin, async (req, res, next) =
   }
 });
 
-adminRouter.delete("/products/:productId", requireAdmin, async (req, res, next) => {
+adminRouter.delete("/products/:productId", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
     requireDb();
     const product = await Product.findByIdAndDelete(req.params.productId);
@@ -127,7 +126,7 @@ adminRouter.delete("/products/:productId", requireAdmin, async (req, res, next) 
   }
 });
 
-adminRouter.post("/products/:productId/variants", requireAdmin, async (req, res, next) => {
+adminRouter.post("/products/:productId/variants", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
     requireDb();
     const input = z
@@ -153,7 +152,7 @@ adminRouter.post("/products/:productId/variants", requireAdmin, async (req, res,
   }
 });
 
-adminRouter.patch("/products/:productId/variants/:variantId", requireAdmin, async (req, res, next) => {
+adminRouter.patch("/products/:productId/variants/:variantId", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
     requireDb();
     const input = z
@@ -180,7 +179,7 @@ adminRouter.patch("/products/:productId/variants/:variantId", requireAdmin, asyn
   }
 });
 
-adminRouter.delete("/products/:productId/variants/:variantId", requireAdmin, async (req, res, next) => {
+adminRouter.delete("/products/:productId/variants/:variantId", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
     requireDb();
     const product = await Product.findByIdAndUpdate(
@@ -197,7 +196,7 @@ adminRouter.delete("/products/:productId/variants/:variantId", requireAdmin, asy
 
 // ------------------------------------------------------------------ Orders
 
-adminRouter.get("/orders", requireAdmin, async (req, res, next) => {
+adminRouter.get("/orders", requireAdmin, requireFeature("orders"), async (req, res, next) => {
   try {
     requireDb();
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
@@ -208,7 +207,7 @@ adminRouter.get("/orders", requireAdmin, async (req, res, next) => {
   }
 });
 
-adminRouter.get("/orders/:orderId", requireAdmin, async (req, res, next) => {
+adminRouter.get("/orders/:orderId", requireAdmin, requireFeature("orders"), async (req, res, next) => {
   try {
     requireDb();
     const order = await Order.findById(req.params.orderId);
@@ -228,7 +227,7 @@ function orderStockLines(order: InstanceType<typeof Order>): StockLine[] {
   }));
 }
 
-adminRouter.patch("/orders/:orderId/status", requireAdmin, async (req: AuthenticatedRequest, res, next) => {
+adminRouter.patch("/orders/:orderId/status", requireAdmin, requireFeature("orders"), async (req: AuthenticatedRequest, res, next) => {
   try {
     requireDb();
     const input = z
@@ -282,7 +281,7 @@ adminRouter.patch("/orders/:orderId/status", requireAdmin, async (req: Authentic
 
 // ----------------------------------------------------------------- Coupons
 
-adminRouter.get("/coupons", requireAdmin, async (_req, res, next) => {
+adminRouter.get("/coupons", requireAdmin, requireFeature("coupons"), async (_req, res, next) => {
   try {
     requireDb();
     const data = await Coupon.find().sort({ createdAt: -1 }).lean();
@@ -292,7 +291,7 @@ adminRouter.get("/coupons", requireAdmin, async (_req, res, next) => {
   }
 });
 
-adminRouter.post("/coupons", requireAdmin, async (req, res, next) => {
+adminRouter.post("/coupons", requireAdmin, requireFeature("coupons"), async (req, res, next) => {
   try {
     requireDb();
     const input = couponSchema.parse(req.body);
@@ -304,7 +303,7 @@ adminRouter.post("/coupons", requireAdmin, async (req, res, next) => {
   }
 });
 
-adminRouter.patch("/coupons/:couponId", requireAdmin, async (req, res, next) => {
+adminRouter.patch("/coupons/:couponId", requireAdmin, requireFeature("coupons"), async (req, res, next) => {
   try {
     requireDb();
     const input = couponSchema.partial().parse(req.body);
@@ -317,7 +316,7 @@ adminRouter.patch("/coupons/:couponId", requireAdmin, async (req, res, next) => 
   }
 });
 
-adminRouter.delete("/coupons/:couponId", requireAdmin, async (req, res, next) => {
+adminRouter.delete("/coupons/:couponId", requireAdmin, requireFeature("coupons"), async (req, res, next) => {
   try {
     requireDb();
     const coupon = await Coupon.findByIdAndDelete(req.params.couponId);
@@ -330,7 +329,7 @@ adminRouter.delete("/coupons/:couponId", requireAdmin, async (req, res, next) =>
 
 // -------------------------------------------------------------- Categories
 
-adminRouter.get("/categories", requireAdmin, async (_req, res, next) => {
+adminRouter.get("/categories", requireAdmin, requireFeature("categories"), async (_req, res, next) => {
   try {
     requireDb();
     const data = await Category.find().sort({ displayOrder: 1, name: 1 }).lean();
@@ -340,7 +339,7 @@ adminRouter.get("/categories", requireAdmin, async (_req, res, next) => {
   }
 });
 
-adminRouter.post("/categories", requireAdmin, async (req, res, next) => {
+adminRouter.post("/categories", requireAdmin, requireFeature("categories"), async (req, res, next) => {
   try {
     requireDb();
     const input = categorySchema.parse(req.body);
@@ -352,7 +351,7 @@ adminRouter.post("/categories", requireAdmin, async (req, res, next) => {
   }
 });
 
-adminRouter.patch("/categories/:categoryId", requireAdmin, async (req, res, next) => {
+adminRouter.patch("/categories/:categoryId", requireAdmin, requireFeature("categories"), async (req, res, next) => {
   try {
     requireDb();
     const input = categorySchema.partial().parse(req.body);
@@ -365,7 +364,7 @@ adminRouter.patch("/categories/:categoryId", requireAdmin, async (req, res, next
   }
 });
 
-adminRouter.delete("/categories/:categoryId", requireAdmin, async (req, res, next) => {
+adminRouter.delete("/categories/:categoryId", requireAdmin, requireFeature("categories"), async (req, res, next) => {
   try {
     requireDb();
     const category = await Category.findByIdAndDelete(req.params.categoryId);
@@ -378,7 +377,7 @@ adminRouter.delete("/categories/:categoryId", requireAdmin, async (req, res, nex
 
 // --------------------------------------------------------------- Customers
 
-adminRouter.get("/customers", requireAdmin, async (_req, res, next) => {
+adminRouter.get("/customers", requireAdmin, requireFeature("customers"), async (_req, res, next) => {
   try {
     requireDb();
     const users = await User.find({}, "-passwordHash -passwordResetTokenHash").sort({ createdAt: -1 }).lean();
@@ -388,9 +387,37 @@ adminRouter.get("/customers", requireAdmin, async (_req, res, next) => {
   }
 });
 
+// ------------------------------------------------------------------ Media
+
+adminRouter.get("/media/config", requireAdmin, requireFeature("media"), (_req, res) => {
+  return res.json({ ok: true, configured: isCloudinaryConfigured(), cloudName: cloudName() });
+});
+
+adminRouter.post("/media/upload", requireAdmin, requireFeature("media"), async (req, res, next) => {
+  try {
+    const input = z.object({ dataUri: z.string().min(5), folder: z.string().optional() }).parse(req.body);
+    const asset = await uploadImage(input.dataUri, input.folder || "edwin/products");
+    return res.status(201).json({ ok: true, url: asset.url, publicId: asset.publicId });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid upload input", error.flatten()));
+    return next(error);
+  }
+});
+
+adminRouter.post("/media/delete", requireAdmin, requireFeature("media"), async (req, res, next) => {
+  try {
+    const input = z.object({ publicId: z.string().min(1) }).parse(req.body);
+    await deleteAsset(input.publicId);
+    return res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid delete input", error.flatten()));
+    return next(error);
+  }
+});
+
 // ----------------------------------------------------------------- Returns
 
-adminRouter.get("/returns", requireAdmin, async (_req, res, next) => {
+adminRouter.get("/returns", requireAdmin, requireFeature("returns"), async (_req, res, next) => {
   try {
     requireDb();
     const data = await Return.find().sort({ createdAt: -1 });
@@ -400,7 +427,7 @@ adminRouter.get("/returns", requireAdmin, async (_req, res, next) => {
   }
 });
 
-adminRouter.patch("/returns/:returnId", requireAdmin, async (req: AuthenticatedRequest, res, next) => {
+adminRouter.patch("/returns/:returnId", requireAdmin, requireFeature("returns"), async (req: AuthenticatedRequest, res, next) => {
   try {
     requireDb();
     const input = z

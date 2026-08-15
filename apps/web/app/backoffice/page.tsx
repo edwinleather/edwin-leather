@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { ArrowDownRight, ArrowUpRight, Boxes, IndianRupee, PackageCheck, ShoppingBag, UsersRound } from "lucide-react";
 import { formatPrice } from "@/lib/format";
+import { ProductsManager } from "./ProductsManager";
 
-export const metadata: Metadata = { title: "Admin Demo" };
+export const metadata: Metadata = { title: "Backoffice" };
 
 const orders = [
   ["#EL-10482", "Aarav Sharma", "Heritage Tote", 6490, "Shipped"],
@@ -11,7 +12,7 @@ const orders = [
   ["#EL-10479", "Naina Rao", "Archive Wallet", 1990, "Delivered"]
 ] as const;
 
-export default function AdminPage() {
+export default function BackofficePage() {
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
@@ -31,6 +32,7 @@ export default function AdminPage() {
           <div className="admin-panel__head"><div><span className="eyebrow">Operations</span><h2>Recent orders</h2></div><button className="text-button">View all orders</button></div>
           <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Item</th><th>Total</th><th>Status</th></tr></thead><tbody>{orders.map(([id, customer, item, total, status]) => <tr key={id}><td><strong>{id}</strong></td><td>{customer}</td><td>{item}</td><td>{formatPrice(total)}</td><td><span className={`status status--${status.toLowerCase()}`}>{status}</span></td></tr>)}</tbody></table></div>
         </section>
+        <ProductsManager />
         <div className="admin-bottom-grid">
           <section className="admin-panel"><div className="admin-panel__head"><div><span className="eyebrow">Inventory</span><h2>Needs attention</h2></div></div><div className="inventory-list"><div><PackageCheck size={17} /><span>Weekender No. 01 / Saddle</span><strong>3 left</strong></div><div><PackageCheck size={17} /><span>Foundry Belt / Cognac / 34</span><strong>3 left</strong></div><div><PackageCheck size={17} /><span>Heritage Tote / Black</span><strong>4 left</strong></div></div></section>
           <section className="admin-panel admin-note"><span className="eyebrow">Build note</span><h2>This is a UI foundation, not an unsecured admin panel.</h2><p>Before production, protect this route using backend-verified roles and secure session cookies. Never trust a frontend-only `isAdmin` flag.</p></section>
