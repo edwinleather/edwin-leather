@@ -22,7 +22,7 @@ export async function reserveStock(lines: StockLine[]) {
       {
         $inc: { "variants.$.inventoryAvailable": -line.quantity, "variants.$.inventoryReserved": line.quantity }
       },
-      { new: true, projection: { "variants.$": 1 } }
+      { new: false, projection: { "variants.$": 1 } }
     ).lean();
 
     if (!updated) {
