@@ -55,12 +55,16 @@ export async function logError(entry: ErrorLogEntry, error?: unknown): Promise<v
     // ignore — Atlas is the primary store
   }
 
+  // Always print so Netlify's own function logs capture it too. This works even
+  // when MongoDB itself is down, giving a durable, Mongo-independent fallback.
+  console.error("[error-log]", JSON.stringify(record));
+
   // Universal shared store. Fire-and-forget so a failure never breaks a request.
   if (databaseReady()) {
     try {
       await ErrorLog.create(record);
     } catch {
-      // ignore — already on the local file as a fallback
+      // ignore — already on the local file / Netlify logs as a fallback
     }
   }
 }

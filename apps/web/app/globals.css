@@ -362,6 +362,8 @@ html.theme-switching *, html.theme-switching *::before, html.theme-switching *::
 .checkout-success__icon { width: 60px; height: 60px; margin: 0 auto 25px; border: 1px solid var(--ink); border-radius: 50%; display: grid; place-items: center; }
 .checkout-success h2 { margin: 15px 0; font: 600 46px/1 var(--sans); letter-spacing: -.03em; }
 .checkout-success p { color: var(--muted); line-height: 1.75; margin: 0 0 28px; }
+.checkout-success__icon.is-error { border-color: #b3261e; color: #b3261e; }
+.checkout-success__actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
 .account-grid { display: grid; grid-template-columns: 240px 1fr; gap: 70px; }
 .account-nav { display: flex; flex-direction: column; align-items: stretch; border-top: 1px solid var(--line); }

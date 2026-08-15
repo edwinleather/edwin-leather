@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CreditCard, Landmark, ShieldCheck, Tag, Truck } from "lucide-react";
+import { Check, CreditCard, Landmark, ShieldCheck, Tag, Truck, XCircle } from "lucide-react";
 import { useCart } from "./CartProvider";
 import { formatPrice } from "@/lib/format";
 import { placeOrder, createRazorpayOrder, verifyPayment, type OrderResponse } from "@/lib/api";
@@ -48,6 +48,8 @@ export function CheckoutClient() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [placed, setPlaced] = useState<Placed>(null);
+  const [pendingOrder, setPendingOrder] = useState<OrderResponse | null>(null);
+  const [failed, setFailed] = useState<OrderResponse | null>(null);
 
   const shipping = subtotal >= 2499 || subtotal === 0 ? 0 : 149;
   const discount = applied?.valid && applied.freeShipping ? applied.amount : (applied?.valid ? applied.amount : 0);
@@ -95,7 +97,13 @@ export function CheckoutClient() {
       return;
     }
 
-    const rzp = await createRazorpayOrder(result.order.id, result.order.orderNumber);
+    setPendingOrder(result.order);
+    await startRazorpay(result.order);
+  }
+
+  async function startRazorpay(order: OrderResponse) {
+    setSubmitting(true);
+    const rzp = await createRazorpayOrder(order.id, order.orderNumber);
     if (!rzp.ok) {
       setSubmitting(false);
       setError(rzp.error || "Could not start the payment. Your order is saved but not charged.");
@@ -109,27 +117,57 @@ export function CheckoutClient() {
       return;
     }
 
+    let handled = false;
     const checkout = new window.Razorpay!({
       key: rzp.keyId,
       amount: rzp.amount,
       currency: rzp.currency,
       name: "Edwin Leathers",
-      description: `Order ${result.order.orderNumber}`,
+      description: `Order ${order.orderNumber}`,
       order_id: rzp.orderId,
       handler: async (response: RazorpayResponse) => {
+        handled = true;
         const verified = await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
         setSubmitting(false);
         if (verified.ok) {
-          setPlaced({ order: { ...result.order, orderStatus: "confirmed" }, demo: false });
+          setPlaced({ order: { ...order, orderStatus: "confirmed" }, demo: false });
         } else {
-          setError(verified.error || "Payment completed but could not be confirmed. We will reconcile it before dispatch.");
+          setFailed(order);
         }
       },
-      modal: { ondismiss: () => setSubmitting(false) },
-      prefill: { email: payload.email },
+      modal: {
+        ondismiss: () => {
+          setSubmitting(false);
+          if (!handled) setFailed(order);
+        }
+      },
+      prefill: { email: order.email },
       theme: { color: "#2b241e" }
     });
     checkout.open();
+  }
+
+  if (failed) {
+    return (
+      <div className="checkout-success">
+        <div className="checkout-success__icon is-error"><XCircle size={28} /></div>
+        <span className="eyebrow">Payment not completed</span>
+        <h2>Your payment didn&rsquo;t go through.</h2>
+        <p>
+          Order {failed.orderNumber} was not charged. Your bag is still saved, so you can try again or choose Cash on Delivery.
+        </p>
+        <div className="checkout-success__totals">
+          <div><span>Subtotal</span><strong>{formatPrice(failed.subtotal)}</strong></div>
+          <div><span>Shipping</span><strong>{failed.shippingAmount ? formatPrice(failed.shippingAmount) : "Complimentary"}</strong></div>
+          {failed.discountAmount > 0 && <div><span>Discount</span><strong>− {formatPrice(failed.discountAmount)}</strong></div>}
+          <div className="total"><span>Total</span><strong>{formatPrice(failed.total)}</strong></div>
+        </div>
+        <div className="checkout-success__actions">
+          <button className="button button--dark" disabled={submitting} onClick={() => { setFailed(null); if (pendingOrder) startRazorpay(pendingOrder); }}>{submitting ? "Opening payment…" : "Try again"}</button>
+          <button className="button button--ghost" onClick={() => setFailed(null)}>Return to checkout</button>
+        </div>
+      </div>
+    );
   }
 
   if (placed) {

@@ -9,6 +9,7 @@
     "start": "node dist/src/server.js"
   },
   "dependencies": {
+    "@sentry/node": "^10.70.0",
     "bcryptjs": "latest",
     "cloudinary": "^2.10.0",
     "cookie-parser": "latest",

@@ -19,6 +19,7 @@ export type PlaceOrderPayload = {
 export type OrderResponse = {
   id: string;
   orderNumber: string;
+  email: string;
   orderStatus: string;
   paymentStatus: string;
   subtotal: number;

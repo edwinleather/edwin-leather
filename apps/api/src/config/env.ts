@@ -32,6 +32,7 @@ export const env = {
   cloudinaryApiSecret: value("CLOUDINARY_API_SECRET"),
   superadminEmails: list("SUPERADMIN_EMAIL"),
   adminEmails: list("ADMIN_EMAILS"),
+  sentryDsn: value("SENTRY_DSN"),
   shiprocketTrackingBaseUrl: value("SHIPROCKET_TRACKING_BASE_URL", "https://shiprocket.co/tracking/")
 };
 

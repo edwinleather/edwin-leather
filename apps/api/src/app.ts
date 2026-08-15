@@ -16,6 +16,9 @@ import { productsRouter } from "./routes/products.js";
 import { returnsRouter } from "./routes/returns.js";
 import { shippingRouter } from "./routes/shipping.js";
 import { errorHandler, notFound } from "./middleware/error.js";
+import { initSentry } from "./services/sentry.js";
+
+initSentry();
 
 export const app = express();
 

@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { logError } from "../services/errorLog.js";
+import { captureError } from "../services/sentry.js";
 
 export class ApiError extends Error {
   statusCode: number;
@@ -29,6 +30,8 @@ export function errorHandler(error: unknown, req: Request, res: Response, _next:
     },
     error
   );
+
+  captureError(error, { method: req.method, path: req.originalUrl, status });
 
   if (error instanceof ApiError) {
     return res.status(status).json({ ok: false, error: error.message, details });
