@@ -10,6 +10,7 @@ import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
 import { Return } from "../models/Return.js";
 import { User } from "../models/User.js";
+import { ErrorLog } from "../models/ErrorLog.js";
 import { commitStock, releaseStock, type StockLine } from "../services/inventory.js";
 import { orderResponse } from "../services/orders.js";
 import { cloudName, deleteAsset, isCloudinaryConfigured, uploadImage } from "../services/cloudinary.js";
@@ -469,6 +470,19 @@ adminRouter.patch("/returns/:returnId", requireAdmin, requireFeature("returns"),
     return res.json({ ok: true, data: record });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid return input", error.flatten()));
+    return next(error);
+  }
+});
+
+// -------------------------------------------------------------- Error logs
+
+adminRouter.get("/error-logs", requireAdmin, async (req, res, next) => {
+  try {
+    requireDb();
+    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
+    const data = await ErrorLog.find().sort({ timestamp: -1 }).limit(limit).lean();
+    return res.json({ ok: true, data });
+  } catch (error) {
     return next(error);
   }
 });

@@ -2,6 +2,7 @@ import serverless from "serverless-http";
 import { app } from "../../apps/api/src/app.js";
 import { connectDatabase, databaseReady } from "../../apps/api/src/config/db.js";
 import { seedDatabase } from "../../apps/api/src/config/seed.js";
+import { Product } from "../../apps/api/src/models/Product.js";
 
 const FUNCTION_PREFIX = "/.netlify/functions/api";
 
@@ -13,30 +14,40 @@ const expressHandler = serverless(app, {
   },
 });
 
-let connected: Promise<void> | null = null;
+// Netlify idles/recycles containers: the cached Mongo connection can go stale,
+// so we must re-verify readiness and reconnect on every invocation instead of
+// trusting a resolved promise. Concurrent cold starts share a single connect.
+let connecting: Promise<void> | null = null;
 
-async function bootstrap(): Promise<void> {
-  const ok = await connectDatabase();
-  if (ok && databaseReady()) await seedDatabase();
+async function seedIfCatalogEmpty(): Promise<void> {
+  try {
+    if ((await Product.countDocuments()) === 0) await seedDatabase();
+  } catch (error) {
+    console.error("[api] Seeding skipped:", error);
+  }
 }
 
-function ensureDatabase(): Promise<void> {
-  if (!connected) {
-    connected = (async () => {
+async function ensureDatabase(): Promise<void> {
+  if (databaseReady()) return; // warm, healthy
+  if (!connecting) {
+    connecting = (async () => {
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          await bootstrap();
-          if (databaseReady()) return;
+          await connectDatabase();
+          if (databaseReady()) {
+            await seedIfCatalogEmpty();
+            return;
+          }
         } catch (error) {
-          console.error(`[api] Database bootstrap attempt ${attempt}/3 failed:`, error);
+          console.error(`[api] Database connect attempt ${attempt}/3 failed:`, error);
         }
-        if (attempt < 3) await new Promise((r) => setTimeout(r, 1500));
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 800));
       }
-      connected = null;
-      console.warn("[api] Database not ready after 3 attempts; serving demo mode.");
+      connecting = null;
+      console.warn("[api] Database not ready; affected requests will return 503.");
     })();
   }
-  return connected;
+  await connecting;
 }
 
 export const handler = async (event: any, context: unknown) => {
