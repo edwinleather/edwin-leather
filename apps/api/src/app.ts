@@ -1,14 +1,8 @@
+import { createRequire } from "node:module";
+import type { RequestHandler } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
-import * as helmetModule from "helmet";
-import * as rateLimitModule from "express-rate-limit";
-
-// helmet@8 and express-rate-limit@8 are dual ESM/CJS packages; under NodeNext
-// the default import resolves to the module namespace, so grab the callable
-// from the `default` export (works in both CJS and ESM at runtime).
-const helmet = helmetModule.default;
-const rateLimit = rateLimitModule.default;
 import { env } from "./config/env.js";
 import { accountRouter } from "./routes/account.js";
 import { adminRouter } from "./routes/admin.js";
@@ -27,6 +21,13 @@ import { feedbackRouter } from "./routes/feedback.js";
 import { siteRouter } from "./routes/site.js";
 import { errorHandler, notFound } from "./middleware/error.js";
 import { initSentry } from "./services/sentry.js";
+
+// helmet@8 and express-rate-limit@8 are dual ESM/CJS packages whose types do
+// not resolve to a callable under NodeNext (the default import lands on the
+// module namespace). Load them via require() and type them explicitly instead.
+const require = createRequire(import.meta.url);
+const helmet = require("helmet") as (options?: Record<string, unknown>) => RequestHandler;
+const rateLimit = require("express-rate-limit") as (options?: Record<string, unknown>) => RequestHandler;
 
 initSentry();
 
