@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUpRight, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
+import { ArrowUpRight, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { ImageHint } from "./ImageHint";
 
@@ -35,6 +35,7 @@ export function ProductsManager() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(() => {
     fetch(`${API}/admin/products`, { credentials: "include" })
@@ -51,12 +52,19 @@ export function ProductsManager() {
     load();
   }, [load]);
 
+  const q = query.trim().toLowerCase();
+  const filtered = products.filter(
+    (p) => !q || p.name.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || (p.brand ?? "").toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q))
+  );
+
   return (
     <div className="admin-panel">
       <div className="admin-panel__head">
         <div><span className="eyebrow">Catalog</span><h2>Products</h2></div>
         <button className="button button--dark" onClick={() => setEditing("new")}>Add product <ArrowUpRight size={15} /></button>
       </div>
+
+      <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, SKU, category or brand" /></label>
 
       {editing && (
         <ProductForm
@@ -72,7 +80,8 @@ export function ProductsManager() {
           <thead><tr><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Variants</th><th>Status</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
           <tbody>
             {products.length === 0 && <tr><td colSpan={7} className="muted">No products yet.</td></tr>}
-            {products.map((p) => (
+            {products.length > 0 && filtered.length === 0 && <tr><td colSpan={7} className="muted">No products match your search.</td></tr>}
+            {filtered.map((p) => (
               <tr key={p._id}>
                 <td>{p.images?.[0] ? <img src={p.images[0].url} alt="" width={44} height={52} style={{ objectFit: "cover", borderRadius: 8 }} /> : <span className="muted">—</span>}</td>
                 <td><strong>{p.name}</strong>{p.featured && <span className="featured-tag">Featured</span>}</td>

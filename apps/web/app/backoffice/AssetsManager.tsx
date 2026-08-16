@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Copy, ImagePlus, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { Check, Copy, ImagePlus, Loader2, Pencil, RefreshCw, Search, Trash2, X } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
@@ -21,6 +21,10 @@ export function AssetsManager() {
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [replacing, setReplacing] = useState<string | null>(null);
+  const [replaceTarget, setReplaceTarget] = useState<Asset | null>(null);
+  const replaceRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
@@ -100,6 +104,37 @@ export function AssetsManager() {
     }
   }
 
+  async function replace(asset: Asset, file: File) {
+    setError(null);
+    setMessage(null);
+    if (!file.type.startsWith("image/")) return setError("Please choose an image file.");
+    if (file.size > 10 * 1024 * 1024) return setError("Image must be under 10MB.");
+    setReplacing(asset._id);
+    try {
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Could not read file"));
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(`${API}/admin/media/replace`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ assetId: asset._id, dataUri, filename: file.name, mimeType: file.type, size: file.size })
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) return setError(body?.error || "Replace failed");
+      setMessage(body.message || "Asset replaced everywhere it is used.");
+      load();
+    } catch {
+      setError("Replace failed. Is Cloudinary configured?");
+    } finally {
+      setReplacing(null);
+      if (replaceRef.current) replaceRef.current.value = "";
+    }
+  }
+
   return (
     <div className="admin-panel">
       <div className="admin-panel__head">
@@ -108,6 +143,7 @@ export function AssetsManager() {
           {uploading ? <Loader2 size={15} className="spin" /> : <ImagePlus size={15} />} {uploading ? "Uploading…" : "Upload image"}
         </button>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+        <input ref={replaceRef} type="file" accept="image/*" hidden onChange={(e) => { if (replaceTarget && e.target.files?.[0]) replace(replaceTarget, e.target.files[0]); }} />
       </div>
 
       <div className="admin-note" style={{ marginBottom: 18 }}>
@@ -130,6 +166,8 @@ export function AssetsManager() {
         {CATEGORIES.map((c) => <button key={c} className={category === c ? "active" : ""} onClick={() => setCategory(c)}>{CATEGORY_LABELS[c]}</button>)}
       </div>
 
+      <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, public ID or URL" /></label>
+
       {message && <p className="ok-note" style={{ marginBottom: 16 }}>{message}</p>}
       {error && <p className="auth-error" style={{ marginBottom: 16 }}>{error}</p>}
 
@@ -137,7 +175,11 @@ export function AssetsManager() {
         <p className="muted">No assets in this category yet.</p>
       ) : (
         <div className="assets-grid">
-          {assets.map((asset) => (
+          {assets.filter((asset) => {
+            const q = query.trim().toLowerCase();
+            if (!q) return true;
+            return (asset.referenceLabel ?? "").toLowerCase().includes(q) || (asset.alt ?? "").toLowerCase().includes(q) || (asset.publicId ?? "").toLowerCase().includes(q) || asset.url.toLowerCase().includes(q);
+          }).map((asset) => (
             <div className="asset-card" key={asset._id}>
               <div className="asset-card__thumb"><img src={asset.url} alt={asset.alt || asset.referenceLabel || "asset"} /></div>
               <div className="asset-card__body">
@@ -157,6 +199,9 @@ export function AssetsManager() {
                   ) : (
                     <button className="icon-button" title="Rename" onClick={() => { setEditing(asset._id); setRename(asset.referenceLabel || asset.alt || ""); }}><Pencil size={14} /></button>
                   )}
+                  <button className="icon-button" title="Replace image everywhere it's used" disabled={replacing === asset._id} onClick={() => { setReplaceTarget(asset); replaceRef.current?.click(); }}>
+                    {replacing === asset._id ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
+                  </button>
                   <button className="icon-button" title="Delete" onClick={() => remove(asset)} style={{ color: "var(--danger, #b91c1c)" }}><Trash2 size={14} /></button>
                 </div>
               </div>

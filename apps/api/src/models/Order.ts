@@ -24,6 +24,8 @@ const orderSchema = new Schema(
     lines: [lineSchema],
     subtotal: { type: Number, required: true },
     shippingAmount: { type: Number, default: 0 },
+    gstAmount: { type: Number, default: 0 },
+    gstRate: { type: Number, default: 0 },
     discountAmount: { type: Number, default: 0 },
     coupon: {
       couponId: { type: Schema.Types.ObjectId, ref: "Coupon" },

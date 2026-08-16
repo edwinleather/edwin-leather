@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { SiteSetting } from "../models/SiteSetting.js";
+import { getPageContent, PAGE_KEYS } from "../services/pages.js";
 
 export const siteRouter = Router();
 
@@ -54,6 +55,19 @@ siteRouter.get("/settings", async (_req, res, next) => {
       homepage
     };
     return res.json({ ok: true, data: { ...defaults, ...doc, homepage: { ...homepage, ...(doc?.homepage ?? {}) } } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+siteRouter.get("/pages/:key", async (req, res, next) => {
+  try {
+    const key = req.params.key;
+    if (!PAGE_KEYS.includes(key as (typeof PAGE_KEYS)[number])) {
+      return res.status(404).json({ ok: false, error: "Page not found" });
+    }
+    const data = await getPageContent(key);
+    return res.json({ ok: true, data });
   } catch (error) {
     return next(error);
   }

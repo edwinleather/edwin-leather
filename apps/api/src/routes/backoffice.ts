@@ -6,11 +6,16 @@ import { AdminUser, RolePermission, ADMIN_ROLES } from "../models/backoffice.js"
 import { adminPublic, allFeatures, DEFAULT_FEATURES } from "../services/backoffice.js";
 import { User } from "../models/User.js";
 import { DeliveryConfig } from "../models/DeliveryConfig.js";
+import { TaxConfig } from "../models/TaxConfig.js";
 import { getDeliveryConfig, invalidateDeliveryConfigCache } from "../services/delivery.js";
+import { getTaxConfig, invalidateTaxConfigCache } from "../services/tax.js";
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
 import { SiteSetting } from "../models/SiteSetting.js";
 import { orderResponse } from "../services/orders.js";
+import { PageContent } from "../models/PageContent.js";
+import { PAGE_KEYS, defaultPageContent } from "../services/pages.js";
+import { requireBackofficeFeature } from "../middleware/backoffice.js";
 
 export const backofficeRouter = Router();
 
@@ -173,6 +178,38 @@ backofficeRouter.put("/delivery", requireBackofficeAdmin, async (req, res, next)
   }
 });
 
+// GST configuration (global rate + optional waiver above a subtotal threshold)
+backofficeRouter.get("/tax", requireBackofficeAdmin, async (_req, res, next) => {
+  try {
+    const data = await getTaxConfig();
+    return res.json({ ok: true, data });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+backofficeRouter.put("/tax", requireBackofficeAdmin, async (req, res, next) => {
+  try {
+    const input = z
+      .object({
+        gstRate: z.number().min(0).max(100),
+        gstFreeAbove: z.number().min(0).max(10000000)
+      })
+      .parse(req.body);
+    await TaxConfig.updateOne(
+      { key: "default" },
+      { $set: { gstRate: input.gstRate, gstFreeAbove: input.gstFreeAbove, updatedBy: (req as BackofficeRequest).admin!.id } },
+      { upsert: true }
+    );
+    invalidateTaxConfigCache();
+    const data = await getTaxConfig();
+    return res.json({ ok: true, data });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
+    return next(error);
+  }
+});
+
 // Current session's backoffice profile + granted features
 backofficeRouter.get("/me", requireBackofficeAdmin, async (req, res, next) => {
   try {
@@ -275,6 +312,47 @@ backofficeRouter.put("/roles/:role", requireSuperadmin, async (req, res, next) =
     return res.json({ ok: true, data: { role, features: normalized } });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
+    return next(error);
+  }
+});
+
+// ----------------------------------------------------------------- Custom pages
+// List available page keys and their current content (defaults if never edited).
+backofficeRouter.get("/pages", requireBackofficeAdmin, requireBackofficeFeature("pages"), async (_req, res, next) => {
+  try {
+    const docs = await PageContent.find({ key: { $in: [...PAGE_KEYS] } }).lean();
+    const map = new Map(docs.map((d) => [d.key, d]));
+    const data = PAGE_KEYS.map((key) => ({ key, ...(map.get(key)?.content ?? defaultPageContent(key)) }));
+    return res.json({ ok: true, data });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+backofficeRouter.get("/pages/:key", requireBackofficeAdmin, requireBackofficeFeature("pages"), async (req, res, next) => {
+  try {
+    const key = req.params.key as (typeof PAGE_KEYS)[number];
+    if (!PAGE_KEYS.includes(key)) return next(new ApiError(404, "Page not found"));
+    const doc = await PageContent.findOne({ key }).lean();
+    return res.json({ ok: true, data: doc?.content ?? defaultPageContent(key) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+backofficeRouter.put("/pages/:key", requireBackofficeAdmin, requireBackofficeFeature("pages"), async (req, res, next) => {
+  try {
+    const key = req.params.key as (typeof PAGE_KEYS)[number];
+    if (!PAGE_KEYS.includes(key)) return next(new ApiError(404, "Page not found"));
+    const input = z.object({ content: z.record(z.string(), z.unknown()) }).parse(req.body);
+    const saved = await PageContent.findOneAndUpdate(
+      { key },
+      { $set: { key, content: input.content, updatedBy: (req as BackofficeRequest).admin!.id } },
+      { upsert: true, new: true, runValidators: true }
+    );
+    return res.json({ ok: true, data: saved.content });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid page content", error.flatten()));
     return next(error);
   }
 });

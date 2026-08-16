@@ -9,6 +9,7 @@ type Order = {
   email: string;
   subtotal: number;
   shippingAmount: number;
+  gstAmount?: number;
   discountAmount: number;
   total: number;
   currency: string;

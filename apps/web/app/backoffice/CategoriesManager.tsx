@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Save, X } from "lucide-react";
+import { Plus, Save, Search, X } from "lucide-react";
 import { ImageHint } from "./ImageHint";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
@@ -25,6 +25,7 @@ export function CategoriesManager() {
   const [form, setForm] = useState({ ...EMPTY });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(() => {
     fetch(`${API}/admin/categories`, { credentials: "include" })
@@ -36,6 +37,9 @@ export function CategoriesManager() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const q = query.trim().toLowerCase();
+  const filtered = rows.filter((c) => !q || c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q) || (c.description ?? "").toLowerCase().includes(q));
 
   function startCreate() {
     setForm({ ...EMPTY });
@@ -92,6 +96,8 @@ export function CategoriesManager() {
         <button className="button button--dark" onClick={startCreate}><Plus size={15} /> New category</button>
       </div>
 
+      <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, slug or description" /></label>
+
       {(creating || editing) && (
         <form className="checkout-form" onSubmit={save} style={{ borderTop: "1px solid var(--line)", paddingTop: 18 }}>
           <div className="form-grid">
@@ -118,7 +124,8 @@ export function CategoriesManager() {
           <thead><tr><th>Name</th><th>Slug</th><th>Products</th><th>Order</th><th>Status</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
           <tbody>
             {rows.length === 0 && <tr><td colSpan={6} className="muted">No categories yet.</td></tr>}
-            {rows.map((c) => (
+            {rows.length > 0 && filtered.length === 0 && <tr><td colSpan={6} className="muted">No categories match your search.</td></tr>}
+            {filtered.map((c) => (
               <tr key={c._id}>
                 <td><strong>{c.name}</strong></td>
                 <td className="muted">/{c.slug}</td>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus } from "lucide-react";
+import { Search, UserPlus } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
@@ -21,6 +21,7 @@ export function AdminsManager() {
   const [rows, setRows] = useState<AdminUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as Role });
+  const [query, setQuery] = useState("");
 
   const load = async () => {
     try {
@@ -36,6 +37,9 @@ export function AdminsManager() {
   useEffect(() => {
     load();
   }, []);
+
+  const q = query.trim().toLowerCase();
+  const visible = (rows ?? []).filter((row) => !q || row.email.toLowerCase().includes(q) || (row.name ?? "").toLowerCase().includes(q) || row.role.includes(q));
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -78,6 +82,8 @@ export function AdminsManager() {
         <span className="muted" style={{ fontSize: 13 }}>Only these people can open the backoffice. Roles decide which features they see.</span>
       </div>
 
+      <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email or role" /></label>
+
       <form className="checkout-form" onSubmit={add} style={{ borderTop: "1px solid var(--line)", paddingTop: 18 }}>
         <div className="form-grid">
           <label>Email <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="name@example.com" /></label>
@@ -97,7 +103,8 @@ export function AdminsManager() {
         <table className="admin-table">
           <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
           <tbody>
-            {rows.map((row) => (
+            {visible.length === 0 && <tr><td colSpan={5} className="muted">No admin users match your search.</td></tr>}
+            {visible.map((row) => (
               <tr key={row.id}>
                 <td><strong>{row.name || "—"}</strong></td>
                 <td>{row.email}</td>

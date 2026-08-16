@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Save, X } from "lucide-react";
+import { Plus, Save, Search, X } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
@@ -53,6 +53,7 @@ export function CouponsManager() {
   const [form, setForm] = useState<CouponForm>({ ...EMPTY });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(() => {
     fetch(`${API}/admin/coupons`, { credentials: "include" })
@@ -64,6 +65,9 @@ export function CouponsManager() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const q = query.trim().toLowerCase();
+  const filtered = rows.filter((c) => !q || c.code.toLowerCase().includes(q) || c.discountType.replace(/_/g, " ").includes(q));
 
   function startCreate() {
     setForm({ ...EMPTY });
@@ -141,6 +145,8 @@ export function CouponsManager() {
         <button className="button button--dark" onClick={startCreate}><Plus size={15} /> New coupon</button>
       </div>
 
+      <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search code or type" /></label>
+
       {(creating || editing) && (
         <form className="checkout-form" onSubmit={save} style={{ borderTop: "1px solid var(--line)", paddingTop: 18 }}>
           <div className="form-grid">
@@ -173,7 +179,8 @@ export function CouponsManager() {
           <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Min order</th><th>Used</th><th>Status</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
           <tbody>
             {rows.length === 0 && <tr><td colSpan={7} className="muted">No coupons yet.</td></tr>}
-            {rows.map((c) => (
+            {rows.length > 0 && filtered.length === 0 && <tr><td colSpan={7} className="muted">No coupons match your search.</td></tr>}
+            {filtered.map((c) => (
               <tr key={c._id}>
                 <td><strong>{c.code}</strong></td>
                 <td>{c.discountType.replace(/_/g, " ")}</td>

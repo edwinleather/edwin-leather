@@ -16,8 +16,10 @@ import { SiteSetting } from "../models/SiteSetting.js";
 import { DeliveryPartner } from "../models/DeliveryPartner.js";
 import { User } from "../models/User.js";
 import { ErrorLog } from "../models/ErrorLog.js";
+import { PageContent } from "../models/PageContent.js";
 import { commitStock, releaseStock, setVariantInventory, type StockLine } from "../services/inventory.js";
 import { orderResponse } from "../services/orders.js";
+import { getTaxConfig } from "../services/tax.js";
 import { sendOrderEmail } from "../services/email.js";
 import { cloudName, deleteAsset, isCloudinaryConfigured, uploadImage } from "../services/cloudinary.js";
 
@@ -382,7 +384,10 @@ const invoiceSettingsSchema = z.object({
   postalCode: z.string().max(20).optional(),
   phone: z.string().max(40).optional(),
   email: z.string().max(120).optional(),
-  website: z.string().max(200).optional()
+  website: z.string().max(200).optional(),
+  invoicePrefix: z.string().max(30).optional(),
+  orderPrefix: z.string().max(12).optional(),
+  note: z.string().max(500).optional()
 });
 
 adminRouter.get("/invoice-settings", requireAdmin, requireFeature("orders"), async (_req, res, next) => {
@@ -418,9 +423,11 @@ adminRouter.get("/orders/:orderId/invoice", requireAdmin, requireFeature("orders
     const products = await Product.find({ _id: { $in: order.lines.map((l: { productId: { toString(): string } }) => l.productId) } }).lean();
     const productById = new Map(products.map((p) => [String(p._id), p]));
 
+    const taxConfig = await getTaxConfig();
+    const gstRate = taxConfig.gstRate;
+
     const lines = order.lines.map((line: { productId: { toString(): string }; sku: string; nameSnapshot: string; variantSnapshot?: string; quantity: number; unitPrice: number; lineTotal: number }) => {
       const product = productById.get(String(line.productId));
-      const gstRate = product?.gst ?? 0;
       const taxable = line.lineTotal;
       const gstAmount = Math.round((taxable * gstRate) / 100);
       return {
@@ -455,14 +462,17 @@ adminRouter.get("/orders/:orderId/invoice", requireAdmin, requireFeature("orders
     };
 
     const addr = order.shippingAddress ?? {};
-    const gstTotal = lines.reduce((sum: number, l: { gstAmount: number }) => sum + l.gstAmount, 0);
+    const gstTotal = typeof order.gstAmount === "number" && order.gstAmount > 0 ? order.gstAmount : lines.reduce((sum: number, l: { gstAmount: number }) => sum + l.gstAmount, 0);
+    const invoicePrefix = inv.invoicePrefix ?? "INV-";
+    const note = inv.note || "This is a computer-generated tax invoice and does not require a physical signature.";
 
     return res.json({
       ok: true,
       data: {
-        invoiceNumber: `INV-${order.orderNumber}`,
+        invoiceNumber: `${invoicePrefix}${order.orderNumber}`,
         invoiceDate: order.createdAt,
         seller,
+        invoiceNote: note,
         order: {
           id: String(order._id),
           orderNumber: order.orderNumber,
@@ -780,6 +790,101 @@ adminRouter.post("/media/delete", requireAdmin, requireFeature("media"), async (
     return res.json({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid delete input", error.flatten()));
+    return next(error);
+  }
+});
+
+// Replace an existing asset's image with a new file. Every place that references the
+// old publicId / url (products, reviews, categories, homepage, page content) is updated
+// so nothing is left broken.
+adminRouter.post("/media/replace", requireAdmin, requireFeature("media"), async (req, res, next) => {
+  try {
+    await requireDb();
+    const input = z
+      .object({
+        assetId: z.string().min(1),
+        dataUri: z.string().min(5),
+        filename: z.string().max(200).optional(),
+        mimeType: z.string().max(60).optional(),
+        size: z.number().int().min(0).optional()
+      })
+      .parse(req.body);
+
+    const asset = await Asset.findById(input.assetId);
+    if (!asset) return next(new ApiError(404, "Asset not found"));
+
+    const oldPublicId = asset.publicId;
+    const oldUrl = asset.url;
+    const folder = oldPublicId ? oldPublicId.split("/").slice(0, -1).join("/") || "edwin/assets" : "edwin/assets";
+
+    const newImage = await uploadImage(input.dataUri, folder);
+    const newUrl = newImage.url;
+    const newPublicId = newImage.publicId;
+
+    // 1. Products — swap url + publicId inside images array by old publicId or url.
+    await Product.updateMany(
+      { "images.publicId": oldPublicId },
+      { $set: { "images.$[i].publicId": newPublicId, "images.$[i].url": newUrl } },
+      { arrayFilters: [{ "i.publicId": oldPublicId }] }
+    );
+    await Product.updateMany(
+      { "images.url": oldUrl },
+      { $set: { "images.$[i].url": newUrl } },
+      { arrayFilters: [{ "i.url": oldUrl }] }
+    );
+
+    // 2. Reviews — same shape.
+    await Review.updateMany(
+      { "images.publicId": oldPublicId },
+      { $set: { "images.$[i].publicId": newPublicId, "images.$[i].url": newUrl } },
+      { arrayFilters: [{ "i.publicId": oldPublicId }] }
+    );
+    await Review.updateMany(
+      { "images.url": oldUrl },
+      { $set: { "images.$[i].url": newUrl } },
+      { arrayFilters: [{ "i.url": oldUrl }] }
+    );
+
+    // 3. Categories — single imageUrl string.
+    await Category.updateMany({ imageUrl: oldUrl }, { $set: { imageUrl: newUrl } });
+
+    // 4. Homepage / site settings — hero image, editorial image, category cards.
+    await SiteSetting.updateMany({ heroImage: oldUrl }, { $set: { heroImage: newUrl } });
+    await SiteSetting.updateMany({ "homepage.editorial.image": oldUrl }, { $set: { "homepage.editorial.image": newUrl } });
+    await SiteSetting.updateMany(
+      { "homepage.categories.cards.image": oldUrl },
+      { $set: { "homepage.categories.cards.$[c].image": newUrl } },
+      { arrayFilters: [{ "c.image": oldUrl }] }
+    );
+
+    // 5. Page content — hero image, block images, block item images.
+    await PageContent.updateMany({ "hero.image": oldUrl }, { $set: { "hero.image": newUrl } });
+    await PageContent.updateMany(
+      { "blocks.image": oldUrl },
+      { $set: { "blocks.$[b].image": newUrl } },
+      { arrayFilters: [{ "b.image": oldUrl }] }
+    );
+    await PageContent.updateMany(
+      { "blocks.items.image": oldUrl },
+      { $set: { "blocks.$[b].items.$[i].image": newUrl } },
+      { arrayFilters: [{ "b.image": oldUrl }, { "i.image": oldUrl }] }
+    );
+
+    // 6. Update the asset record and remove the old file from Cloudinary.
+    asset.url = newUrl;
+    asset.publicId = newPublicId;
+    if (input.filename) asset.filename = input.filename;
+    if (input.mimeType) asset.mimeType = input.mimeType;
+    if (typeof input.size === "number") asset.size = input.size;
+    await asset.save();
+
+    if (oldPublicId && oldPublicId !== newPublicId) {
+      await deleteAsset(oldPublicId).catch(() => {});
+    }
+
+    return res.json({ ok: true, url: newUrl, publicId: newPublicId, message: "Asset replaced everywhere it is used." });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid replace input", error.flatten()));
     return next(error);
   }
 });

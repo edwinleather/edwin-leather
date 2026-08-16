@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, RefreshCw, Search, TriangleAlert } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
@@ -50,6 +50,7 @@ export function ErrorLogsManager() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,6 +77,10 @@ export function ErrorLogsManager() {
     if (filter === "5xx") return status >= 500;
     if (filter === "4xx") return status >= 400 && status < 500;
     return status < 400;
+  }).filter((item) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (item.message ?? "").toLowerCase().includes(q) || (item.path ?? "").toLowerCase().includes(q) || (item.code ?? "").toLowerCase().includes(q) || (item.source ?? "").toLowerCase().includes(q);
   });
 
   return (
@@ -97,6 +102,8 @@ export function ErrorLogsManager() {
           </button>
         ))}
       </div>
+
+      <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search message, path or code" /></label>
 
       {error ? (
         <p className="admin-empty"><TriangleAlert size={18} /> {error}</p>

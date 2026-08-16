@@ -1,9 +1,11 @@
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
+import { SiteSetting } from "../models/SiteSetting.js";
 import { ApiError } from "../middleware/error.js";
 import { reserveStock, type StockLine } from "./inventory.js";
 import { recordCouponUsage, validateCoupon } from "./coupons.js";
 import { computeDeliveryFee, getDeliveryConfig } from "./delivery.js";
+import { computeGst, getTaxConfig } from "./tax.js";
 import { sendOrderEmail } from "./email.js";
 
 export type OrderLineInput = { productId: string; variantId: string; quantity: number };
@@ -30,10 +32,12 @@ function pushTimeline(order: InstanceType<typeof Order>, type: string, message: 
 }
 
 async function nextOrderNumber() {
+  const setting = await SiteSetting.findOne({ key: "invoice" }).lean();
+  const prefix = (setting?.invoice?.orderPrefix || "LEA").trim().toUpperCase();
   const now = Date.now().toString().slice(-6);
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const suffix = Math.floor(100 + Math.random() * 900).toString();
-    const candidate = `LEA${now}${suffix}`;
+    const candidate = `${prefix}${now}${suffix}`;
     const exists = await Order.exists({ orderNumber: candidate });
     if (!exists) return candidate;
   }
@@ -74,6 +78,8 @@ export async function createOrder(input: CreateOrderInput) {
   const subtotal = orderLines.reduce((sum, line) => sum + line.lineTotal, 0);
   const deliveryConfig = await getDeliveryConfig();
   const shippingAmount = computeDeliveryFee(deliveryConfig, subtotal, input.shippingAddress.state);
+  const taxConfig = await getTaxConfig();
+  const gstAmount = computeGst(taxConfig, subtotal);
 
   let discountAmount = 0;
   let coupon: { couponId?: string; code?: string; discountType?: string } = {};
@@ -89,7 +95,7 @@ export async function createOrder(input: CreateOrderInput) {
     coupon = { couponId: result.couponId, code: result.code, discountType: result.discountType };
   }
 
-  const total = Math.max(0, subtotal + shippingAmount - discountAmount);
+  const total = Math.max(0, subtotal + gstAmount + shippingAmount - discountAmount);
 
   await reserveStock(lines);
 
@@ -100,6 +106,8 @@ export async function createOrder(input: CreateOrderInput) {
     lines: orderLines,
     subtotal,
     shippingAmount,
+    gstAmount,
+    gstRate: taxConfig.gstRate,
     discountAmount,
     coupon: discountAmount > 0 ? coupon : undefined,
     total,
@@ -139,6 +147,7 @@ export function orderResponse(order: InstanceType<typeof Order>) {
     })),
     subtotal: order.subtotal,
     shippingAmount: order.shippingAmount,
+    gstAmount: order.gstAmount,
     discountAmount: order.discountAmount,
     coupon: order.coupon,
     total: order.total,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
@@ -30,6 +30,7 @@ export function ReturnsManager({ mode = "returns" }: { mode?: "returns" | "refun
   const [error, setError] = useState<string | null>(null);
   const [refunds, setRefunds] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,7 +50,11 @@ export function ReturnsManager({ mode = "returns" }: { mode?: "returns" | "refun
     load();
   }, [load]);
 
-  const filtered = mode === "refunds" ? rows.filter((r) => ["approved", "refund_pending", "refunded"].includes(r.status)) : rows;
+  const q = query.trim().toLowerCase();
+  const modeFiltered = mode === "refunds" ? rows.filter((r) => ["approved", "refund_pending", "refunded"].includes(r.status)) : rows;
+  const filtered = modeFiltered.filter(
+    (r) => !q || r.returnNumber.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || r.reason.toLowerCase().includes(q) || (r.items?.[0]?.nameSnapshot ?? "").toLowerCase().includes(q)
+  );
 
   async function act(record: ReturnRow, action: string) {
     setBusyId(record._id);
@@ -81,6 +86,8 @@ export function ReturnsManager({ mode = "returns" }: { mode?: "returns" | "refun
         <div><span className="eyebrow">Customer support</span><h2>{mode === "refunds" ? "Refunds" : "Returns & refunds"}</h2></div>
         <button className="button button--ghost" onClick={load} disabled={loading}>Refresh</button>
       </div>
+
+      <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search return #, email, item or reason" /></label>
 
       {error && <p className="auth-error">{error}</p>}
 

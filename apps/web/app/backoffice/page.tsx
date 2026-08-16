@@ -12,7 +12,9 @@ import { CustomersManager } from "./CustomersManager";
 import { CouponsManager } from "./CouponsManager";
 import { ReturnsManager } from "./ReturnsManager";
 import { DeliveryManager } from "./DeliveryManager";
+import { TaxSettingsManager } from "./TaxSettingsManager";
 import { HomepageEditor } from "./HomepageEditor";
+import { PageEditor } from "./PageEditor";
 import { ReviewsManager } from "./ReviewsManager";
 import { AdminsManager } from "./AdminsManager";
 import { RolesManager } from "./RolesManager";
@@ -25,7 +27,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
 type SectionId =
   | "overview" | "products" | "categories" | "inventory" | "orders" | "customers"
-  | "coupons" | "returns" | "refunds" | "delivery" | "homepage" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs";
+  | "coupons" | "returns" | "refunds" | "delivery" | "homepage" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs" | "taxes" | "pages";
 
 const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "overview", label: "Overview", feature: "overview" },
@@ -38,6 +40,8 @@ const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "returns", label: "Returns", feature: "returns" },
   { id: "refunds", label: "Refunds", feature: "refunds" },
   { id: "delivery", label: "Delivery", feature: "shipping" },
+  { id: "taxes", label: "GST & tax", feature: "taxes" },
+  { id: "pages", label: "Customize page", feature: "pages" },
   { id: "homepage", label: "Homepage", feature: "homepage" },
   { id: "reviews", label: "Reviews", feature: "reviews" },
   { id: "feedback", label: "Feedback", feature: "returns" },
@@ -144,6 +148,8 @@ export default function BackofficePage() {
         {active === "returns" && <ReturnsManager mode="returns" />}
         {active === "refunds" && <ReturnsManager mode="refunds" />}
         {active === "delivery" && <DeliveryManager />}
+        {active === "taxes" && <TaxSettingsManager />}
+        {active === "pages" && <PageEditor />}
         {active === "homepage" && <HomepageEditor />}
         {active === "reviews" && <ReviewsManager />}
         {active === "feedback" && <FeedbackManager />}

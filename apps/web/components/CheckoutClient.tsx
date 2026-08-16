@@ -8,6 +8,7 @@ import { useAuth } from "./useAuth";
 import { formatPrice } from "@/lib/format";
 import { placeOrder, validateCoupon, createRazorpayOrder, verifyPayment, type OrderResponse } from "@/lib/api";
 import { INDIAN_STATES, deliveryFeeFor, useDeliveryConfig } from "@/lib/delivery";
+import { gstFor, useTaxConfig } from "@/lib/tax";
 import { logAndGeneric } from "@/lib/errors";
 import { Loader } from "@/components/Loader";
 
@@ -47,6 +48,7 @@ export function CheckoutClient() {
   const [failed, setFailed] = useState<OrderResponse | null>(null);
   const [state, setState] = useState("");
   const deliveryConfig = useDeliveryConfig();
+  const taxConfig = useTaxConfig();
 
   useEffect(() => {
     if (!loading && !authed) {
@@ -83,8 +85,9 @@ export function CheckoutClient() {
 
   const freeDelivery = subtotal === 0 || subtotal >= deliveryConfig.freeDeliveryThreshold;
   const shipping = freeDelivery ? 0 : deliveryFeeFor(deliveryConfig, state);
+  const gst = gstFor(taxConfig, subtotal);
   const discount = applied?.valid && applied.freeShipping ? applied.amount : (applied?.valid ? applied.amount : 0);
-  const total = Math.max(0, subtotal + shipping - discount);
+  const total = Math.max(0, subtotal + gst + shipping - discount);
   const remainingToFree = Math.max(deliveryConfig.freeDeliveryThreshold - subtotal, 0);
 
   function applyCoupon() {
@@ -202,6 +205,7 @@ export function CheckoutClient() {
         </p>
         <div className="checkout-success__totals">
           <div><span>Subtotal</span><strong>{formatPrice(failed.subtotal)}</strong></div>
+          {failed.gstAmount ? <div><span>GST</span><strong>{formatPrice(failed.gstAmount)}</strong></div> : null}
           <div><span>Delivery</span><strong>{failed.shippingAmount ? formatPrice(failed.shippingAmount) : "Free"}</strong></div>
           {failed.discountAmount > 0 && <div><span>Discount</span><strong>− {formatPrice(failed.discountAmount)}</strong></div>}
           <div className="total"><span>Total</span><strong>{formatPrice(failed.total)}</strong></div>
@@ -225,6 +229,7 @@ if (placed) {
         </p>
         <div className="checkout-success__totals">
           <div><span>Subtotal</span><strong>{formatPrice(placed.subtotal)}</strong></div>
+          {placed.gstAmount ? <div><span>GST</span><strong>{formatPrice(placed.gstAmount)}</strong></div> : null}
           <div><span>Delivery</span><strong>{placed.shippingAmount ? formatPrice(placed.shippingAmount) : "Free"}</strong></div>
           {placed.discountAmount > 0 && <div><span>Discount</span><strong>− {formatPrice(placed.discountAmount)}</strong></div>}
           <div className="total"><span>Total</span><strong>{formatPrice(placed.total)}</strong></div>
@@ -288,6 +293,7 @@ if (placed) {
         <label className="coupon-row"><Tag size={15} /><input value={coupon} onChange={(event) => setCoupon(event.target.value)} placeholder="Coupon code" /><button type="button" onClick={applyCoupon} disabled={couponChecking}>{couponChecking ? <span className="btn-spinner" aria-hidden="true" /> : "Apply"}</button></label>
         {applied && <p className={`coupon-status ${applied.valid ? "is-valid" : "is-invalid"}`}>{applied.valid ? `${coupon.trim().toUpperCase()} applied — ${applied.note}` : applied.note}</p>}
         <div className="summary-row"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
+        {gst > 0 && <div className="summary-row"><span>GST ({taxConfig.gstRate}%)</span><span>{formatPrice(gst)}</span></div>}
         <div className="summary-row"><span>Delivery</span><span>{shipping ? formatPrice(shipping) : "Free"}</span></div>
         {!freeDelivery && remainingToFree > 0 && <div className="summary-row summary-row--hint"><span>Add {formatPrice(remainingToFree)} more for free delivery</span><span /></div>}
         {discount > 0 && <div className="summary-row summary-row--discount"><span>Discount</span><span>− {formatPrice(discount)}</span></div>}

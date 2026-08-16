@@ -16,7 +16,10 @@ const invoiceSchema = new Schema(
     postalCode: { type: String, default: "" },
     phone: { type: String, default: "" },
     email: { type: String, default: "" },
-    website: { type: String, default: "" }
+    website: { type: String, default: "" },
+    invoicePrefix: { type: String, default: "INV-" },
+    orderPrefix: { type: String, default: "LEA" },
+    note: { type: String, default: "This is a computer-generated tax invoice and does not require a physical signature." }
   },
   { _id: false }
 );

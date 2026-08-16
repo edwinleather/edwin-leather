@@ -44,6 +44,49 @@ export async function adminGetDelivery(): Promise<DeliveryConfig | null> {
   }
 }
 
+export type TaxConfig = {
+  gstRate: number;
+  gstFreeAbove: number;
+};
+
+export async function getTaxConfig(): Promise<TaxConfig | null> {
+  try {
+    const response = await fetch(`${API_URL}/tax/config`, { credentials: "include" });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function adminSaveTax(config: TaxConfig): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/admin/tax`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(config)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || `Save failed (${response.status})` };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Could not reach the admin service." };
+  }
+}
+
+export async function adminGetTax(): Promise<TaxConfig | null> {
+  try {
+    const response = await fetch(`${API_URL}/admin/tax`, { credentials: "include" });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export type PlaceOrderPayload = {
   email: string;
   customerId?: string;
@@ -70,6 +113,7 @@ export type OrderResponse = {
   paymentMethod: string;
   subtotal: number;
   shippingAmount: number;
+  gstAmount?: number;
   discountAmount: number;
   total: number;
   currency: string;

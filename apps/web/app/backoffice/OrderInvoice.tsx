@@ -23,6 +23,7 @@ type InvoiceLine = {
 type InvoiceData = {
   invoiceNumber: string;
   invoiceDate: string;
+  invoiceNote?: string;
   seller: { companyName: string; gstin: string; cin: string; address: string; city: string; state: string; postalCode: string; phone: string; email: string; website: string };
   order: {
     orderNumber: string;
@@ -174,7 +175,7 @@ export function OrderInvoice({ orderId, orderNumber, onClose }: { orderId: strin
             )}
 
             <footer className="invoice-footer">
-              <p>This is a computer-generated tax invoice and does not require a physical signature.</p>
+              <p>{data.invoiceNote || "This is a computer-generated tax invoice and does not require a physical signature."}</p>
               <p>{[data.seller.website, data.seller.email, data.seller.phone].filter(Boolean).join(" · ")}</p>
             </footer>
           </>

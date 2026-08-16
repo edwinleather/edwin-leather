@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Trash2, Star } from "lucide-react";
+import { Loader2, Search, Trash2, Star } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
@@ -23,6 +23,7 @@ export function FeedbackManager() {
   const [items, setItems] = useState<Feedback[]>([]);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
 
   async function load() {
     setLoading(true);
@@ -56,6 +57,11 @@ export function FeedbackManager() {
     load();
   }
 
+  const q = query.trim().toLowerCase();
+  const visible = items.filter(
+    (item) => !q || (item.name ?? "").toLowerCase().includes(q) || (item.email ?? "").toLowerCase().includes(q) || (item.topic ?? "").toLowerCase().includes(q) || item.message.toLowerCase().includes(q)
+  );
+
   return (
     <div className="admin-panel">
       <header className="admin-header">
@@ -67,13 +73,17 @@ export function FeedbackManager() {
         ))}
       </div>
 
+      <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email or message" /></label>
+
       {loading ? (
         <p className="admin-empty"><Loader2 size={18} className="spin" /> Loading feedback…</p>
       ) : items.length === 0 ? (
         <p className="admin-empty">No feedback here yet.</p>
+      ) : visible.length === 0 ? (
+        <p className="admin-empty">No feedback matches your search.</p>
       ) : (
         <div className="admin-feedback-list">
-          {items.map((item) => (
+          {visible.map((item) => (
             <article className="admin-feedback-card" key={item._id}>
               <div className="admin-feedback-card__head">
                 <div>
