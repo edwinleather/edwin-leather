@@ -51,7 +51,7 @@ export const HoverEffect = ({
           </AnimatePresence>
           <Card>
             {item.image ? (
-              <div className="relative -mx-4 -mt-4 mb-4 overflow-hidden rounded-t-2xl aspect-[4/3]">
+              <div className="relative -mx-4 -mt-4 mb-4 overflow-hidden rounded-2xl aspect-[4/3]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={item.image} alt={item.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
               </div>
@@ -93,7 +93,7 @@ export const CardTitle = ({
   children: React.ReactNode;
 }) => {
   return (
-    <h4 className={cn("text-ink font-bold tracking-wide mt-4", className)}>
+    <h4 className={cn("text-sm font-medium tracking-wide mt-2", className)}>
       {children}
     </h4>
   );
@@ -108,7 +108,7 @@ export const CardDescription = ({
   return (
     <p
       className={cn(
-        "mt-8 text-ink-soft tracking-wide leading-relaxed text-sm",
+        "mt-2 text-xs text-ink-soft tracking-wide leading-relaxed",
         className
       )}
     >
