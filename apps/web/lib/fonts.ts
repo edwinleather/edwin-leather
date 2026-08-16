@@ -1,15 +1,7 @@
-import { Fraunces, Manrope } from "next/font/google";
+import "@fontsource-variable/manrope";
+import "@fontsource-variable/fraunces";
 
-export const manrope = Manrope({
-  subsets: ["latin"],
-  variable: "--font-manrope",
-  display: "swap"
-});
-
-export const fraunces = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-fraunces",
-  style: ["normal", "italic"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap"
-});
+// Self-hosted via @fontsource so the build never needs to fetch fonts from
+// Google's CDN (avoids Vercel build-sandbox failures downloading woff2 files).
+export const manrope = { variable: "--font-manrope" };
+export const fraunces = { variable: "--font-fraunces" };

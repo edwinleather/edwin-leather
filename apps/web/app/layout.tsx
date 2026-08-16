@@ -5,7 +5,6 @@ import { CartProvider } from "@/components/CartProvider";
 import { SiteChrome } from "@/components/SiteChrome";
 import { siteConfig } from "@/lib/site-config";
 import { siteUrl } from "@/lib/site-url";
-import { fraunces, manrope } from "@/lib/fonts";
 
 const SITE_URL = siteUrl();
 
@@ -50,7 +49,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body className={`${manrope.variable} ${fraunces.variable}`}>
+      <body>
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("el-theme");if(!t){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}})();`
