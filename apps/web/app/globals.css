@@ -201,7 +201,7 @@ html.theme-switching *, html.theme-switching *::before, html.theme-switching *::
 .hero h1 { margin: 0; font: 600 clamp(58px, 7.6vw, 118px)/.95 var(--sans); letter-spacing: -.045em; }
 .hero h1 em { font-family: var(--serif); font-weight: 500; font-style: italic; font-size: 1.02em; }
 .hero p { max-width: 520px; margin: 30px 0 0; font-size: 15px; line-height: 1.75; color: rgba(250,246,239,.82); }
-.hero__actions { display: flex; align-items: center; gap: 30px; margin-top: 36px; }
+.hero__actions { display: flex; align-items: center; gap: 30px; margin-top: 20px; }
 .hero__text-link { font-size: 12px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.55); padding-bottom: 3px; }
 .hero__meta { position: absolute; left: 5vw; bottom: 30px; display: flex; align-items: center; gap: 16px; font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(250,246,239,.6); }
 .hero__meta i { width: 22px; height: 1px; background: rgba(255,255,255,.32); }
