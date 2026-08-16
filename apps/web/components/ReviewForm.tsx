@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Star } from "lucide-react";
+import { logAndGeneric } from "@/lib/errors";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
@@ -30,14 +31,15 @@ export function ReviewForm({ product }: { product: { id: string; name: string } 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ productId: product.id, rating, title: form.title.trim(), body: form.body.trim(), authorName: form.authorName.trim(), location: form.location.trim() || undefined })
-    });
+    }).catch((cause) => { setSubmitting(false); setMessage({ ok: false, text: logAndGeneric(cause, "review:submit") }); return null; });
+    if (!res) return;
     const body = await res.json().catch(() => null);
     setSubmitting(false);
     if (res.ok) {
       setMessage({ ok: true, text: "Thanks! Your review is submitted and will appear once we approve it." });
       setForm({ title: "", body: "", authorName: "", location: "" });
     } else {
-      setMessage({ ok: false, text: body?.error || "Could not submit your review." });
+      setMessage({ ok: false, text: body?.error ? logAndGeneric(body.error, "review:submit") : "Could not submit your review." });
     }
   }
 
@@ -81,7 +83,7 @@ export function ReviewForm({ product }: { product: { id: string; name: string } 
         </div>
 
         <div className="form-actions" style={{ marginTop: 16 }}>
-          <button type="submit" className="button button--dark" disabled={submitting}>{submitting ? <Loader2 size={15} className="spin" /> : null} {submitting ? "Submitting…" : "Submit review"}</button>
+          <button type="submit" className="button button--dark" disabled={submitting}>{submitting ? <><span className="btn-spinner" aria-hidden="true" /> Submitting…</> : "Submit review"}</button>
         </div>
         {message && <p className={message.ok ? "ok-note" : "auth-error"} style={{ marginTop: 12 }}>{message.text}</p>}
       </form>

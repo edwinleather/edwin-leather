@@ -62,9 +62,14 @@ export function signInWithPassword(email: string, password: string): Promise<Use
 export async function createAccountWithEmail(email: string, password: string): Promise<User> {
   const result = await createUserWithEmailAndPassword(getFBAuth(), email, password);
   if (result.user.emailVerified === false) {
-    await sendEmailVerification(result.user).catch(() => undefined);
+    await sendEmailVerification(result.user);
   }
   return result.user;
+}
+
+export async function resendEmailVerification(): Promise<void> {
+  const user = await requireAuth();
+  await sendEmailVerification(user);
 }
 
 export function sendPasswordReset(email: string): Promise<void> {

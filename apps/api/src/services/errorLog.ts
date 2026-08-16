@@ -11,6 +11,34 @@ import { ErrorLog } from "../models/ErrorLog.js";
 // and Netlify functions have an ephemeral filesystem.
 const localLogFile = join(process.cwd(), "logs", "errors.log");
 
+let lastDispatchAt = 0;
+
+// Fires a GitHub repository_dispatch so the "Error report" workflow updates the
+// git-file fallback (logs/errors.md) shortly after an error occurs. Throttled
+// to ERROR_REPORT_MIN_INTERVAL_MS so a burst of 4xx/validation errors doesn't
+// trigger a flood of workflow runs. Fire-and-forget; never breaks a request.
+function maybeDispatchReport() {
+  const token = env.errorReportToken;
+  const repo = env.errorReportRepo;
+  if (!token || !repo) return;
+
+  const now = Date.now();
+  if (now - lastDispatchAt < env.errorReportMinIntervalMs) return;
+  lastDispatchAt = now;
+
+  fetch(`https://api.github.com/repos/${repo}/dispatches`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github.v3+json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ event_type: "collect-errors" })
+  }).catch(() => {
+    // Ignore — the report is only a fallback.
+  });
+}
+
 export type ErrorLogEntry = {
   method?: string;
   path?: string;
@@ -67,4 +95,7 @@ export async function logError(entry: ErrorLogEntry, error?: unknown): Promise<v
       // ignore — already on the local file / Netlify logs as a fallback
     }
   }
+
+  // Trigger the git-file fallback refresh.
+  maybeDispatchReport();
 }

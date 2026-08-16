@@ -1,7 +1,7 @@
 import { Router, type Request as ExpressRequest } from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { databaseReady } from "../config/db.js";
+import { ensureDatabase } from "../config/db.js";
 import { env } from "../config/env.js";
 import { ApiError } from "../middleware/error.js";
 import { Feedback } from "../models/Feedback.js";
@@ -30,7 +30,7 @@ function optionalCustomerId(req: ExpressRequest): string | undefined {
 
 feedbackRouter.post("/", async (req, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const input = createSchema.parse(req.body);
     const feedback = await Feedback.create({
       name: input.name,

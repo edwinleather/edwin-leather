@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { databaseReady } from "../config/db.js";
+import { ensureDatabase } from "../config/db.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { ApiError } from "../middleware/error.js";
 import { requireBackofficeAdmin, requireBackofficeFeature, requireBackofficeRole } from "../middleware/backoffice.js";
@@ -27,8 +27,8 @@ const requireAdmin = requireBackofficeAdmin;
 const requireFeature = requireBackofficeFeature;
 const requireSuperadmin = requireBackofficeRole("superadmin");
 
-function requireDb() {
-  if (!databaseReady()) throw new ApiError(503, "Database unavailable");
+async function requireDb() {
+  if (!(await ensureDatabase())) throw new ApiError(503, "Database unavailable");
 }
 
 const productSchema = z.object({
@@ -112,7 +112,7 @@ function normalizeVariant(
 
 adminRouter.get("/products", requireAdmin, requireFeature("products"), async (_req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const data = await Product.find().sort({ createdAt: -1 }).lean();
     return res.json({ ok: true, data });
   } catch (error) {
@@ -122,7 +122,7 @@ adminRouter.get("/products", requireAdmin, requireFeature("products"), async (_r
 
 adminRouter.post("/products", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = productSchema.parse(req.body);
     const variants = input.variants.map((variant) => normalizeVariant(variant));
     const product = await Product.create({ ...input, variants });
@@ -135,7 +135,7 @@ adminRouter.post("/products", requireAdmin, requireFeature("products"), async (r
 
 adminRouter.patch("/products/:productId", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = productSchema.partial().parse(req.body);
     const product = await Product.findById(req.params.productId);
     if (!product) return next(new ApiError(404, "Product not found"));
@@ -159,7 +159,7 @@ adminRouter.patch("/products/:productId", requireAdmin, requireFeature("products
 
 adminRouter.delete("/products/:productId", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const product = await Product.findByIdAndDelete(req.params.productId);
     if (!product) return next(new ApiError(404, "Product not found"));
     return res.json({ ok: true });
@@ -170,7 +170,7 @@ adminRouter.delete("/products/:productId", requireAdmin, requireFeature("product
 
 adminRouter.post("/products/:productId/variants", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = z
       .object({
         label: z.string().min(1),
@@ -196,7 +196,7 @@ adminRouter.post("/products/:productId/variants", requireAdmin, requireFeature("
 
 adminRouter.patch("/products/:productId/variants/:variantId", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = z
       .object({
         label: z.string().min(1).optional(),
@@ -223,7 +223,7 @@ adminRouter.patch("/products/:productId/variants/:variantId", requireAdmin, requ
 
 adminRouter.delete("/products/:productId/variants/:variantId", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const product = await Product.findByIdAndUpdate(
       req.params.productId,
       { $pull: { variants: { _id: req.params.variantId } } },
@@ -240,7 +240,7 @@ adminRouter.delete("/products/:productId/variants/:variantId", requireAdmin, req
 
 adminRouter.get("/inventory", requireAdmin, requireFeature("inventory"), async (_req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const products = await Product.find({}, { name: 1, slug: 1, active: 1, category: 1, variants: 1 }).lean();
     const rows: { productId: string; productName: string; slug: string; active: boolean; variant: (typeof products)[number]["variants"][number] }[] = [];
     for (const product of products) {
@@ -268,7 +268,7 @@ const inventorySetSchema = z.object({
 
 adminRouter.patch("/inventory/:productId/:variantId", requireAdmin, requireFeature("inventory"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = inventorySetSchema.parse(req.body);
     const updated = await setVariantInventory(String(req.params.productId), String(req.params.variantId), input);
     if (!updated) return next(new ApiError(404, "Variant not found"));
@@ -283,7 +283,7 @@ adminRouter.patch("/inventory/:productId/:variantId", requireAdmin, requireFeatu
 
 adminRouter.get("/orders", requireAdmin, requireFeature("orders"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
     const orders = await Order.find(status ? { orderStatus: status } : {}).sort({ createdAt: -1 });
     return res.json({ ok: true, data: orders.map(orderResponse) });
@@ -294,7 +294,7 @@ adminRouter.get("/orders", requireAdmin, requireFeature("orders"), async (req, r
 
 adminRouter.get("/orders/:orderId", requireAdmin, requireFeature("orders"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const order = await Order.findById(req.params.orderId);
     if (!order) return next(new ApiError(404, "Order not found"));
     return res.json({ ok: true, data: orderResponse(order) });
@@ -314,7 +314,7 @@ function orderStockLines(order: InstanceType<typeof Order>): StockLine[] {
 
 adminRouter.patch("/orders/:orderId/status", requireAdmin, requireFeature("orders"), async (req: AuthenticatedRequest, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = z
       .object({
         orderStatus: z.enum(["pending_payment", "order_received", "confirmed", "processing", "packing", "shipping", "packed", "shipped", "delivered", "cancelled", "return_requested", "returned", "refunded"]),
@@ -387,7 +387,7 @@ const invoiceSettingsSchema = z.object({
 
 adminRouter.get("/invoice-settings", requireAdmin, requireFeature("orders"), async (_req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const doc = await SiteSetting.findOne({ key: "invoice" }).lean();
     return res.json({ ok: true, data: doc?.invoice ?? {} });
   } catch (error) {
@@ -397,7 +397,7 @@ adminRouter.get("/invoice-settings", requireAdmin, requireFeature("orders"), asy
 
 adminRouter.put("/invoice-settings", requireAdmin, requireFeature("orders"), async (req: AuthenticatedRequest, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = invoiceSettingsSchema.parse(req.body);
     await SiteSetting.updateOne({ key: "invoice" }, { $set: { invoice: input, updatedBy: req.auth?.sub as never } }, { upsert: true });
     const doc = await SiteSetting.findOne({ key: "invoice" }).lean();
@@ -411,7 +411,7 @@ adminRouter.put("/invoice-settings", requireAdmin, requireFeature("orders"), asy
 // Full Flipkart-style tax invoice for one order (admin can print / download).
 adminRouter.get("/orders/:orderId/invoice", requireAdmin, requireFeature("orders"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const order = await Order.findById(req.params.orderId);
     if (!order) return next(new ApiError(404, "Order not found"));
 
@@ -517,7 +517,7 @@ function composeTrackingLink(partner: { trackingUrl: string } | null, trackingId
 
 adminRouter.get("/delivery-partners", requireAdmin, requireFeature("shipping"), async (_req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const data = await DeliveryPartner.find().sort({ createdAt: -1 }).lean();
     return res.json({ ok: true, data });
   } catch (error) {
@@ -527,7 +527,7 @@ adminRouter.get("/delivery-partners", requireAdmin, requireFeature("shipping"), 
 
 adminRouter.post("/delivery-partners", requireAdmin, requireFeature("shipping"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = deliveryPartnerSchema.parse(req.body);
     const partner = await DeliveryPartner.create(input);
     return res.status(201).json({ ok: true, data: partner });
@@ -539,7 +539,7 @@ adminRouter.post("/delivery-partners", requireAdmin, requireFeature("shipping"),
 
 adminRouter.patch("/delivery-partners/:partnerId", requireAdmin, requireFeature("shipping"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = deliveryPartnerSchema.partial().parse(req.body);
     const partner = await DeliveryPartner.findByIdAndUpdate(req.params.partnerId, input, { new: true, runValidators: true });
     if (!partner) return next(new ApiError(404, "Delivery partner not found"));
@@ -552,7 +552,7 @@ adminRouter.patch("/delivery-partners/:partnerId", requireAdmin, requireFeature(
 
 adminRouter.delete("/delivery-partners/:partnerId", requireAdmin, requireFeature("shipping"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const partner = await DeliveryPartner.findByIdAndDelete(req.params.partnerId);
     if (!partner) return next(new ApiError(404, "Delivery partner not found"));
     return res.json({ ok: true });
@@ -565,7 +565,7 @@ const fulfillmentStatuses = ["order_received", "packing", "shipping", "shipped",
 
 adminRouter.patch("/delivery/orders/:orderId", requireAdmin, requireFeature("shipping"), async (req: AuthenticatedRequest, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = z
       .object({
         orderStatus: z.enum(fulfillmentStatuses),
@@ -621,7 +621,7 @@ adminRouter.patch("/delivery/orders/:orderId", requireAdmin, requireFeature("shi
 
 adminRouter.get("/coupons", requireAdmin, requireFeature("coupons"), async (_req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const data = await Coupon.find().sort({ createdAt: -1 }).lean();
     return res.json({ ok: true, data });
   } catch (error) {
@@ -631,7 +631,7 @@ adminRouter.get("/coupons", requireAdmin, requireFeature("coupons"), async (_req
 
 adminRouter.post("/coupons", requireAdmin, requireFeature("coupons"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = couponSchema.parse(req.body);
     const coupon = await Coupon.create({ ...input, code: input.code.toUpperCase().trim() });
     return res.status(201).json({ ok: true, data: coupon });
@@ -643,7 +643,7 @@ adminRouter.post("/coupons", requireAdmin, requireFeature("coupons"), async (req
 
 adminRouter.patch("/coupons/:couponId", requireAdmin, requireFeature("coupons"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = couponSchema.partial().parse(req.body);
     const coupon = await Coupon.findByIdAndUpdate(req.params.couponId, input, { new: true, runValidators: true });
     if (!coupon) return next(new ApiError(404, "Coupon not found"));
@@ -656,7 +656,7 @@ adminRouter.patch("/coupons/:couponId", requireAdmin, requireFeature("coupons"),
 
 adminRouter.delete("/coupons/:couponId", requireAdmin, requireFeature("coupons"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const coupon = await Coupon.findByIdAndDelete(req.params.couponId);
     if (!coupon) return next(new ApiError(404, "Coupon not found"));
     return res.json({ ok: true });
@@ -669,7 +669,7 @@ adminRouter.delete("/coupons/:couponId", requireAdmin, requireFeature("coupons")
 
 adminRouter.get("/categories", requireAdmin, requireFeature("categories"), async (_req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const data = await Category.find().sort({ displayOrder: 1, name: 1 }).lean();
     return res.json({ ok: true, data });
   } catch (error) {
@@ -679,7 +679,7 @@ adminRouter.get("/categories", requireAdmin, requireFeature("categories"), async
 
 adminRouter.post("/categories", requireAdmin, requireFeature("categories"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = categorySchema.parse(req.body);
     const category = await Category.create(input);
     return res.status(201).json({ ok: true, data: category });
@@ -691,7 +691,7 @@ adminRouter.post("/categories", requireAdmin, requireFeature("categories"), asyn
 
 adminRouter.patch("/categories/:categoryId", requireAdmin, requireFeature("categories"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = categorySchema.partial().parse(req.body);
     const category = await Category.findByIdAndUpdate(req.params.categoryId, input, { new: true, runValidators: true });
     if (!category) return next(new ApiError(404, "Category not found"));
@@ -704,7 +704,7 @@ adminRouter.patch("/categories/:categoryId", requireAdmin, requireFeature("categ
 
 adminRouter.delete("/categories/:categoryId", requireAdmin, requireFeature("categories"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const category = await Category.findByIdAndDelete(req.params.categoryId);
     if (!category) return next(new ApiError(404, "Category not found"));
     return res.json({ ok: true });
@@ -717,7 +717,7 @@ adminRouter.delete("/categories/:categoryId", requireAdmin, requireFeature("cate
 
 adminRouter.get("/customers", requireAdmin, requireFeature("customers"), async (_req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const users = await User.find({}, "-passwordHash -passwordResetTokenHash").sort({ createdAt: -1 }).lean();
     return res.json({ ok: true, data: users });
   } catch (error) {
@@ -787,7 +787,7 @@ adminRouter.post("/media/delete", requireAdmin, requireFeature("media"), async (
 // List the image catalogue, optionally filtered by category.
 adminRouter.get("/assets", requireAdmin, requireFeature("media"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const category = typeof req.query.category === "string" ? req.query.category : undefined;
     const filter: Record<string, unknown> = {};
     if (category && category !== "all") filter.category = category;
@@ -800,7 +800,7 @@ adminRouter.get("/assets", requireAdmin, requireFeature("media"), async (req, re
 
 adminRouter.delete("/assets/:assetId", requireAdmin, requireFeature("media"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const asset = await Asset.findById(req.params.assetId);
     if (!asset) return next(new ApiError(404, "Asset not found"));
     await deleteAsset(asset.publicId).catch(() => {});
@@ -813,7 +813,7 @@ adminRouter.delete("/assets/:assetId", requireAdmin, requireFeature("media"), as
 
 adminRouter.patch("/assets/:assetId", requireAdmin, requireFeature("media"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = z
       .object({
         alt: z.string().max(160).optional(),
@@ -834,7 +834,7 @@ adminRouter.patch("/assets/:assetId", requireAdmin, requireFeature("media"), asy
 
 adminRouter.get("/feedback", requireAdmin, requireFeature("returns"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
     const filter: Record<string, unknown> = {};
     if (status && status !== "all") filter.status = status;
@@ -847,7 +847,7 @@ adminRouter.get("/feedback", requireAdmin, requireFeature("returns"), async (req
 
 adminRouter.patch("/feedback/:feedbackId", requireAdmin, requireFeature("returns"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = z.object({ status: z.enum(["new", "read", "resolved"]) }).parse(req.body);
     const item = await Feedback.findByIdAndUpdate(req.params.feedbackId, { $set: input }, { new: true, runValidators: true });
     if (!item) return next(new ApiError(404, "Feedback not found"));
@@ -860,7 +860,7 @@ adminRouter.patch("/feedback/:feedbackId", requireAdmin, requireFeature("returns
 
 adminRouter.delete("/feedback/:feedbackId", requireAdmin, requireFeature("returns"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     await Feedback.findByIdAndDelete(req.params.feedbackId);
     return res.json({ ok: true });
   } catch (error) {
@@ -872,7 +872,7 @@ adminRouter.delete("/feedback/:feedbackId", requireAdmin, requireFeature("return
 
 adminRouter.get("/returns", requireAdmin, requireFeature("returns"), async (_req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const data = await Return.find().sort({ createdAt: -1 });
     return res.json({ ok: true, data });
   } catch (error) {
@@ -882,7 +882,7 @@ adminRouter.get("/returns", requireAdmin, requireFeature("returns"), async (_req
 
 adminRouter.patch("/returns/:returnId", requireAdmin, requireFeature("returns"), async (req: AuthenticatedRequest, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = z
       .object({
         action: z.enum(["approve", "reject", "returned", "refund_pending", "refunded"]),
@@ -934,9 +934,9 @@ adminRouter.patch("/returns/:returnId", requireAdmin, requireFeature("returns"),
 
 // -------------------------------------------------------------- Error logs
 
-adminRouter.get("/error-logs", requireAdmin, async (req, res, next) => {
+adminRouter.get("/error-logs", requireAdmin, requireFeature("error-logs"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
     const data = await ErrorLog.find().sort({ timestamp: -1 }).limit(limit).lean();
     return res.json({ ok: true, data });
@@ -963,7 +963,7 @@ const reviewSchema = z.object({
 
 adminRouter.get("/reviews", requireAdmin, requireFeature("reviews"), async (_req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const data = await Review.find().sort({ createdAt: -1 }).lean();
     return res.json({ ok: true, data });
   } catch (error) {
@@ -973,7 +973,7 @@ adminRouter.get("/reviews", requireAdmin, requireFeature("reviews"), async (_req
 
 adminRouter.post("/reviews", requireAdmin, requireFeature("reviews"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = reviewSchema.parse(req.body);
     const review = await Review.create(input);
     return res.status(201).json({ ok: true, data: review });
@@ -985,7 +985,7 @@ adminRouter.post("/reviews", requireAdmin, requireFeature("reviews"), async (req
 
 adminRouter.patch("/reviews/:reviewId", requireAdmin, requireFeature("reviews"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = reviewSchema.partial().parse(req.body);
     const review = await Review.findByIdAndUpdate(req.params.reviewId, input, { new: true, runValidators: true });
     if (!review) return next(new ApiError(404, "Review not found"));
@@ -998,7 +998,7 @@ adminRouter.patch("/reviews/:reviewId", requireAdmin, requireFeature("reviews"),
 
 adminRouter.delete("/reviews/:reviewId", requireAdmin, requireFeature("reviews"), async (req, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const review = await Review.findByIdAndDelete(req.params.reviewId);
     if (!review) return next(new ApiError(404, "Review not found"));
     return res.json({ ok: true });

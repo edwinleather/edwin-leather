@@ -1,7 +1,8 @@
 import { Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { z } from "zod";
-import { databaseReady } from "../config/db.js";
+import { ensureDatabase } from "../config/db.js";
+import { ensureBackoffice } from "../config/backofficeDb.js";
 import { env, isConfigured } from "../config/env.js";
 import { verifyFirebaseToken } from "../config/firebase.js";
 import { User } from "../models/User.js";
@@ -38,7 +39,7 @@ function publicUser(user: { _id: unknown; email: string; role: string; firstName
 // issues the same httpOnly session cookie used by every protected route.
 authRouter.post("/firebase", async (req, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "MongoDB is required for authentication. Configure MONGODB_URI first."));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "MongoDB is required for authentication. Configure MONGODB_URI first."));
     const input = firebaseSchema.parse(req.body);
     const payload = await verifyFirebaseToken(input.idToken);
     if (!payload?.uid || !payload.email) return next(new ApiError(401, "Invalid or expired session token"));
@@ -73,25 +74,27 @@ authRouter.post("/firebase", async (req, res, next) => {
 
     // Bootstrap / re-link the superadmin backoffice user.
     if (env.firebaseSuperadminEmail && email === env.firebaseSuperadminEmail) {
-      const existingAdmin = await AdminUser.findOne({ email });
-      if (existingAdmin) {
-        if (String(existingAdmin.appUserId) !== String(user._id)) {
-          existingAdmin.appUserId = user._id;
-          existingAdmin.role = "superadmin";
-          existingAdmin.active = true;
-          await existingAdmin.save();
+      if (await ensureBackoffice()) {
+        const existingAdmin = await AdminUser.findOne({ email });
+        if (existingAdmin) {
+          if (String(existingAdmin.appUserId) !== String(user._id)) {
+            existingAdmin.appUserId = user._id;
+            existingAdmin.role = "superadmin";
+            existingAdmin.active = true;
+            await existingAdmin.save();
+          }
+        } else {
+          await AdminUser.create({
+            email,
+            role: "superadmin",
+            name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            appUserId: user._id,
+            active: true,
+            permissions: []
+          });
         }
-      } else {
-        await AdminUser.create({
-          email,
-          role: "superadmin",
-          name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          appUserId: user._id,
-          active: true,
-          permissions: []
-        });
       }
     }
 

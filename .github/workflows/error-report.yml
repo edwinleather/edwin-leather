@@ -1,0 +1,47 @@
+name: Error report
+
+on:
+  repository_dispatch:
+    types: [collect-errors]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  collect-errors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install mongodb driver
+        run: npm install --no-save mongodb@6
+
+      - name: Collect errors
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_PROJECT_NAME: ${{ vars.VERCEL_PROJECT_NAME }}
+          REPORT_PATH: logs/errors.md
+        run: node scripts/fetch-errors.mjs
+
+      - name: Commit report
+        run: |
+          git config user.name "edwin-bot"
+          git config user.email "actions@github.com"
+          git add logs/errors.md
+          if git diff --cached --quiet; then
+            echo "No changes to report file."
+          else
+            git commit -m "chore(errors): update error report"
+            git push
+          fi

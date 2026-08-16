@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Check, Mail, PackageCheck, CircleCheck } from "lucide-react";
 import { SmoothLink } from "@/components/SmoothLink";
+import { Loader } from "@/components/Loader";
 import { getOrder, type OrderResponse } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 
@@ -16,7 +17,7 @@ export default function ThankYouPage() {
 }
 
 function ThankYouLoading() {
-  return <div className="page-shell"><div className="container thank-you-wrap"><p className="auth-note">Loading your order…</p></div></div>;
+  return <div className="page-shell"><div className="container thank-you-wrap"><Loader label="Loading your order" /></div></div>;
 }
 
 function ThankYouInner() {
@@ -29,7 +30,7 @@ function ThankYouInner() {
     if (!orderId) return;
     getOrder(orderId).then((result) => {
       if (result) setOrder(result);
-      else setError(true);
+      else { console.error("[thank-you] failed to load order", orderId); setError(true); }
     });
   }, [orderId]);
 

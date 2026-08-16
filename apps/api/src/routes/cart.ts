@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { databaseReady } from "../config/db.js";
+import { ensureDatabase } from "../config/db.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { ApiError } from "../middleware/error.js";
 import { Cart } from "../models/Cart.js";
@@ -21,7 +21,7 @@ const cartItemSchema = z.object({
 
 cartRouter.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Cart service unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Cart service unavailable"));
     const cart = await Cart.findOne({ user: req.auth!.sub }).lean();
     return res.json({ ok: true, items: cart?.items ?? [] });
   } catch (error) {
@@ -31,7 +31,7 @@ cartRouter.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) =>
 
 cartRouter.put("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Cart service unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Cart service unavailable"));
     const input = z.object({ items: z.array(cartItemSchema).default([]) }).parse(req.body);
     const cart = await Cart.findOneAndUpdate(
       { user: req.auth!.sub },

@@ -18,13 +18,14 @@ import { AdminsManager } from "./AdminsManager";
 import { RolesManager } from "./RolesManager";
 import { AssetsManager } from "./AssetsManager";
 import { FeedbackManager } from "./FeedbackManager";
+import { ErrorLogsManager } from "./ErrorLogsManager";
 import { siteConfig } from "@/lib/site-config";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
 type SectionId =
   | "overview" | "products" | "categories" | "inventory" | "orders" | "customers"
-  | "coupons" | "returns" | "refunds" | "delivery" | "homepage" | "reviews" | "feedback" | "admins" | "roles" | "assets";
+  | "coupons" | "returns" | "refunds" | "delivery" | "homepage" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs";
 
 const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "overview", label: "Overview", feature: "overview" },
@@ -42,7 +43,8 @@ const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "feedback", label: "Feedback", feature: "returns" },
   { id: "admins", label: "Admins", feature: "admins" },
   { id: "roles", label: "Roles", feature: "roles" },
-  { id: "assets", label: "Assets", feature: "media" }
+  { id: "assets", label: "Assets", feature: "media" },
+  { id: "error-logs", label: "Error Logs", feature: "error-logs" }
 ];
 
 type Stats = {
@@ -148,6 +150,7 @@ export default function BackofficePage() {
         {active === "admins" && <AdminsManager />}
         {active === "roles" && <RolesManager />}
         {active === "assets" && <AssetsManager />}
+        {active === "error-logs" && <ErrorLogsManager />}
       </main>
     </div>
   );

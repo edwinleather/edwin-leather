@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Star, BadgeCheck } from "lucide-react";
 import { Reveal } from "./Reveal";
+import { Loader } from "./Loader";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
@@ -46,15 +47,17 @@ function formatDate(iso?: string) {
 export function Reviews() {
   const [data, setData] = useState<Summary | null>(null);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch(`${API}/reviews`, { cache: "no-store" })
       .then((r) => r.json())
       .then((body) => {
         if (body?.ok) setData(body.data);
-        else setError(true);
+        else { console.error("[reviews] failed to load summary"); setError(true); }
       })
-      .catch(() => setError(true));
+      .catch((cause) => { console.error("[reviews] load error:", cause); setError(true); })
+      .finally(() => setLoading(false));
   }, []);
 
   const total = data?.total ?? 0;
@@ -73,6 +76,8 @@ export function Reviews() {
 
         {error ? (
           <p className="muted">Reviews are on the way — check back soon.</p>
+        ) : loading ? (
+          <div className="reviews__loading"><Loader size="sm" label="Loading reviews" /></div>
         ) : (
           <Reveal delay={0.08}>
             <div className="reviews__overview">

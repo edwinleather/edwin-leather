@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { databaseReady } from "../config/db.js";
+import { ensureDatabase } from "../config/db.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { ApiError } from "../middleware/error.js";
 import { Order } from "../models/Order.js";
@@ -30,13 +30,13 @@ async function nextReturnNumber() {
   throw new ApiError(500, "Could not allocate a return number");
 }
 
-function requireDb() {
-  if (!databaseReady()) throw new ApiError(503, "Database unavailable");
+async function requireDb() {
+  if (!(await ensureDatabase())) throw new ApiError(503, "Database unavailable");
 }
 
 returnsRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const input = returnRequestSchema.parse(req.body);
 
     const order = await Order.findById(input.orderId);
@@ -97,7 +97,7 @@ returnsRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next
 
 returnsRouter.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
-    requireDb();
+    await requireDb();
     const records = await Return.find({ customerId: req.auth!.sub }).sort({ createdAt: -1 });
     return res.json({
       ok: true,

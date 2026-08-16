@@ -36,7 +36,10 @@ export const env = {
   cloudinaryApiSecret: value("CLOUDINARY_API_SECRET"),
   superadminEmails: list("SUPERADMIN_EMAIL"),
   adminEmails: list("ADMIN_EMAILS"),
-  sentryDsn: value("SENTRY_DSN")
+  sentryDsn: value("SENTRY_DSN"),
+  errorReportRepo: value("ERROR_REPORT_REPO", "oyeadiiiiii/edwin-leathers"),
+  errorReportToken: value("ERROR_REPORT_TOKEN"),
+  errorReportMinIntervalMs: Number(value("ERROR_REPORT_MIN_INTERVAL_MS", "60000"))
 };
 
 export const isConfigured = (input: string) => Boolean(input && !input.includes("DEMO") && !input.includes("demo"));

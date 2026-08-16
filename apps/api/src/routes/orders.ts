@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { databaseReady } from "../config/db.js";
+import { ensureDatabase } from "../config/db.js";
 import { Product } from "../models/Product.js";
 import { ApiError } from "../middleware/error.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
@@ -36,7 +36,7 @@ ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next)
   try {
     const input = orderIntentSchema.parse(req.body);
 
-    if (!databaseReady()) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
 
     const uniqueIds = [...new Set(input.items.map((item) => item.productId))];
     const found = await Product.countDocuments({ _id: { $in: uniqueIds }, active: true });
@@ -56,7 +56,7 @@ ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next)
 ordersRouter.post("/validate-coupon", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const input = couponValidateSchema.parse(req.body);
-    if (!databaseReady()) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
 
     const itemsById = new Map(input.items.map((item) => [item.variantId, item]));
     const products = await Product.find({ _id: { $in: input.items.map((item) => item.productId) }, active: true }).lean();

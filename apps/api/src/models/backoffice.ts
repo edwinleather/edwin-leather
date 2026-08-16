@@ -19,7 +19,8 @@ export const BACKOFFICE_FEATURES = [
   "reviews",
   "admins",
   "roles",
-  "media"
+  "media",
+  "error-logs"
 ] as const;
 
 export type BackofficeFeature = (typeof BACKOFFICE_FEATURES)[number];

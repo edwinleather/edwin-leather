@@ -3,7 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import Razorpay from "razorpay";
 import { env, isConfigured } from "../config/env.js";
-import { databaseReady } from "../config/db.js";
+import { ensureDatabase } from "../config/db.js";
 import { ApiError } from "../middleware/error.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { Order } from "../models/Order.js";
@@ -26,7 +26,7 @@ const createOrderSchema = z.object({
 // Server-authoritative amount; creates a real Razorpay order (test mode with test keys).
 paymentsRouter.post("/create-order", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
     const input = createOrderSchema.parse(req.body);
 
     const order = await Order.findOne({ _id: input.orderId, customerId: req.auth!.sub });
@@ -57,7 +57,7 @@ const verifySchema = z.object({ orderId: z.string().min(1), paymentId: z.string(
 // Client returns here after Razorpay checkout completes; verifies the signature and marks the order paid.
 paymentsRouter.post("/verify", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
     const input = verifySchema.parse(req.body);
 
     const order = await Order.findOne({ "payment.gatewayOrderId": input.orderId, customerId: req.auth!.sub });

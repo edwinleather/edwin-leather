@@ -8,6 +8,8 @@ import { useAuth } from "./useAuth";
 import { formatPrice } from "@/lib/format";
 import { placeOrder, validateCoupon, createRazorpayOrder, verifyPayment, type OrderResponse } from "@/lib/api";
 import { INDIAN_STATES, deliveryFeeFor, useDeliveryConfig } from "@/lib/delivery";
+import { logAndGeneric } from "@/lib/errors";
+import { Loader } from "@/components/Loader";
 
 type Placed = OrderResponse | null;
 
@@ -38,6 +40,7 @@ export function CheckoutClient() {
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<{ amount: number; freeShipping: boolean; valid: boolean; note: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [couponChecking, setCouponChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [placed, setPlaced] = useState<Placed>(null);
   const [pendingOrder, setPendingOrder] = useState<OrderResponse | null>(null);
@@ -52,7 +55,7 @@ export function CheckoutClient() {
   }, [loading, authed, router]);
 
   if (loading) {
-    return <div className="checkout-grid"><div className="muted" style={{ padding: "60px 0", textAlign: "center" }}>Checking your session…</div></div>;
+    return <div className="checkout-grid"><div className="muted" style={{ padding: "60px 0", textAlign: "center" }}><Loader label="Checking your session" /></div></div>;
   }
   if (!authed) {
     return null;
@@ -68,7 +71,10 @@ export function CheckoutClient() {
     setError(null);
     const code = coupon.trim();
     if (!code) return;
-    validateCoupon({ code, state, items: items.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })) }).then((result) => {
+    setCouponChecking(true);
+    validateCoupon({ code, state, items: items.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })) })
+      .finally(() => setCouponChecking(false))
+      .then((result) => {
       if (!result) {
         setApplied({ amount: 0, freeShipping: false, valid: false, note: "Could not validate the coupon." });
         return;
@@ -103,7 +109,7 @@ export function CheckoutClient() {
 
     if (!result.ok) {
       setSubmitting(false);
-      setError(result.error || "Something went wrong placing your order.");
+      setError(logAndGeneric(result.error, "checkout:place"));
       return;
     }
 
@@ -123,14 +129,14 @@ export function CheckoutClient() {
     const rzp = await createRazorpayOrder(order.id, order.orderNumber);
     if (!rzp.ok) {
       setSubmitting(false);
-      setError(rzp.error || "Could not start the payment. Your order is saved but not charged.");
+      setError(logAndGeneric(rzp.error, "checkout:razorpay-order"));
       return;
     }
 
     const loaded = await loadRazorpayScript();
     if (!loaded) {
       setSubmitting(false);
-      setError("Could not load the payment window. Your order is saved but not charged.");
+      setError(logAndGeneric("Could not load the payment window. Your order is saved but not charged.", "checkout:razorpay-script"));
       return;
     }
 
@@ -248,7 +254,7 @@ if (placed) {
         </div>
         {error && <div className="checkout-error">{error}</div>}
         <button className="button button--dark button--full checkout-submit" type="submit" disabled={items.length === 0 || submitting}>
-          {submitting ? "Placing order…" : `Place ${method === "cod" ? "COD" : "online"} order — ${formatPrice(total)}`}
+          {submitting ? <><span className="btn-spinner" aria-hidden="true" /> Placing order…</> : `Place ${method === "cod" ? "COD" : "online"} order — ${formatPrice(total)}`}
         </button>
         <p className="checkout-note"><ShieldCheck size={15} /> Online payments are verified server-side. Your card details never touch this store.</p>
       </form>
@@ -259,7 +265,7 @@ if (placed) {
           {items.map((item) => <div className="checkout-item" key={item.lineId}><div><strong>{item.name}</strong><span>{item.variantLabel} × {item.quantity}</span></div><strong>{formatPrice(item.price * item.quantity)}</strong></div>)}
           {items.length === 0 && <p className="muted">Your cart is empty. Add a product before testing checkout.</p>}
         </div>
-        <label className="coupon-row"><Tag size={15} /><input value={coupon} onChange={(event) => setCoupon(event.target.value)} placeholder="Coupon code" /><button type="button" onClick={applyCoupon}>Apply</button></label>
+        <label className="coupon-row"><Tag size={15} /><input value={coupon} onChange={(event) => setCoupon(event.target.value)} placeholder="Coupon code" /><button type="button" onClick={applyCoupon} disabled={couponChecking}>{couponChecking ? <span className="btn-spinner" aria-hidden="true" /> : "Apply"}</button></label>
         {applied && <p className={`coupon-status ${applied.valid ? "is-valid" : "is-invalid"}`}>{applied.valid ? `${coupon.trim().toUpperCase()} applied — ${applied.note}` : applied.note}</p>}
         <div className="summary-row"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
         <div className="summary-row"><span>Delivery</span><span>{shipping ? formatPrice(shipping) : "Free"}</span></div>

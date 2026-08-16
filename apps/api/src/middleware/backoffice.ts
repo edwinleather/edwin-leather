@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { requireAuth, type AuthenticatedRequest } from "./auth.js";
 import { ApiError } from "./error.js";
+import { ensureBackoffice } from "../config/backofficeDb.js";
 import { getAllowedFeatures, getAdminUser } from "../services/backoffice.js";
 import type { AdminRole } from "../models/backoffice.js";
 
@@ -15,6 +16,7 @@ async function resolveAdmin(req: Request, _res: Response, next: NextFunction) {
     if (error) return next(error);
     try {
       if (!ar.auth?.sub) return next(new ApiError(401, "Authentication required"));
+      if (!(await ensureBackoffice())) return next(new ApiError(503, "Database unavailable"));
       const admin = await getAdminUser(ar.auth.sub);
       if (!admin || !admin.active) return next(new ApiError(403, "Insufficient permissions"));
       ar.admin = {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Star } from "lucide-react";
 import { useAuth } from "@/components/useAuth";
+import { GENERIC_ERROR, logAndGeneric } from "@/lib/errors";
 
 export function FeedbackForm() {
   const { user } = useAuth();
@@ -34,12 +35,12 @@ export function FeedbackForm() {
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
-        setError(body?.error || "Could not submit feedback. Please try again.");
+        setError(body?.error ? logAndGeneric(body.error, "feedback:submit") : "Could not submit feedback. Please try again.");
         return;
       }
       setSubmitted(true);
-    } catch {
-      setError("Could not reach the feedback service.");
+    } catch (cause) {
+      setError(logAndGeneric(cause, "feedback"));
     } finally {
       setBusy(false);
     }
@@ -86,7 +87,7 @@ export function FeedbackForm() {
         <label className="field-wide">Your feedback<textarea required rows={6} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="What worked well? What could be better?" /></label>
       </div>
       {error && <p className="auth-error">{error}</p>}
-      <button className="button button--dark button--full" type="submit" disabled={busy}>{busy ? "Submitting…" : "Submit feedback"}</button>
+      <button className="button button--dark button--full" type="submit" disabled={busy}>{busy ? <><span className="btn-spinner" aria-hidden="true" /> Submitting…</> : "Submit feedback"}</button>
     </form>
   );
 }

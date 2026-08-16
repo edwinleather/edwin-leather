@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -8,6 +8,7 @@ import { useAuth } from "./useAuth";
 import { useCart } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
 import { ThemeToggle } from "./ThemeToggle";
+import { Loader } from "./Loader";
 import { siteConfig } from "@/lib/site-config";
 import { useDeliveryConfig } from "@/lib/delivery";
 import { useSiteSettings } from "@/lib/site-settings";
@@ -23,6 +24,14 @@ const nav = [
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuLoading, setMenuLoading] = useState(true);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    setMenuLoading(true);
+    const t = setTimeout(() => setMenuLoading(false), 420);
+    return () => clearTimeout(t);
+  }, [menuOpen]);
   const { count, openCart } = useCart();
   const { authed } = useAuth();
   const pathname = usePathname();
@@ -76,11 +85,15 @@ export function SiteHeader() {
               animate="show"
               variants={{ show: { transition: { staggerChildren: 0.06 } } }}
             >
-              {nav.map(([label, href], index) => (
-                <motion.div key={label} variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0 } }}>
-                  <SmoothLink href={href} onClick={() => setMenuOpen(false)}><span>0{index + 1}</span>{label}</SmoothLink>
-                </motion.div>
-              ))}
+              {menuLoading ? (
+                <Loader label="Opening menu" size="sm" />
+              ) : (
+                nav.map(([label, href], index) => (
+                  <motion.div key={label} variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0 } }}>
+                    <SmoothLink href={href} onClick={() => setMenuOpen(false)}><span>0{index + 1}</span>{label}</SmoothLink>
+                  </motion.div>
+                ))
+              )}
             </motion.nav>
             <div className="mobile-menu__footer">
               <SmoothLink href={authed ? "/account" : "/login"} onClick={() => setMenuOpen(false)}>{authed ? "Account" : "Log in"}</SmoothLink>

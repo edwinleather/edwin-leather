@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { MapPin, PackageCheck, UserRound, LogOut, ChevronDown, ChevronUp, Pencil, Trash2, Plus, KeyRound, CircleCheck } from "lucide-react";
 import { getAddresses, addAddress, updateAddress, deleteAddress, updateProfile, changePassword, getOrder, type Address, type OrderResponse } from "@/lib/api";
 import { useAuth } from "@/components/useAuth";
+import { Loader } from "@/components/Loader";
 import { formatPrice } from "@/lib/format";
+import { logAndGeneric } from "@/lib/errors";
 
 type Order = {
   id: string;
@@ -102,7 +104,7 @@ export default function AccountPage() {
     const result = addressForm._id ? await updateAddress(addressForm._id, addressForm) : await addAddress(addressForm);
     setSavingAddress(false);
     if (!result.ok) {
-      setAddressError(result.error || "Could not save the address.");
+      setAddressError(logAndGeneric(result.error, "account:address"));
       return;
     }
     setAddresses(result.addresses ?? []);
@@ -120,7 +122,7 @@ export default function AccountPage() {
     setProfileMsg(null);
     const result = await updateProfile(profileDraft);
     setSavingProfile(false);
-    if (!result.ok) { setProfileMsg(result.error || "Could not update your profile."); return; }
+    if (!result.ok) { setProfileMsg(logAndGeneric(result.error, "account:profile")); return; }
     await refresh();
     setProfileMsg("Profile updated.");
   }
@@ -132,12 +134,12 @@ export default function AccountPage() {
     if (pwDraft.newPassword.length < 8) { setPwMsg("New password must be at least 8 characters."); setSavingPw(false); return; }
     const result = await changePassword(pwDraft);
     setSavingPw(false);
-    if (!result.ok) { setPwMsg(result.error || "Could not change your password."); return; }
+    if (!result.ok) { setPwMsg(result.error ? logAndGeneric(result.error, "account:password") : "Could not change your password."); return; }
     setPwMsg("Password updated.");
     setPwDraft({ currentPassword: "", newPassword: "" });
   }
 
-  if (loading || !authed) return <div className="page-shell"><div className="container"><p className="auth-note">Loading your account…</p></div></div>;
+  if (loading || !authed) return <div className="page-shell"><div className="container"><Loader label="Loading your account" /></div></div>;
 
   const navItems: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: "overview", label: "Overview", icon: <UserRound size={17} /> },
@@ -194,7 +196,7 @@ export default function AccountPage() {
               <>
                 <div className="account-section-head"><h2>All orders</h2></div>
                 {ordersLoading ? (
-                  <p className="auth-note">Loading orders…</p>
+                  <Loader label="Loading orders" size="sm" />
                 ) : orders.length === 0 ? (
                   <div className="account-card"><p>No orders yet. Your order history will appear here.</p></div>
                 ) : (
@@ -212,7 +214,7 @@ export default function AccountPage() {
                       {expandedOrder === order.id && (
                         <div className="order-detail">
                           {detailLoading ? (
-                            <p className="auth-note">Loading details…</p>
+                            <Loader label="Loading details" size="sm" />
                           ) : orderDetail ? (
                             <>
                               <div className="order-detail__meta">
@@ -288,7 +290,7 @@ export default function AccountPage() {
                       <label>Phone<input required inputMode="tel" value={addressForm.phone} onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })} /></label>
                     </div>
                     <div className="account-card__actions">
-                      <button className="button button--dark button--small" type="submit" disabled={savingAddress}>{savingAddress ? "Saving…" : "Save address"}</button>
+                      <button className="button button--dark button--small" type="submit" disabled={savingAddress}>{savingAddress ? <><span className="btn-spinner" aria-hidden="true" /> Saving…</> : "Save address"}</button>
                       <button className="button button--ghost button--small" type="button" onClick={() => setAddressForm(null)}>Cancel</button>
                     </div>
                   </form>
@@ -322,7 +324,7 @@ export default function AccountPage() {
                     <label className="field-wide">Email<input disabled value={user?.email || ""} /></label>
                   </div>
                   <div className="account-card__actions">
-                    <button className="button button--dark button--small" type="submit" disabled={savingProfile}>{savingProfile ? "Saving…" : "Save profile"}</button>
+                    <button className="button button--dark button--small" type="submit" disabled={savingProfile}>{savingProfile ? <><span className="btn-spinner" aria-hidden="true" /> Saving…</> : "Save profile"}</button>
                   </div>
                 </form>
 
@@ -334,7 +336,7 @@ export default function AccountPage() {
                     <label className="field-wide">New password<input required type="password" minLength={8} autoComplete="new-password" value={pwDraft.newPassword} onChange={(e) => setPwDraft({ ...pwDraft, newPassword: e.target.value })} /></label>
                   </div>
                   <div className="account-card__actions">
-                    <button className="button button--dark button--small" type="submit" disabled={savingPw}>{savingPw ? "Updating…" : "Update password"}</button>
+                    <button className="button button--dark button--small" type="submit" disabled={savingPw}>{savingPw ? <><span className="btn-spinner" aria-hidden="true" /> Updating…</> : "Update password"}</button>
                   </div>
                 </form>
               </>

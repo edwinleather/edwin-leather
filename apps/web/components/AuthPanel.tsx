@@ -4,9 +4,10 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Phone, UserRound } from "lucide-react";
 import { completeFirebaseAuth } from "@/lib/api";
-import { createAccountWithEmail, signInWithPassword, sendPasswordReset, currentIdToken, firebaseConfigured } from "@/lib/firebase";
+import { createAccountWithEmail, signInWithPassword, sendPasswordReset, currentIdToken, resendEmailVerification, firebaseConfigured } from "@/lib/firebase";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useAuth } from "@/components/useAuth";
+import { GENERIC_ERROR, logAndGeneric } from "@/lib/errors";
 
 type Mode = "login" | "signup";
 
@@ -38,6 +39,7 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(false);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -74,7 +76,11 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
         setView("reset");
         setNote("We've created your account and sent a verification link to your email. Open it to activate your account.");
       } catch (cause) {
-        setError(messageOf(cause));
+        if (/already-in-use/i.test(String(cause instanceof Error ? cause.message : cause))) {
+          setError("An account with that email already exists. Try signing in instead.");
+        } else {
+          setError(messageOf(cause));
+        }
       } finally {
         setBusy(false);
       }
@@ -85,7 +91,8 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
     try {
       const user = await signInWithPassword(email, password);
       if (!user.emailVerified) {
-        setError("Please verify your email before signing in. Check your inbox for the verification link.");
+        setView("reset");
+        setNote("Please verify your email before signing in. We've sent a link to your inbox — open it to activate your account.");
         return;
       }
       let extra: { firstName?: string; lastName?: string; phone?: string } | undefined;
@@ -97,7 +104,11 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
         }
       } catch { /* ignore */ }
       const idToken = await currentIdToken();
-      await finishSession(idToken, extra);
+      try {
+        await finishSession(idToken, extra);
+      } catch (cause) {
+        setError(logAndGeneric(cause, "auth:session"));
+      }
     } catch (cause) {
       setError(messageOf(cause));
     } finally {
@@ -123,16 +134,36 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
 
   const goBackToForm = () => { setView("form"); setError(null); setNote(null); };
 
+  async function handleResend() {
+    setError(null);
+    setResending(true);
+    try {
+      await resendEmailVerification();
+      setNote("We've re-sent the verification link. Check your inbox (and spam folder) and open it to activate your account.");
+    } catch (cause) {
+      if (/no current user|not signed in/i.test(String(cause instanceof Error ? cause.message : cause))) {
+        setError("Session expired. Sign in again to re-send the link.");
+      } else {
+        setError(messageOf(cause));
+      }
+    } finally {
+      setResending(false);
+    }
+  }
+
   if (view === "reset") {
     return (
       <div className="auth-card">
         <div className="auth-card__heading">
           <span className="eyebrow">Check your inbox</span>
           <h1>Almost there.</h1>
-          <p><strong>{email || "Your email"}</strong> should receive a link from Edwin. Open it to continue, then come back and sign in.</p>
+          <p><strong>{email || "Your email"}</strong> should receive a link from Edwin. Open it to continue, then come back and sign in. If it doesn't arrive within a few minutes, check your spam or promotions folder.</p>
         </div>
         {error && <p className="auth-error">{error}</p>}
         {note && <p className="auth-note">{note}</p>}
+        <button className="button button--dark button--full" type="button" onClick={handleResend} disabled={resending}>
+          {resending ? <><span className="btn-spinner" aria-hidden="true" /> Resending…</> : "Resend verification link"}
+        </button>
         <p className="auth-switch"><button type="button" className="text-button" onClick={goBackToForm}>Back to sign in</button></p>
       </div>
     );
@@ -189,7 +220,7 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
           </label>
         )}
         <button className="button button--dark button--full" type="submit" disabled={busy}>
-          {busy ? (mode === "login" ? "Signing in…" : "Creating account…") : (mode === "login" ? "Sign in" : "Create account")} <ArrowRight size={15} />
+          {busy ? <><span className="btn-spinner" aria-hidden="true" /> {mode === "login" ? "Signing in…" : "Creating account…"}</> : <>{mode === "login" ? "Sign in" : "Create account"} <ArrowRight size={15} /></>}
         </button>
         {mode === "login" && <button type="button" className="text-button" onClick={handleForgot}>Forgot your password?</button>}
       </form>
@@ -218,5 +249,5 @@ function messageOf(error: unknown): string {
   if (/weak-password/i.test(message)) return "Password must be at least 6 characters.";
   if (/network-request-failed/i.test(message)) return "Could not reach Firebase. Check your connection.";
   if (/configuration-not-found/i.test(message)) return "Firebase isn't configured for this project yet.";
-  return message || "Something went wrong. Please try again.";
+  return logAndGeneric(error, "auth");
 }

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { databaseReady } from "../config/db.js";
+import { ensureDatabase } from "../config/db.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { ApiError } from "../middleware/error.js";
 import { Order } from "../models/Order.js";
@@ -26,7 +26,7 @@ accountRouter.use(requireAuth);
 
 accountRouter.get("/me", async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const user = await User.findById(req.auth!.sub).select("-passwordHash -passwordResetTokenHash").lean();
     if (!user) return next(new ApiError(404, "Account not found"));
     return res.json({ ok: true, user });
@@ -37,7 +37,7 @@ accountRouter.get("/me", async (req: AuthenticatedRequest, res, next) => {
 
 accountRouter.get("/addresses", async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const user = await User.findById(req.auth!.sub).select("addresses").lean();
     return res.json({ ok: true, addresses: user?.addresses ?? [] });
   } catch (error) {
@@ -47,7 +47,7 @@ accountRouter.get("/addresses", async (req: AuthenticatedRequest, res, next) => 
 
 accountRouter.post("/addresses", async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const input = addressSchema.parse(req.body);
     const user = await User.findById(req.auth!.sub);
     if (!user) return next(new ApiError(404, "Account not found"));
@@ -63,7 +63,7 @@ accountRouter.post("/addresses", async (req: AuthenticatedRequest, res, next) =>
 
 accountRouter.patch("/addresses/:addressId", async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const input = addressSchema.partial().parse(req.body);
     const user = await User.findById(req.auth!.sub);
     if (!user) return next(new ApiError(404, "Account not found"));
@@ -81,7 +81,7 @@ accountRouter.patch("/addresses/:addressId", async (req: AuthenticatedRequest, r
 
 accountRouter.delete("/addresses/:addressId", async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const user = await User.findById(req.auth!.sub);
     if (!user) return next(new ApiError(404, "Account not found"));
     user.addresses.id(req.params.addressId)?.deleteOne();
@@ -94,7 +94,7 @@ accountRouter.delete("/addresses/:addressId", async (req: AuthenticatedRequest, 
 
 accountRouter.get("/orders", async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const orders = await Order.find({ customerId: req.auth!.sub }).sort({ createdAt: -1 });
     return res.json({ ok: true, orders: orders.map(orderResponse) });
   } catch (error) {
@@ -104,7 +104,7 @@ accountRouter.get("/orders", async (req: AuthenticatedRequest, res, next) => {
 
 accountRouter.get("/orders/:orderId", async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const order = await Order.findOne({ _id: req.params.orderId, customerId: req.auth!.sub });
     if (!order) return next(new ApiError(404, "Order not found"));
     return res.json({ ok: true, order: orderResponse(order) });
@@ -115,7 +115,7 @@ accountRouter.get("/orders/:orderId", async (req: AuthenticatedRequest, res, nex
 
 accountRouter.patch("/me", async (req: AuthenticatedRequest, res, next) => {
   try {
-    if (!databaseReady()) return next(new ApiError(503, "Database unavailable"));
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const input = z.object({ firstName: z.string().min(2).max(60).optional(), lastName: z.string().max(60).optional(), phone: z.string().min(8).max(16).optional() }).parse(req.body);
     const user = await User.findByIdAndUpdate(req.auth!.sub, { $set: input }, { new: true, runValidators: true }).select("-passwordHash -passwordResetTokenHash");
     if (!user) return next(new ApiError(404, "Account not found"));

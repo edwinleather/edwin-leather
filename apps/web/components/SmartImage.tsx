@@ -28,28 +28,43 @@ export function SmartImage({
   crossfade = true
 }: SmartImageProps) {
   const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const fadeClass = crossfade ? (loaded ? " img-smooth img-loaded" : " img-smooth") : "";
+  const showLoader = !loaded && !errored;
 
   useEffect(() => {
     if (crossfade && imgRef.current?.complete) setLoaded(true);
   }, [crossfade]);
 
   return (
-    <Image
-      ref={imgRef}
-      src={src}
-      alt={alt}
-      fill
-      priority={priority}
-      sizes={sizes}
-      quality={quality}
-      decoding="async"
-      placeholder="blur"
-      blurDataURL={BLUR_PLACEHOLDER}
-      onLoad={() => setLoaded(true)}
-      className={`${className}${fadeClass}`.trim()}
-      style={style}
-    />
+    <span className={`img-shell ${errored ? "is-error" : ""}`}>
+      <Image
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        fill
+        priority={priority}
+        sizes={sizes}
+        quality={quality}
+        decoding="async"
+        placeholder="blur"
+        blurDataURL={BLUR_PLACEHOLDER}
+        onLoad={() => setLoaded(true)}
+        onError={() => { setLoaded(false); setErrored(true); }}
+        className={`${className}${fadeClass}`.trim()}
+        style={style}
+      />
+      {showLoader && (
+        <span className="img-shell__loader" aria-hidden="true">
+          <i />
+        </span>
+      )}
+      {errored && (
+        <span className="img-shell__fallback" role="img" aria-label={alt}>
+          {alt.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+    </span>
   );
 }
