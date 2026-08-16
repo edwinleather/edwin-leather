@@ -247,6 +247,7 @@ function messageOf(error: unknown): string {
   if (/wrong-password|invalid-credential|invalid-login/i.test(message)) return "Invalid email or password.";
   if (/user-not-found/i.test(message)) return "No account found for that email.";
   if (/weak-password/i.test(message)) return "Password must be at least 6 characters.";
+  if (/too-many-requests/i.test(message)) return "We've sent quite a few emails recently. Please wait about a minute before trying again.";
   if (/network-request-failed/i.test(message)) return "Could not reach Firebase. Check your connection.";
   if (/configuration-not-found/i.test(message)) return "Firebase isn't configured for this project yet.";
   return logAndGeneric(error, "auth");

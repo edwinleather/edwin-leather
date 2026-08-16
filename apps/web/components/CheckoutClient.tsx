@@ -34,7 +34,7 @@ function loadRazorpayScript(): Promise<boolean> {
 
 export function CheckoutClient() {
   const { items, subtotal, clearCart } = useCart();
-  const { authed, loading } = useAuth();
+  const { authed, loading, user } = useAuth();
   const router = useRouter();
   const [method, setMethod] = useState<"razorpay" | "cod">("razorpay");
   const [coupon, setCoupon] = useState("");
@@ -59,6 +59,26 @@ export function CheckoutClient() {
   }
   if (!authed) {
     return null;
+  }
+
+  if (user && !user.emailVerifiedAt) {
+    return (
+      <div className="checkout-grid">
+        <div className="checkout-form">
+          <div className="checkout-section">
+            <div className="checkout-section__title"><span>!</span><h2>Verify your email to order</h2></div>
+            <p style={{ lineHeight: 1.6, color: "var(--ink-soft)" }}>
+              Your email isn&rsquo;t verified yet. Open the verification link we sent to{" "}
+              <strong>{user.email}</strong>, then refresh this page to continue checking out.
+              Check your spam or promotions folder if it didn&rsquo;t arrive.
+            </p>
+            <a className="button button--dark button--full" style={{ textAlign: "center" }} href="/login?utm_source=checkout-verify">
+              Go to sign in to resend the link
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const freeDelivery = subtotal === 0 || subtotal >= deliveryConfig.freeDeliveryThreshold;

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { ensureDatabase } from "../config/db.js";
 import { Product } from "../models/Product.js";
+import { User } from "../models/User.js";
 import { ApiError } from "../middleware/error.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { createOrder, orderResponse } from "../services/orders.js";
@@ -37,6 +38,11 @@ ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next)
     const input = orderIntentSchema.parse(req.body);
 
     if (!(await ensureDatabase())) return next(new ApiError(503, "Order service unavailable. Configure MONGODB_URI."));
+
+    const customer = await User.findById(req.auth!.sub).select("emailVerifiedAt role").lean();
+    if (!customer?.emailVerifiedAt && customer?.role === "customer") {
+      return next(new ApiError(403, "Please verify your email before placing an order.", { code: "EMAIL_NOT_VERIFIED" }));
+    }
 
     const uniqueIds = [...new Set(input.items.map((item) => item.productId))];
     const found = await Product.countDocuments({ _id: { $in: uniqueIds }, active: true });
