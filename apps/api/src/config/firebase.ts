@@ -1,31 +1,27 @@
-import { initializeApp, cert, applicationDefault, getApps, type App } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 import { env, isConfigured } from "../config/env.js";
 import { ApiError } from "../middleware/error.js";
 
-let app: App | null = null;
+let app: import("firebase-admin/app").App | null = null;
 
 export function firebaseReady() {
   return isConfigured(env.firebaseProjectId) && (isConfigured(env.firebasePrivateKey) || isConfigured(env.googleApplicationCredentials));
 }
 
-export function getFirebaseApp(): App {
+// firebase-admin pulls in jwks-rsa, which does `require("jose")` (an ESM-only
+// module). In a CommonJS serverless bundle (Vercel/Netlify) that throws at load
+// time, so we load it lazily only when a Firebase token actually needs verifying.
+async function getFirebaseApp() {
   if (app) return app;
   if (!firebaseReady()) {
     throw new ApiError(503, "Firebase is not configured. Add FIREBASE_PROJECT_ID and service-account credentials.");
   }
-  // FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY are the primary path.
-  // If only GOOGLE_APPLICATION_CREDENTIALS is set (a service-account JSON
-  // path), fall back to the default credentials lookup so both work.
-  const hasKeyMaterial = isConfigured(env.firebaseClientEmail) && isConfigured(env.firebasePrivateKey);
+  const { initializeApp, cert } = await import("firebase-admin/app");
   app = initializeApp({
-    credential: hasKeyMaterial
-      ? cert({
-          projectId: env.firebaseProjectId,
-          clientEmail: env.firebaseClientEmail,
-          privateKey: env.firebasePrivateKey.replace(/\\n/g, "\n")
-        })
-      : applicationDefault(),
+    credential: cert({
+      projectId: env.firebaseProjectId,
+      clientEmail: env.firebaseClientEmail,
+      privateKey: env.firebasePrivateKey.replace(/\\n/g, "\n")
+    }),
     projectId: env.firebaseProjectId
   });
   return app;
@@ -33,12 +29,10 @@ export function getFirebaseApp(): App {
 
 export async function verifyFirebaseToken(idToken: string) {
   try {
-    return await getAuth(getFirebaseApp()).verifyIdToken(idToken);
+    const { getAuth } = await import("firebase-admin/auth");
+    const firebaseApp = await getFirebaseApp();
+    return await getAuth(firebaseApp).verifyIdToken(idToken);
   } catch {
     return null;
   }
-}
-
-export function firebaseAppsInitialized() {
-  return getApps().length > 0;
 }

@@ -5,6 +5,9 @@
     { "src": "apps/web/package.json", "use": "@vercel/next" },
     { "src": "apps/api/api/index.ts", "use": "@vercel/node" }
   ],
+  "functions": {
+    "apps/api/api/index.ts": { "runtime": "nodejs22.x" }
+  },
   "routes": [
     { "src": "/api/v1/(.*)", "dest": "/apps/api/api/index.ts" },
     { "src": "/(.*)", "dest": "/apps/web/$1" }

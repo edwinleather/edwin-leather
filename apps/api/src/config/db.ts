@@ -9,7 +9,10 @@ export async function connectDatabase() {
   }
 
   try {
-    await mongoose.connect(env.mongoUri, { serverSelectionTimeoutMS: 5000 });
+    await mongoose.connect(env.mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 10
+    });
     lastDbError = null;
     console.info("[db] Connected to MongoDB Atlas.");
     return true;
