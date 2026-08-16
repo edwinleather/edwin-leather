@@ -14,7 +14,7 @@ export const ordersRouter = Router();
 const orderIntentSchema = z.object({
   email: z.string().email(),
   paymentMethod: z.enum(["razorpay", "cod"]),
-  items: z.array(z.object({ productId: z.string().min(1), variantId: z.string().min(1), quantity: z.number().int().min(1).max(20) })).min(1),
+  items: z.array(z.object({ productId: z.string().min(1), variantId: z.string().min(1), quantity: z.number().int().min(1).max(20) })).min(1).max(50),
   couponCode: z.string().trim().max(30).optional(),
   shippingAddress: z.object({
     fullName: z.string().min(2),
@@ -30,7 +30,7 @@ const orderIntentSchema = z.object({
 const couponValidateSchema = z.object({
   code: z.string().trim().min(1).max(30),
   state: z.string().optional(),
-  items: z.array(z.object({ productId: z.string().min(1), variantId: z.string().min(1), quantity: z.number().int().min(1).max(20) })).min(1)
+  items: z.array(z.object({ productId: z.string().min(1), variantId: z.string().min(1), quantity: z.number().int().min(1).max(20) })).min(1).max(50)
 });
 
 ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
@@ -50,8 +50,8 @@ ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next)
       return next(new ApiError(400, "One or more products in your cart are no longer available."));
     }
 
-    const order = await createOrder({ ...input, customerId: String(req.auth!.sub) });
-    return res.status(201).json({ ok: true, order: orderResponse(order) });
+    const { order, removedItems } = await createOrder({ ...input, customerId: String(req.auth!.sub) });
+    return res.status(201).json({ ok: true, order: orderResponse(order), removedItems });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid order input", error.flatten()));
     return next(error);

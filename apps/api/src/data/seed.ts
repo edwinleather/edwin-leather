@@ -24,8 +24,8 @@ export const seedProducts: SeedProductInput[] = [
     description:
       "A structured everyday tote with a softened silhouette, hand-finished edges, and room for the workday without looking like a work bag.",
     images: [
-      { url: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=1600&q=88", alt: "Heritage Tote" },
-      { url: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=1600&q=88", alt: "Heritage Tote detail" }
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894115/edwin/assets/mgzyaetkznw6ft1f6tdi.webp", alt: "Heritage Tote" },
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894129/edwin/assets/hfs08azolqdqrout5s6j.webp", alt: "Heritage Tote detail" }
     ],
     variants: [
       { label: "Cognac", sku: "TOTE-COG-01", color: "Cognac", inventory: 8 },
@@ -44,8 +44,8 @@ export const seedProducts: SeedProductInput[] = [
     description:
       "A compact crossbody built around the essentials: phone, wallet, keys, sunglasses. Finished with a wide adjustable strap and a hidden rear pocket.",
     images: [
-      { url: "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=1600&q=88", alt: "Merchant Sling" },
-      { url: "https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&w=1600&q=88", alt: "Merchant Sling detail" }
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894146/edwin/assets/uiaqojlrt5zq2d8o8zmo.webp", alt: "Merchant Sling" },
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894135/edwin/assets/vvdyofotdhcwvuznlxec.webp", alt: "Merchant Sling detail" }
     ],
     variants: [
       { label: "Burnished Tan", sku: "SLNG-TAN-01", color: "Tan", inventory: 11 },
@@ -63,8 +63,8 @@ export const seedProducts: SeedProductInput[] = [
     description:
       "A slim bifold that carries the cards you actually use. Designed to break in, not break down, with a hand-burnished edge that gains depth over time.",
     images: [
-      { url: "https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=1600&q=88", alt: "Archive Wallet" },
-      { url: "https://images.unsplash.com/photo-1612902456551-333ac5afa26e?auto=format&fit=crop&w=1600&q=88", alt: "Archive Wallet detail" }
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894275/edwin/assets/jmsky5qf33pm7v9izsel.webp", alt: "Archive Wallet" },
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894245/edwin/assets/j5qcnfhhduia56ssnprq.webp", alt: "Archive Wallet detail" }
     ],
     variants: [
       { label: "Mahogany", sku: "WALT-MAH-01", color: "Mahogany", inventory: 19 },
@@ -82,8 +82,8 @@ export const seedProducts: SeedProductInput[] = [
     description:
       "Cut from a single thick hide and paired with a solid brass buckle. The kind of belt that looks better after a hundred wears than it did on day one.",
     images: [
-      { url: "https://images.unsplash.com/photo-1624222247344-550fb60583dc?auto=format&fit=crop&w=1600&q=88", alt: "Foundry Belt" },
-      { url: "https://images.unsplash.com/photo-1603252109303-2751441dd157?auto=format&fit=crop&w=1600&q=88", alt: "Foundry Belt detail" }
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894758/edwin/assets/eqapt0yuxl1vs0sqw9j1.webp", alt: "Foundry Belt" },
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894197/edwin/assets/gneyctzgsmrs8yeo5pkm.webp", alt: "Foundry Belt detail" }
     ],
     variants: [
       { label: "Cognac / 30", sku: "BELT-COG-30", color: "Cognac", size: "30", inventory: 4 },
@@ -105,8 +105,8 @@ export const seedProducts: SeedProductInput[] = [
     description:
       "A roomy two-night holdall with a wide opening, reinforced base, and a silhouette that relaxes beautifully as the leather develops a patina.",
     images: [
-      { url: "https://images.unsplash.com/photo-1559563458-527698bf5295?auto=format&fit=crop&w=1600&q=88", alt: "Weekender No. 01" },
-      { url: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1600&q=88", alt: "Weekender No. 01 detail" }
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894121/edwin/assets/uzpcycud0y6fr3ixhfdi.webp", alt: "Weekender No. 01" },
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894110/edwin/assets/wjorleikcvlc21h4tjys.webp", alt: "Weekender No. 01 detail" }
     ],
     variants: [
       { label: "Saddle", sku: "WKND-SAD-01", color: "Saddle", inventory: 3 },
@@ -123,8 +123,8 @@ export const seedProducts: SeedProductInput[] = [
     description:
       "A satisfying little loop of leather with a solid split ring and snap hook. Designed for keys, bag charms, or clipping the things you tend to misplace.",
     images: [
-      { url: "https://images.unsplash.com/photo-1601924357840-3e50ad4dd9fd?auto=format&fit=crop&w=1600&q=88", alt: "Key Keeper" },
-      { url: "https://images.unsplash.com/photo-1606503825008-909a67e63c3d?auto=format&fit=crop&w=1600&q=88", alt: "Key Keeper detail" }
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894180/edwin/assets/datthgtxvfqbwjddtarp.webp", alt: "Key Keeper" },
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894229/edwin/assets/cgxjzfsb6lejdoqrcetp.webp", alt: "Key Keeper detail" }
     ],
     variants: [
       { label: "Tan", sku: "KEY-TAN-01", color: "Tan", inventory: 27 },
@@ -139,10 +139,10 @@ export const seedProducts: SeedProductInput[] = [
     collection: "Desk to Door",
     price: 4490,
     description:
-      "A minimal zip folio with just enough internal organization for a tablet, notebook, cards, and loose pages — without turning into a briefcase.",
+      "A minimal zip folio with just enough internal organization for a tablet, notebook, cards, and loose pages - without turning into a briefcase.",
     images: [
-      { url: "https://images.unsplash.com/photo-1511556820780-d912e42b4980?auto=format&fit=crop&w=1600&q=88", alt: "Document Folio" },
-      { url: "https://images.unsplash.com/photo-1523779105320-d1cd346ff52b?auto=format&fit=crop&w=1600&q=88", alt: "Document Folio detail" }
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894747/edwin/assets/ennayofvolqm4brzorsn.webp", alt: "Document Folio" },
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894057/edwin/assets/wb49p31tafio3gzbtfct.webp", alt: "Document Folio detail" }
     ],
     variants: [
       { label: "Chestnut", sku: "FOL-CHS-01", color: "Chestnut", inventory: 6 },
@@ -159,8 +159,8 @@ export const seedProducts: SeedProductInput[] = [
     description:
       "A stripped-back card sleeve for minimal carry. Three pockets, one center slip, and a profile that disappears into a trouser pocket.",
     images: [
-      { url: "https://images.unsplash.com/photo-1601592996763-f05c9c80a7f1?auto=format&fit=crop&w=1600&q=88", alt: "Card Sleeve" },
-      { url: "https://images.unsplash.com/photo-1531190260877-c8d11eb5afaf?auto=format&fit=crop&w=1600&q=88", alt: "Card Sleeve detail" }
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894155/edwin/assets/ywe4jfmryjr3hbfzhdz7.webp", alt: "Card Sleeve" },
+      { url: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894105/edwin/assets/yzh4nn5r3vk6wcopmjli.webp", alt: "Card Sleeve detail" }
     ],
     variants: [
       { label: "Olive", sku: "CARD-OLV-01", color: "Olive", inventory: 12 },

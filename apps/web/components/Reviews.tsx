@@ -75,14 +75,14 @@ export function Reviews() {
         </Reveal>
 
         {error ? (
-          <p className="muted">Reviews are on the way — check back soon.</p>
+          <p className="muted">Reviews are on the way - check back soon.</p>
         ) : loading ? (
           <div className="reviews__loading"><Loader size="sm" label="Loading reviews" /></div>
         ) : (
           <Reveal delay={0.08}>
             <div className="reviews__overview">
               <div className="reviews__score">
-                <strong className="reviews__score-num">{total ? average.toFixed(1) : "—"}</strong>
+                <strong className="reviews__score-num">{total ? average.toFixed(1) : "-"}</strong>
                 <Stars value={average} size={18} />
                 <span className="reviews__count">{total ? `${total} review${total === 1 ? "" : "s"}` : "No reviews yet"}</span>
               </div>
@@ -120,7 +120,7 @@ export function Reviews() {
                 </div>
                 {review.title && <h3 className="review__title">{review.title}</h3>}
                 <p className="review__body">{review.body}</p>
-                {review.images.length > 0 && (
+                {review.images?.length > 0 && (
                   <div className="review__photos">
                     {review.images.map((img, i) => <img key={i} src={img.url} alt={img.alt || review.title || "Review photo"} loading="lazy" />)}
                   </div>

@@ -98,29 +98,6 @@ Then replace demo image URLs in:
 
 For production uploads, validate MIME type, file size, dimensions, and authenticated upload signatures on the backend.
 
-## 6. Resend transactional email
-
-Dashboard: `https://resend.com/`
-Docs: `https://resend.com/docs`
-
-Replace:
-
-```env
-EMAIL_API_KEY=
-EMAIL_FROM=
-```
-
-Recommended events:
-
-- account created
-- password reset
-- order confirmed
-- payment success
-- order shipped
-- order delivered
-- cancellation
-- refund initiated
-
 ## 7. Authentication
 
 Auth is Firebase (credential verification) + the `edwin_session` httpOnly JWT cookie.

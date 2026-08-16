@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Phone, UserRound } from "lucide-react";
 import { completeFirebaseAuth } from "@/lib/api";
@@ -23,7 +23,12 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
   const router = useRouter();
   const params = useSearchParams();
   const returnTo = params.get("returnTo") || "/account";
-  const { refresh } = useAuth();
+  const { authed, loading, refresh } = useAuth();
+
+  // Already signed in? Skip the login page and go straight to the destination.
+  useEffect(() => {
+    if (!loading && authed) router.replace(returnTo);
+  }, [loading, authed, returnTo, router]);
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [view, setView] = useState<"form" | "reset">("form");
@@ -92,7 +97,7 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
       const user = await signInWithPassword(email, password);
       if (!user.emailVerified) {
         setView("reset");
-        setNote("Please verify your email before signing in. We've sent a link to your inbox — open it to activate your account.");
+        setNote("Please verify your email before signing in. We've sent a link to your inbox - open it to activate your account.");
         return;
       }
       let extra: { firstName?: string; lastName?: string; phone?: string } | undefined;
@@ -187,10 +192,16 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
 
       <form className="auth-form" onSubmit={handleSubmit}>
         {mode === "signup" && (
-          <label>
-            Full name
-            <span className="input-shell"><UserRound size={16} /><input required autoComplete="name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Aarav Sharma" /></span>
-          </label>
+          <>
+            <label>
+              First name
+              <span className="input-shell"><UserRound size={16} /><input required autoComplete="given-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Aarav" /></span>
+            </label>
+            <label>
+              Last name
+              <span className="input-shell"><UserRound size={16} /><input required autoComplete="family-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Sharma" /></span>
+            </label>
+          </>
         )}
         <label>
           Email address

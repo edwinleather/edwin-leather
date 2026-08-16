@@ -43,7 +43,7 @@ type InvoiceData = {
 };
 
 function fmtDate(value?: string) {
-  if (!value) return "—";
+  if (!value) return "-";
   return new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
@@ -140,7 +140,7 @@ export function OrderInvoice({ orderId, orderNumber, onClose }: { orderId: strin
                       {line.variantLabel && <span className="invoice-line-sub">{line.variantLabel}</span>}
                       {line.sku && <span className="invoice-line-sub">SKU: {line.sku}</span>}
                     </td>
-                    <td>{line.hsn || "—"}</td>
+                    <td>{line.hsn || "-"}</td>
                     <td>{line.gstRate}%</td>
                     <td>{line.quantity}</td>
                     <td>{formatPrice(line.unitPrice)}</td>
@@ -166,8 +166,8 @@ export function OrderInvoice({ orderId, orderNumber, onClose }: { orderId: strin
               <div className="invoice-shipment">
                 <span className="invoice-party__label">Shipment / Tracking</span>
                 <div className="invoice-shipment__grid">
-                  <span><strong>Courier:</strong> {data.order.tracking.courier || "—"}</span>
-                  <span><strong>Tracking ID:</strong> {data.order.tracking.trackingId || "—"}</span>
+                  <span><strong>Courier:</strong> {data.order.tracking.courier || "-"}</span>
+                  <span><strong>Tracking ID:</strong> {data.order.tracking.trackingId || "-"}</span>
                   {data.order.tracking.awb && <span><strong>AWB:</strong> {data.order.tracking.awb}</span>}
                   {data.order.tracking.trackingUrl && <span><strong>Track:</strong> {data.order.tracking.trackingUrl}</span>}
                 </div>

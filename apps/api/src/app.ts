@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
@@ -12,6 +12,7 @@ import { cartRouter } from "./routes/cart.js";
 import { categoriesRouter } from "./routes/categories.js";
 import { deliveryRouter } from "./routes/delivery.js";
 import { taxRouter } from "./routes/tax.js";
+import { codRouter } from "./routes/cod.js";
 import { healthRouter } from "./routes/health.js";
 import { ordersRouter } from "./routes/orders.js";
 import { paymentsRouter } from "./routes/payments.js";
@@ -38,12 +39,47 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(helmet());
 app.use(cors({ origin: env.clientUrl, credentials: true, methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] }));
-app.use(rateLimit({ windowMs: 60_000, limit: env.nodeEnv === "production" ? 120 : 500, standardHeaders: "draft-7", legacyHeaders: false }));
+app.use(
+  rateLimit({
+    windowMs: 60_000,
+    limit: env.nodeEnv === "production" ? 120 : 500,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    // Derive the key from the socket (not a client-supplied header). When behind
+    // a trusted proxy we combine the socket address with the first hop of the
+    // forwarded chain only if it looks like an IP, so the header cannot be used
+    // to forge an unlimited number of distinct keys.
+    keyGenerator: (req: Request) => {
+      const socketIp = (req.socket?.remoteAddress ?? "").replace(/^::ffff:/, "");
+      const xff = req.headers["x-forwarded-for"];
+      const first = (Array.isArray(xff) ? xff[0] : xff)?.split(",")[0]?.trim() ?? "";
+      const ip = /^[\d.]+$/.test(first) && first.length <= 45 ? first : socketIp;
+      return ip || "unknown";
+    }
+  })
+);
 app.use(cookieParser());
 
 // Razorpay webhook verification requires the exact raw request bytes.
 app.use("/api/v1/payments/webhook", express.raw({ type: "application/json", limit: "1mb" }));
+// Review image uploads send a base64 data URI, which can exceed the default 1mb body limit.
+app.use("/api/v1/reviews/media/upload", express.json({ limit: "14mb" }));
+// Superadmin database import can be large; allow a generous payload.
+app.use("/api/v1/admin/import/database", express.json({ limit: "100mb" }));
 app.use(express.json({ limit: "1mb" }));
+
+// Per-endpoint rate limits to stop abuse (brute force, spam, order floods).
+// Keyed the same way as the global limiter for a consistent, non-spoofable key.
+const keyGen = { keyGenerator: (req: Request) => String(req.socket?.remoteAddress ?? "unknown") };
+const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false, ...keyGen });
+const orderLimit = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, ...keyGen });
+const reviewLimit = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: "draft-7", legacyHeaders: false, ...keyGen });
+const feedbackLimit = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, ...keyGen });
+
+app.use("/api/v1/auth", authLimit);
+app.use("/api/v1/orders", orderLimit);
+app.use("/api/v1/reviews", reviewLimit);
+app.use("/api/v1/feedback", feedbackLimit);
 
 app.use("/api/v1/health", healthRouter);
 app.use("/api/v1/products", productsRouter);
@@ -53,6 +89,7 @@ app.use("/api/v1/account", accountRouter);
 app.use("/api/v1/cart", cartRouter);
 app.use("/api/v1/delivery", deliveryRouter);
 app.use("/api/v1/tax", taxRouter);
+app.use("/api/v1/cod", codRouter);
 app.use("/api/v1/orders", ordersRouter);
 app.use("/api/v1/payments", paymentsRouter);
 app.use("/api/v1/returns", returnsRouter);

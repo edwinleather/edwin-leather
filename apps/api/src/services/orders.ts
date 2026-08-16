@@ -6,7 +6,7 @@ import { reserveStock, type StockLine } from "./inventory.js";
 import { recordCouponUsage, validateCoupon } from "./coupons.js";
 import { computeDeliveryFee, getDeliveryConfig } from "./delivery.js";
 import { computeGst, getTaxConfig } from "./tax.js";
-import { sendOrderEmail } from "./email.js";
+import { getCodConfig } from "./cod.js";
 
 export type OrderLineInput = { productId: string; variantId: string; quantity: number };
 
@@ -48,15 +48,34 @@ export async function createOrder(input: CreateOrderInput) {
   const itemsById = new Map(input.items.map((item) => [item.variantId, item]));
   const products = await Product.find({ _id: { $in: input.items.map((item) => item.productId) }, active: true }).lean();
 
+  // Cash on Delivery is only allowed when globally enabled AND every product in
+  // the cart allows COD. If global COD is off, per-product settings are ignored.
+  if (input.paymentMethod === "cod") {
+    const codConfig = await getCodConfig();
+    if (!codConfig.enabled) throw new ApiError(400, "Cash on Delivery is currently unavailable. Please pay online.");
+    const codBlocked = input.items.some((item) => {
+      const product = products.find((p) => String(p._id) === item.productId);
+      return product ? product.codAvailable === false : true;
+    });
+    if (codBlocked) throw new ApiError(400, "One or more items in your cart do not support Cash on Delivery. Please pay online.");
+  }
+
   const lines: StockLine[] = [];
   const orderLines = [];
   const lineCategories: string[] = [];
+  const removedItems: { variantId: string; name: string; variantLabel?: string; reason: string }[] = [];
 
   for (const product of products) {
     for (const variant of product.variants ?? []) {
       const requested = itemsById.get(String(variant._id));
       if (!requested) continue;
-      if (!variant.active) throw new ApiError(409, `${product.name} — this option is no longer available`);
+      if (!variant.active) throw new ApiError(409, `${product.name} - this option is no longer available`);
+      // Exclude out-of-stock variants (unless on backorder) instead of failing
+      // the whole order, so the remaining items can still be purchased.
+      if (variant.inventoryAvailable <= 0 && !variant.allowBackorder) {
+        removedItems.push({ variantId: String(variant._id), name: product.name, variantLabel: variant.label, reason: "out_of_stock" });
+        continue;
+      }
       lines.push({ productId: String(product._id), variantId: String(variant._id), sku: variant.sku, quantity: requested.quantity });
       const unitPrice = variant.priceOverride ?? product.price;
       orderLines.push({
@@ -125,9 +144,7 @@ export async function createOrder(input: CreateOrderInput) {
 
   if (coupon.couponId) await recordCouponUsage(coupon.couponId);
 
-  sendOrderEmail(order as never, "placed").catch(() => undefined);
-
-  return order;
+  return { order, removedItems };
 }
 
 export function orderResponse(order: InstanceType<typeof Order>) {

@@ -79,9 +79,9 @@ export function AssetsManager() {
   }
 
   async function remove(asset: Asset) {
-    if (!confirm(`Delete asset "${asset.referenceLabel || asset.alt || asset._id}"? This removes it from Cloudinary.`)) return;
+    if (!confirm(`Delete asset "${asset.referenceLabel || asset.alt || asset._id}"? This removes it from Cloudinary and clears every place it is used (products, reviews, categories, pages).`)) return;
     const res = await fetch(`${API}/admin/assets/${asset._id}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) { setMessage("Asset deleted."); load(); }
+    if (res.ok) { setMessage("Asset deleted and references cleaned."); load(); }
   }
 
   async function saveRename(asset: Asset) {
@@ -147,7 +147,7 @@ export function AssetsManager() {
       </div>
 
       <div className="admin-note" style={{ marginBottom: 18 }}>
-        <p className="muted" style={{ fontSize: 13 }}>Every image you upload anywhere — products, reviews, homepage, or here — is catalogued by category. Upload here to add a standalone asset, rename it, copy its URL, or drop it (removes it from Cloudinary).</p>
+        <p className="muted" style={{ fontSize: 13 }}>Every image you upload anywhere - products, reviews, homepage, or here - is catalogued by category. Upload here to add a standalone asset, rename it, copy its URL, or drop it (removes it from Cloudinary).</p>
       </div>
 
       <div className="assets-upload">

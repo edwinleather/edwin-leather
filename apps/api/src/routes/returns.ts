@@ -10,14 +10,16 @@ export const returnsRouter = Router();
 
 const returnRequestSchema = z.object({
   orderId: z.string().min(1),
-  reason: z.string().min(8),
+  reason: z.string().min(3),
+  reasonCategory: z.string().min(1),
+  condition: z.string().optional(),
   notes: z.string().optional(),
   items: z
-    .array(z.object({ productId: z.string().min(1), variantId: z.string().min(1), quantity: z.number().int().min(1) }))
+    .array(z.object({ productId: z.string().min(1), variantId: z.string().min(1), quantity: z.number().int().min(1), issueType: z.string().optional() }))
     .optional()
 });
 
-const ELIGIBLE_STATUSES = ["processing", "packed", "shipped", "delivered"];
+const ELIGIBLE_STATUSES = ["delivered"];
 
 async function nextReturnNumber() {
   const now = Date.now().toString().slice(-6);
@@ -62,7 +64,8 @@ returnsRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next
         variantId: line.variantId,
         sku: line.sku,
         nameSnapshot: line.nameSnapshot,
-        quantity: item.quantity
+        quantity: item.quantity,
+        issueType: item.issueType
       });
     }
 
@@ -75,6 +78,8 @@ returnsRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next
       email: order.email,
       items: returnItems,
       reason: input.reason,
+      reasonCategory: input.reasonCategory,
+      condition: input.condition,
       notes: input.notes,
       status: "requested",
       refundAmount: Math.min(refundEstimate, order.total)
@@ -106,10 +111,35 @@ returnsRouter.get("/", requireAuth, async (req: AuthenticatedRequest, res, next)
         orderId: String(record.orderId),
         status: record.status,
         reason: record.reason,
+        reasonCategory: record.reasonCategory,
+        condition: record.condition,
         refundAmount: record.refundAmount,
-        items: record.items.map((item: { sku?: string; nameSnapshot?: string; quantity: number }) => ({ sku: item.sku, name: item.nameSnapshot, quantity: item.quantity })),
+        items: record.items.map((item: { sku?: string; nameSnapshot?: string; quantity: number; issueType?: string }) => ({ sku: item.sku, name: item.nameSnapshot, quantity: item.quantity, issueType: item.issueType })),
         createdAt: record.createdAt
       }))
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// Return status for a specific order (used to show an active/past request on the order card)
+returnsRouter.get("/order/:orderId", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    await requireDb();
+    const record = await Return.findOne({ customerId: req.auth!.sub, orderId: req.params.orderId }).sort({ createdAt: -1 }).lean();
+    if (!record) return res.json({ ok: true, data: null });
+    return res.json({
+      ok: true,
+      data: {
+        returnNumber: record.returnNumber,
+        status: record.status,
+        reason: record.reason,
+        reasonCategory: record.reasonCategory,
+        condition: record.condition,
+        refundAmount: record.refundAmount,
+        createdAt: record.createdAt
+      }
     });
   } catch (error) {
     return next(error);

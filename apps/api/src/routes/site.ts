@@ -11,11 +11,11 @@ siteRouter.get("/settings", async (_req, res, next) => {
       marquee: { items: ["MADE TO AGE", "EDWIN LEATHERS", "SMALL BATCH", "FULL GRAIN"] },
       featured: { eyebrow: "Current selection", title: "Objects for the everyday.", linkLabel: "Shop all" },
       editorial: {
-        image: "https://images.unsplash.com/photo-1523779917675-b6ed3a42a561?auto=format&fit=crop&w=1600&q=82",
+        image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894065/edwin/assets/hvt6qhohydohffwjtbm7.webp",
         eyebrow: "Material first",
         title: "The surface should remember you.",
         paragraph:
-          "We choose leather for how it will look after years of use—not for how flawless it looks under studio lights on day one. Grain, small marks, and tonal variation are part of the material, not defects to hide.",
+          "We choose leather for how it will look after years of use-not for how flawless it looks under studio lights on day one. Grain, small marks, and tonal variation are part of the material, not defects to hide.",
         features: ["Full-grain hides", "Repair-minded construction", "Small-batch finishing"],
         buttonLabel: "How we make it"
       },
@@ -34,9 +34,9 @@ siteRouter.get("/settings", async (_req, res, next) => {
         eyebrow: "Shop by ritual",
         title: "Where will it go with you?",
         cards: [
-          { title: "Bags", copy: "Carry a little better.", image: "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=1100&q=88" },
-          { title: "Wallets", copy: "Small, useful, personal.", image: "https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=1100&q=88" },
-          { title: "Belts", copy: "One piece. No shortcuts.", image: "https://images.unsplash.com/photo-1624222247344-550fb60583dc?auto=format&fit=crop&w=1100&q=88" }
+          { title: "Bags", copy: "Carry a little better.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894146/edwin/assets/uiaqojlrt5zq2d8o8zmo.webp" },
+          { title: "Wallets", copy: "Small, useful, personal.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894275/edwin/assets/jmsky5qf33pm7v9izsel.webp" },
+          { title: "Belts", copy: "One piece. No shortcuts.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894758/edwin/assets/eqapt0yuxl1vs0sqw9j1.webp" }
         ]
       },
       newArrivals: { eyebrow: "Recently cut", title: "New to the bench.", note: "From the workshop" },
@@ -49,9 +49,10 @@ siteRouter.get("/settings", async (_req, res, next) => {
       heroTitleLine1: "Objects for",
       heroTitleLine2: "your next decade.",
       heroImage:
-        "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1920&q=80",
+        "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894110/edwin/assets/wjorleikcvlc21h4tjys.webp",
       heroSubtitle:
         "Full-grain leather. Considered proportions. Hardware that earns its patina. Objects for the everyday, without the disposable part.",
+      estYear: 2026,
       homepage
     };
     return res.json({ ok: true, data: { ...defaults, ...doc, homepage: { ...homepage, ...(doc?.homepage ?? {}) } } });

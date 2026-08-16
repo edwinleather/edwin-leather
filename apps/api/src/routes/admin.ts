@@ -20,7 +20,6 @@ import { PageContent } from "../models/PageContent.js";
 import { commitStock, releaseStock, setVariantInventory, type StockLine } from "../services/inventory.js";
 import { orderResponse } from "../services/orders.js";
 import { getTaxConfig } from "../services/tax.js";
-import { sendOrderEmail } from "../services/email.js";
 import { cloudName, deleteAsset, isCloudinaryConfigured, uploadImage } from "../services/cloudinary.js";
 
 export const adminRouter = Router();
@@ -46,8 +45,9 @@ const productSchema = z.object({
   deliveryBy: z.string().optional(),
   price: z.number().min(0),
   compareAtPrice: z.number().min(0).optional(),
-  images: z.array(z.object({ url: z.string().url(), publicId: z.string().optional(), alt: z.string().optional() })).default([]),
+  images: z.array(z.object({ url: z.string().url(), publicId: z.string().optional(), alt: z.string().optional() })).max(4).default([]),
   featured: z.boolean().default(false),
+  codAvailable: z.boolean().default(true),
   active: z.boolean().default(true),
   variants: z
     .array(
@@ -361,9 +361,6 @@ adminRouter.patch("/orders/:orderId/status", requireAdmin, requireFeature("order
     order.orderStatus = input.orderStatus;
     order.timeline.push({ type: input.orderStatus, message: input.message ?? `Status changed to ${input.orderStatus}`, at: new Date(), actorId: req.auth!.sub as never });
     await order.save();
-
-    if (input.orderStatus === "shipped" && previous !== "shipped") sendOrderEmail(order as never, "shipped").catch(() => undefined);
-    else if (input.orderStatus === "cancelled" && previous !== "cancelled" && previous !== "delivered" && previous !== "refunded") sendOrderEmail(order as never, "cancelled").catch(() => undefined);
 
     return res.json({ ok: true, data: orderResponse(order) });
   } catch (error) {
@@ -821,7 +818,7 @@ adminRouter.post("/media/replace", requireAdmin, requireFeature("media"), async 
     const newUrl = newImage.url;
     const newPublicId = newImage.publicId;
 
-    // 1. Products — swap url + publicId inside images array by old publicId or url.
+    // 1. Products - swap url + publicId inside images array by old publicId or url.
     await Product.updateMany(
       { "images.publicId": oldPublicId },
       { $set: { "images.$[i].publicId": newPublicId, "images.$[i].url": newUrl } },
@@ -833,7 +830,7 @@ adminRouter.post("/media/replace", requireAdmin, requireFeature("media"), async 
       { arrayFilters: [{ "i.url": oldUrl }] }
     );
 
-    // 2. Reviews — same shape.
+    // 2. Reviews - same shape.
     await Review.updateMany(
       { "images.publicId": oldPublicId },
       { $set: { "images.$[i].publicId": newPublicId, "images.$[i].url": newUrl } },
@@ -845,10 +842,10 @@ adminRouter.post("/media/replace", requireAdmin, requireFeature("media"), async 
       { arrayFilters: [{ "i.url": oldUrl }] }
     );
 
-    // 3. Categories — single imageUrl string.
+    // 3. Categories - single imageUrl string.
     await Category.updateMany({ imageUrl: oldUrl }, { $set: { imageUrl: newUrl } });
 
-    // 4. Homepage / site settings — hero image, editorial image, category cards.
+    // 4. Homepage / site settings - hero image, editorial image, category cards.
     await SiteSetting.updateMany({ heroImage: oldUrl }, { $set: { heroImage: newUrl } });
     await SiteSetting.updateMany({ "homepage.editorial.image": oldUrl }, { $set: { "homepage.editorial.image": newUrl } });
     await SiteSetting.updateMany(
@@ -857,7 +854,7 @@ adminRouter.post("/media/replace", requireAdmin, requireFeature("media"), async 
       { arrayFilters: [{ "c.image": oldUrl }] }
     );
 
-    // 5. Page content — hero image, block images, block item images.
+    // 5. Page content - hero image, block images, block item images.
     await PageContent.updateMany({ "hero.image": oldUrl }, { $set: { "hero.image": newUrl } });
     await PageContent.updateMany(
       { "blocks.image": oldUrl },
@@ -908,9 +905,50 @@ adminRouter.delete("/assets/:assetId", requireAdmin, requireFeature("media"), as
     await requireDb();
     const asset = await Asset.findById(req.params.assetId);
     if (!asset) return next(new ApiError(404, "Asset not found"));
-    await deleteAsset(asset.publicId).catch(() => {});
+
+    const { publicId, url } = asset;
+
+    // Remove every reference to this image across the database so nothing is
+    // left pointing at a deleted file.
+    // 1. Products - pull matching image objects from the images array.
+    await Product.updateMany({ "images.publicId": publicId }, { $pull: { images: { publicId } } });
+    if (url) await Product.updateMany({ "images.url": url }, { $pull: { images: { url } } });
+
+    // 2. Reviews - same shape.
+    await Review.updateMany({ "images.publicId": publicId }, { $pull: { images: { publicId } } });
+    if (url) await Review.updateMany({ "images.url": url }, { $pull: { images: { url } } });
+
+    // 3. Categories - single imageUrl string.
+    if (url) await Category.updateMany({ imageUrl: url }, { $unset: { imageUrl: 1 } });
+
+    // 4. Homepage / site settings.
+    if (url) {
+      await SiteSetting.updateMany({ heroImage: url }, { $unset: { heroImage: 1 } });
+      await SiteSetting.updateMany({ "homepage.editorial.image": url }, { $unset: { "homepage.editorial.image": 1 } });
+      await SiteSetting.updateMany(
+        { "homepage.categories.cards.image": url },
+        { $pull: { "homepage.categories.cards": { image: url } } }
+      );
+    }
+
+    // 5. Page content - hero image, block images, block item images.
+    if (url) {
+      await PageContent.updateMany({ "hero.image": url }, { $unset: { "hero.image": 1 } });
+      await PageContent.updateMany(
+        { "blocks.image": url },
+        { $set: { "blocks.$[b].image": "" } },
+        { arrayFilters: [{ "b.image": url }] }
+      );
+      await PageContent.updateMany(
+        { "blocks.items.image": url },
+        { $set: { "blocks.$[b].items.$[i].image": "" } },
+        { arrayFilters: [{ "b.image": url }, { "i.image": url }] }
+      );
+    }
+
+    await deleteAsset(publicId).catch(() => {});
     await asset.deleteOne();
-    return res.json({ ok: true });
+    return res.json({ ok: true, message: "Image removed and references cleaned from products, reviews, categories, pages and site settings." });
   } catch (error) {
     return next(error);
   }
@@ -1024,11 +1062,6 @@ adminRouter.patch("/returns/:returnId", requireAdmin, requireFeature("returns"),
 
     record.timeline.push({ type: record.status, message: `Return marked as ${record.status}`, at: new Date(), actorId: req.auth!.sub as never });
     await record.save();
-
-    if (input.action === "refunded") {
-      const order = await Order.findById(record.orderId);
-      if (order) sendOrderEmail(order as never, "refunded").catch(() => undefined);
-    }
 
     return res.json({ ok: true, data: record });
   } catch (error) {

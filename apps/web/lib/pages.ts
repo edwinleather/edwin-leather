@@ -44,12 +44,13 @@ export async function getPageContent(key: PageKey): Promise<PageContentData | nu
   }
 }
 
-// Shared per-page <Metadata> titles so refactored pages stay SEO-friendly.
-export const PAGE_METADATA: Record<PageKey, { title: string; description?: string }> = {
-  story: { title: "Our Story" },
-  about: { title: "About Us", description: "Meet the thinking, materials and craft behind Edwin Leathers." },
-  shipping: { title: "Shipping Policy" },
-  returns: { title: "Returns & Refund Policy" },
-  terms: { title: "Terms & Conditions" },
-  privacy: { title: "Privacy Policy" }
+// Shared per-page <Metadata> titles + self-referencing canonicals so every
+// public page resolves to one canonical URL.
+export const PAGE_METADATA: Record<PageKey, { title: string; description?: string; alternates: { canonical: string } }> = {
+  story: { title: "Our Story", alternates: { canonical: "/story" } },
+  about: { title: "About Us", description: "Meet the thinking, materials and craft behind Edwin Leathers.", alternates: { canonical: "/about" } },
+  shipping: { title: "Shipping Policy", alternates: { canonical: "/shipping-policy" } },
+  returns: { title: "Returns & Refund Policy", alternates: { canonical: "/returns-policy" } },
+  terms: { title: "Terms & Conditions", alternates: { canonical: "/terms" } },
+  privacy: { title: "Privacy Policy", alternates: { canonical: "/privacy" } }
 };

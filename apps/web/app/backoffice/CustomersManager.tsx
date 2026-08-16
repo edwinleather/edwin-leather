@@ -18,7 +18,7 @@ type Customer = {
 };
 
 function fmtDate(value?: string) {
-  if (!value) return "—";
+  if (!value) return "-";
   return new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -68,9 +68,9 @@ export function CustomersManager() {
             {!loading && filtered.length === 0 && <tr><td colSpan={6} className="muted">No customers found.</td></tr>}
             {filtered.map((c) => (
               <tr key={c._id}>
-                <td><strong>{[c.firstName, c.lastName].filter(Boolean).join(" ") || "—"}</strong></td>
+                <td><strong>{[c.firstName, c.lastName].filter(Boolean).join(" ") || "-"}</strong></td>
                 <td>{c.email}</td>
-                <td>{c.phone || "—"}</td>
+                <td>{c.phone || "-"}</td>
                 <td><span className={`status ${c.provider === "google" ? "status--confirmed" : ""}`}>{c.provider || "local"}</span></td>
                 <td>{c.emailVerifiedAt ? "Yes" : "No"}</td>
                 <td className="muted">{fmtDate(c.createdAt)}</td>

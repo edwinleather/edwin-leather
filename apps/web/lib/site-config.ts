@@ -2,9 +2,10 @@ export const siteConfig = {
   name: "Edwin Leathers",
   shortName: "EL",
   brandLogo: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786773029/edwin/assets/ygc2xszr0twon6fdg3fg.jpg",
+  favicon: "https://res.cloudinary.com/z7o6zvqo/image/upload/w_64,h_64,c_fill,r_14/v1786773029/edwin/assets/ygc2xszr0twon6fdg3fg.jpg",
   domain: "https://edwinleathers.example",
   description:
-    "Quietly refined leather goods, designed to age beautifully and made for everyday rituals.",
+    "Quietly refined leather goods, designed to age beautifully and made for everyday rituals. Free delivery across India on orders over ₹2,499.",
   announcement: "Free delivery across India on orders over ₹2,499",
   shippingThreshold: 2499,
   supportEmail: "Support.edwinleather@gmail.com",

@@ -12,7 +12,6 @@ import { CustomersManager } from "./CustomersManager";
 import { CouponsManager } from "./CouponsManager";
 import { ReturnsManager } from "./ReturnsManager";
 import { DeliveryManager } from "./DeliveryManager";
-import { TaxSettingsManager } from "./TaxSettingsManager";
 import { HomepageEditor } from "./HomepageEditor";
 import { PageEditor } from "./PageEditor";
 import { ReviewsManager } from "./ReviewsManager";
@@ -21,13 +20,14 @@ import { RolesManager } from "./RolesManager";
 import { AssetsManager } from "./AssetsManager";
 import { FeedbackManager } from "./FeedbackManager";
 import { ErrorLogsManager } from "./ErrorLogsManager";
+import { DatabaseManager } from "./DatabaseManager";
 import { siteConfig } from "@/lib/site-config";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
 type SectionId =
   | "overview" | "products" | "categories" | "inventory" | "orders" | "customers"
-  | "coupons" | "returns" | "refunds" | "delivery" | "homepage" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs" | "taxes" | "pages";
+  | "coupons" | "returns" | "delivery" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs" | "pages" | "database";
 
 const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "overview", label: "Overview", feature: "overview" },
@@ -37,18 +37,16 @@ const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "orders", label: "Orders", feature: "orders" },
   { id: "customers", label: "Customers", feature: "customers" },
   { id: "coupons", label: "Coupons", feature: "coupons" },
-  { id: "returns", label: "Returns", feature: "returns" },
-  { id: "refunds", label: "Refunds", feature: "refunds" },
+  { id: "returns", label: "Returns & refunds", feature: "returns" },
   { id: "delivery", label: "Delivery", feature: "shipping" },
-  { id: "taxes", label: "GST & tax", feature: "taxes" },
   { id: "pages", label: "Customize page", feature: "pages" },
-  { id: "homepage", label: "Homepage", feature: "homepage" },
   { id: "reviews", label: "Reviews", feature: "reviews" },
   { id: "feedback", label: "Feedback", feature: "returns" },
   { id: "admins", label: "Admins", feature: "admins" },
   { id: "roles", label: "Roles", feature: "roles" },
   { id: "assets", label: "Assets", feature: "media" },
-  { id: "error-logs", label: "Error Logs", feature: "error-logs" }
+  { id: "error-logs", label: "Error Logs", feature: "error-logs" },
+  { id: "database", label: "Database", feature: "superadmin" }
 ];
 
 type Stats = {
@@ -60,6 +58,8 @@ export default function BackofficePage() {
   const router = useRouter();
   const [gate, setGate] = useState<{ status: "loading" } | { status: "denied" } | { status: "ok"; role: string; features: string[] }>({ status: "loading" });
   const [active, setActive] = useState<SectionId>("overview");
+  const [pagesTab, setPagesTab] = useState<"pages" | "homepage">("pages");
+  const [returnsTab, setReturnsTab] = useState<"returns" | "refunds">("returns");
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
@@ -99,7 +99,15 @@ export default function BackofficePage() {
   }
 
   const can = (feature: string) => gate.features.length === 0 || gate.features.includes(feature);
-  const nav = NAV.filter((item) => item.id === "overview" || can(item.feature));
+  const isSuperadmin = gate.role === "superadmin";
+  const canPages = can("pages");
+  const canHomepage = can("homepage");
+  const nav = NAV.filter((item) => {
+    if (item.id === "overview") return true;
+    if (item.id === "pages") return canPages || canHomepage;
+    if (item.id === "database") return isSuperadmin;
+    return can(item.feature);
+  });
 
   return (
     <div className="admin-shell">
@@ -145,18 +153,39 @@ export default function BackofficePage() {
         {active === "orders" && <OrdersManager />}
         {active === "customers" && <CustomersManager />}
         {active === "coupons" && <CouponsManager />}
-        {active === "returns" && <ReturnsManager mode="returns" />}
-        {active === "refunds" && <ReturnsManager mode="refunds" />}
+        {active === "returns" && (
+          <>
+            <header className="admin-header"><div><span className="eyebrow">Customer support</span><h1>Returns &amp; refunds</h1></div></header>
+            <div className="status-filter" style={{ marginBottom: 20 }}>
+              <button className={returnsTab === "returns" ? "active" : ""} onClick={() => setReturnsTab("returns")}>Returns</button>
+              <button className={returnsTab === "refunds" ? "active" : ""} onClick={() => setReturnsTab("refunds")}>Refunds</button>
+            </div>
+            <ReturnsManager mode={returnsTab} />
+          </>
+        )}
         {active === "delivery" && <DeliveryManager />}
-        {active === "taxes" && <TaxSettingsManager />}
-        {active === "pages" && <PageEditor />}
-        {active === "homepage" && <HomepageEditor />}
+        {active === "pages" && (
+          <>
+            <header className="admin-header"><div><span className="eyebrow">Storefront</span><h1>Customize page</h1></div></header>
+            <div className="status-filter" style={{ marginBottom: 20 }}>
+              <button className={pagesTab === "pages" ? "active" : ""} onClick={() => setPagesTab("pages")}>Pages</button>
+              <button className={pagesTab === "homepage" ? "active" : ""} onClick={() => setPagesTab("homepage")}>Homepage</button>
+            </div>
+            {pagesTab === "pages" ? <PageEditor /> : <HomepageEditor />}
+          </>
+        )}
         {active === "reviews" && <ReviewsManager />}
         {active === "feedback" && <FeedbackManager />}
         {active === "admins" && <AdminsManager />}
         {active === "roles" && <RolesManager />}
         {active === "assets" && <AssetsManager />}
         {active === "error-logs" && <ErrorLogsManager />}
+        {active === "database" && (
+          <>
+            <header className="admin-header"><div><span className="eyebrow">Superadmin</span><h1>Database backup &amp; restore</h1></div></header>
+            <DatabaseManager />
+          </>
+        )}
       </main>
     </div>
   );

@@ -35,7 +35,7 @@ function maybeDispatchReport() {
     },
     body: JSON.stringify({ event_type: "collect-errors" })
   }).catch(() => {
-    // Ignore — the report is only a fallback.
+    // Ignore - the report is only a fallback.
   });
 }
 
@@ -80,7 +80,7 @@ export async function logError(entry: ErrorLogEntry, error?: unknown): Promise<v
     mkdirSync(join(process.cwd(), "logs"), { recursive: true });
     appendFileSync(localLogFile, JSON.stringify(record) + "\n");
   } catch {
-    // ignore — Atlas is the primary store
+    // ignore - Atlas is the primary store
   }
 
   // Always print so Netlify's own function logs capture it too. This works even
@@ -92,7 +92,7 @@ export async function logError(entry: ErrorLogEntry, error?: unknown): Promise<v
     try {
       await ErrorLog.create(record);
     } catch {
-      // ignore — already on the local file / Netlify logs as a fallback
+      // ignore - already on the local file / Netlify logs as a fallback
     }
   }
 

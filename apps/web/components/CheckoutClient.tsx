@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { Check, CreditCard, Landmark, ShieldCheck, Tag, Truck, XCircle } from "lucide-react";
 import { useCart } from "./CartProvider";
 import { useAuth } from "./useAuth";
+import { trackBeginCheckout, trackPurchase, type AnalyticsItem } from "@/lib/analytics";
 import { formatPrice } from "@/lib/format";
-import { placeOrder, validateCoupon, createRazorpayOrder, verifyPayment, type OrderResponse } from "@/lib/api";
+import { placeOrder, validateCoupon, createRazorpayOrder, verifyPayment, addAddress, type OrderResponse, type Address } from "@/lib/api";
 import { INDIAN_STATES, deliveryFeeFor, useDeliveryConfig } from "@/lib/delivery";
 import { gstFor, useTaxConfig } from "@/lib/tax";
+import { useCodConfig } from "@/lib/cod";
 import { logAndGeneric } from "@/lib/errors";
 import { Loader } from "@/components/Loader";
 
@@ -35,8 +37,10 @@ function loadRazorpayScript(): Promise<boolean> {
 
 export function CheckoutClient() {
   const { items, subtotal, clearCart } = useCart();
+  const availableItems = items.filter((item) => !item.isOutOfStock);
   const { authed, loading, user } = useAuth();
   const router = useRouter();
+  const { enabled: codGlobalEnabled } = useCodConfig();
   const [method, setMethod] = useState<"razorpay" | "cod">("razorpay");
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<{ amount: number; freeShipping: boolean; valid: boolean; note: string } | null>(null);
@@ -47,14 +51,94 @@ export function CheckoutClient() {
   const [pendingOrder, setPendingOrder] = useState<OrderResponse | null>(null);
   const [failed, setFailed] = useState<OrderResponse | null>(null);
   const [state, setState] = useState("");
+  const [form, setForm] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    address: "",
+    city: "",
+    pin: "",
+    phone: ""
+  });
+  const [imported, setImported] = useState(false);
   const deliveryConfig = useDeliveryConfig();
   const taxConfig = useTaxConfig();
+
+  // Fire one GA4 begin_checkout event per checkout page view.
+  useEffect(() => {
+    trackBeginCheckout(
+      items.map((item) => ({
+        item_id: item.productId,
+        item_name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        item_variant: item.variantLabel
+      })),
+      subtotal
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Record a purchase exactly once per order (shared key with /thank-you so a
+  // redirect to that page never double-counts).
+  function recordPurchase(order: OrderResponse) {
+    const key = `el-purchase-${order.id}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      // storage unavailable - fire anyway
+    }
+    trackPurchase({
+      transaction_id: order.orderNumber,
+      value: order.total,
+      tax: order.gstAmount,
+      shipping: order.shippingAmount,
+      currency: order.currency || "INR",
+      items: order.lines.map((line): AnalyticsItem => ({
+        item_id: line.productId,
+        item_name: line.name,
+        price: line.unitPrice,
+        quantity: line.quantity,
+        item_variant: line.variantLabel
+      }))
+    });
+  }
 
   useEffect(() => {
     if (!loading && !authed) {
       router.replace(`/login?returnTo=${encodeURIComponent("/checkout")}&utm_source=checkout`);
     }
   }, [loading, authed, router]);
+
+  // Import the user's saved default (or first) address into the form on first load.
+  useEffect(() => {
+    if (imported || loading || !user?.addresses?.length) return;
+    const saved = (user.addresses as Address[]).find((a) => a.isDefault) ?? (user.addresses as Address[])[0];
+    if (!saved) return;
+    const parts = (saved.fullName ?? "").trim().split(/\s+/);
+    setForm({
+      email: user.email ?? "",
+      firstName: parts[0] ?? "",
+      lastName: parts.slice(1).join(" ") ?? "",
+      address: saved.line1 ?? "",
+      city: saved.city ?? "",
+      pin: saved.postalCode ?? "",
+      phone: saved.phone ?? ""
+    });
+    if (saved.state) setState(saved.state);
+    setImported(true);
+  }, [imported, loading, user]);
+
+  // If the user has no saved details, capture them on their behalf once an order lands.
+  async function maybeSaveAddress(payload: { fullName: string; line1: string; line2?: string; city: string; state: string; postalCode: string; phone: string }) {
+    try {
+      if (user?.addresses?.length) return; // already has saved details
+      await addAddress({ ...payload, isDefault: true, label: "Default" });
+    } catch {
+      // non-fatal - the order itself already succeeded
+    }
+  }
 
   if (loading) {
     return <div className="checkout-grid"><div className="muted" style={{ padding: "60px 0", textAlign: "center" }}><Loader label="Checking your session" /></div></div>;
@@ -83,19 +167,25 @@ export function CheckoutClient() {
     );
   }
 
-  const freeDelivery = subtotal === 0 || subtotal >= deliveryConfig.freeDeliveryThreshold;
+  const freeDelivery = subtotal === 0 || subtotal >= deliveryConfig.freeDeliveryThreshold || (applied?.valid && applied.freeShipping);
   const shipping = freeDelivery ? 0 : deliveryFeeFor(deliveryConfig, state);
   const gst = gstFor(taxConfig, subtotal);
-  const discount = applied?.valid && applied.freeShipping ? applied.amount : (applied?.valid ? applied.amount : 0);
+  const discount = applied?.valid ? applied.amount : 0;
   const total = Math.max(0, subtotal + gst + shipping - discount);
   const remainingToFree = Math.max(deliveryConfig.freeDeliveryThreshold - subtotal, 0);
+
+  // COD is offered only when globally enabled AND every cart item supports it.
+  const codEnabled = codGlobalEnabled && availableItems.length > 0 && availableItems.every((item) => item.codAvailable !== false);
+  useEffect(() => {
+    if (method === "cod" && !codEnabled) setMethod("razorpay");
+  }, [method, codEnabled]);
 
   function applyCoupon() {
     setError(null);
     const code = coupon.trim();
     if (!code) return;
     setCouponChecking(true);
-    validateCoupon({ code, state, items: items.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })) })
+    validateCoupon({ code, state, items: availableItems.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })) })
       .finally(() => setCouponChecking(false))
       .then((result) => {
       if (!result) {
@@ -108,24 +198,25 @@ export function CheckoutClient() {
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (items.length === 0) return;
+    if (availableItems.length === 0) return;
     setSubmitting(true);
     setError(null);
 
     const form = new FormData(event.currentTarget);
+    const shippingAddress = {
+      fullName: `${String(form.get("firstName") ?? "")} ${String(form.get("lastName") ?? "")}`.trim(),
+      line1: String(form.get("address") ?? ""),
+      city: String(form.get("city") ?? ""),
+      state,
+      postalCode: String(form.get("pin") ?? ""),
+      phone: String(form.get("phone") ?? "")
+    };
     const payload = {
       email: String(form.get("email") ?? ""),
       paymentMethod: method,
-      items: items.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
+      items: availableItems.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
       couponCode: applied && applied.valid ? coupon.trim().toUpperCase() : undefined,
-      shippingAddress: {
-        fullName: `${String(form.get("firstName") ?? "")} ${String(form.get("lastName") ?? "")}`.trim(),
-        line1: String(form.get("address") ?? ""),
-        city: String(form.get("city") ?? ""),
-        state,
-        postalCode: String(form.get("pin") ?? ""),
-        phone: String(form.get("phone") ?? "")
-      }
+      shippingAddress
     };
 
     const result = await placeOrder(payload);
@@ -136,9 +227,12 @@ export function CheckoutClient() {
       return;
     }
 
+    maybeSaveAddress(shippingAddress);
+
     if (method === "cod") {
       setSubmitting(false);
       setPlaced(result.order);
+      recordPurchase(result.order);
       clearCart();
       return;
     }
@@ -176,7 +270,9 @@ export function CheckoutClient() {
         const verified = await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
         setSubmitting(false);
         if (verified.ok) {
-          setPlaced({ ...order, orderStatus: "order_received" });
+          const completed = { ...order, orderStatus: "order_received" };
+          setPlaced(completed);
+          recordPurchase(completed);
           clearCart();
         } else {
           setFailed(order);
@@ -225,7 +321,9 @@ if (placed) {
         <span className="eyebrow">Order received</span>
         <h2>Thank you, {placed.orderNumber}.</h2>
         <p>
-          Your order is {placed.orderStatus === "confirmed" ? "confirmed" : "awaiting payment"}. We emailed the receipt to the address you provided.
+          {placed.paymentMethod === "cod"
+            ? `Your order is confirmed. Payment of ${formatPrice(placed.total)} is due on delivery.`
+            : `Your order is ${placed.orderStatus === "confirmed" ? "confirmed" : "awaiting payment"}. We emailed the receipt to the address you provided.`}
         </p>
         <div className="checkout-success__totals">
           <div><span>Subtotal</span><strong>{formatPrice(placed.subtotal)}</strong></div>
@@ -247,23 +345,24 @@ if (placed) {
       <form className="checkout-form" onSubmit={onSubmit}>
         <div className="checkout-section">
           <div className="checkout-section__title"><span>01</span><h2>Contact</h2></div>
-          <label>Email<input required type="email" name="email" placeholder="you@example.com" /></label>
+          <label>Email<input required type="email" name="email" placeholder="you@example.com" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></label>
         </div>
         <div className="checkout-section">
           <div className="checkout-section__title"><span>02</span><h2>Delivery address</h2></div>
+          {imported && user?.addresses?.length ? <p className="checkout-note">We imported your saved address - update anything that&rsquo;s changed.</p> : null}
           <div className="form-grid">
-            <label>First name<input required name="firstName" placeholder="Aarav" /></label>
-            <label>Last name<input required name="lastName" placeholder="Sharma" /></label>
-            <label className="field-wide">Address<input required name="address" placeholder="House / street / area" /></label>
-            <label>City<input required name="city" placeholder="New Delhi" /></label>
+            <label>First name<input required name="firstName" placeholder="Aarav" value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} /></label>
+            <label>Last name<input required name="lastName" placeholder="Sharma" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} /></label>
+            <label className="field-wide">Address<input required name="address" placeholder="House / street / area" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} /></label>
+            <label>City<input required name="city" placeholder="New Delhi" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} /></label>
             <label className="field-wide">State
               <select required name="state" value={state} onChange={(event) => setState(event.target.value)}>
                 <option value="" disabled>Select a state</option>
                 {INDIAN_STATES.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
-            <label>PIN code<input required inputMode="numeric" name="pin" placeholder="110001" /></label>
-            <label>Phone<input required inputMode="tel" name="phone" placeholder="+91 98765 43210" /></label>
+            <label>PIN code<input required inputMode="numeric" name="pin" placeholder="110001" value={form.pin} onChange={(e) => setForm((f) => ({ ...f, pin: e.target.value }))} /></label>
+            <label>Phone<input required inputMode="tel" name="phone" placeholder="+91 98765 43210" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} /></label>
           </div>
         </div>
         <div className="checkout-section">
@@ -272,14 +371,19 @@ if (placed) {
             <button type="button" className={method === "razorpay" ? "active" : ""} onClick={() => setMethod("razorpay")}>
               <CreditCard size={19} /><div><strong>Pay online</strong><span>Razorpay · Cards · UPI · Netbanking</span></div><i />
             </button>
-            <button type="button" className={method === "cod" ? "active" : ""} onClick={() => setMethod("cod")}>
-              <Landmark size={19} /><div><strong>Cash on Delivery</strong><span>Payment collected on delivery</span></div><i />
-            </button>
+            {codEnabled ? (
+              <button type="button" className={method === "cod" ? "active" : ""} onClick={() => setMethod("cod")}>
+                <Landmark size={19} /><div><strong>Cash on Delivery</strong><span>Payment collected on delivery</span></div><i />
+              </button>
+            ) : null}
           </div>
+          {!codEnabled && availableItems.length > 0 && (
+            <p className="checkout-note" style={{ marginTop: 10 }}><ShieldCheck size={15} /> Cash on Delivery is not available for this order.</p>
+          )}
         </div>
         {error && <div className="checkout-error">{error}</div>}
-        <button className="button button--dark button--full checkout-submit" type="submit" disabled={items.length === 0 || submitting}>
-          {submitting ? <><span className="btn-spinner" aria-hidden="true" /> Placing order…</> : `Place ${method === "cod" ? "COD" : "online"} order — ${formatPrice(total)}`}
+        <button className="button button--dark button--full checkout-submit" type="submit" disabled={availableItems.length === 0 || submitting}>
+          {submitting ? <><span className="btn-spinner" aria-hidden="true" /> Placing order…</> : `Place ${method === "cod" ? "COD" : "online"} order - ${formatPrice(total)}`}
         </button>
         <p className="checkout-note"><ShieldCheck size={15} /> Online payments are verified server-side. Your card details never touch this store.</p>
       </form>
@@ -287,11 +391,11 @@ if (placed) {
       <aside className="checkout-summary">
         <span className="eyebrow">Your order</span>
         <div className="checkout-items">
-          {items.map((item) => <div className="checkout-item" key={item.lineId}><div><strong>{item.name}</strong><span>{item.variantLabel} × {item.quantity}</span></div><strong>{formatPrice(item.price * item.quantity)}</strong></div>)}
-          {items.length === 0 && <p className="muted">Your cart is empty. Add a product before testing checkout.</p>}
+          {availableItems.map((item) => <div className="checkout-item" key={item.lineId}><div><strong>{item.name}</strong><span>{item.variantLabel} × {item.quantity}</span></div><strong>{formatPrice(item.price * item.quantity)}</strong></div>)}
+          {availableItems.length === 0 && <p className="muted">Your cart is empty. Add a product before testing checkout.</p>}
         </div>
         <label className="coupon-row"><Tag size={15} /><input value={coupon} onChange={(event) => setCoupon(event.target.value)} placeholder="Coupon code" /><button type="button" onClick={applyCoupon} disabled={couponChecking}>{couponChecking ? <span className="btn-spinner" aria-hidden="true" /> : "Apply"}</button></label>
-        {applied && <p className={`coupon-status ${applied.valid ? "is-valid" : "is-invalid"}`}>{applied.valid ? `${coupon.trim().toUpperCase()} applied — ${applied.note}` : applied.note}</p>}
+        {applied && <p className={`coupon-status ${applied.valid ? "is-valid" : "is-invalid"}`}>{applied.valid ? `${coupon.trim().toUpperCase()} applied - ${applied.note}` : applied.note}</p>}
         <div className="summary-row"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
         {gst > 0 && <div className="summary-row"><span>GST ({taxConfig.gstRate}%)</span><span>{formatPrice(gst)}</span></div>}
         <div className="summary-row"><span>Delivery</span><span>{shipping ? formatPrice(shipping) : "Free"}</span></div>

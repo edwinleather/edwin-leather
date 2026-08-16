@@ -17,6 +17,7 @@ type Settings = {
   heroTitleLine2: string;
   heroSubtitle: string;
   heroImage: string;
+  estYear: number;
   homepage: HomepageSettings;
 };
 
@@ -158,6 +159,7 @@ export function HomepageEditor() {
             heroTitleLine2: d.heroTitleLine2 ?? "",
             heroSubtitle: d.heroSubtitle ?? "",
             heroImage: d.heroImage ?? "",
+            estYear: d.estYear ?? 2026,
             homepage: {
               marquee: hp.marquee ?? EMPTY_HOMEPAGE.marquee,
               featured: hp.featured ?? EMPTY_HOMEPAGE.featured,
@@ -173,8 +175,8 @@ export function HomepageEditor() {
       .finally(() => setLoaded(true));
   }, []);
 
-  function setHero(key: "heroBadge" | "heroEyebrow" | "heroTitleLine1" | "heroTitleLine2" | "heroSubtitle" | "heroImage" | "announcement") {
-    return (value: string) => setForm((f) => (f ? { ...f, [key]: value } : f));
+  function setHero(key: "heroBadge" | "heroEyebrow" | "heroTitleLine1" | "heroTitleLine2" | "heroSubtitle" | "heroImage" | "announcement" | "estYear") {
+    return (value: string | number) => setForm((f) => (f ? { ...f, [key]: value } : f));
   }
   function setHp<T extends keyof HomepageSettings>(key: T) {
     return (patch: Partial<HomepageSettings[T]>) => setForm((f) => (f ? { ...f, homepage: { ...f.homepage, [key]: { ...(f.homepage[key] as object), ...patch } as HomepageSettings[T] } } : f));
@@ -208,7 +210,7 @@ export function HomepageEditor() {
       </div>
 
       <div className="admin-note" style={{ marginBottom: 18 }}>
-        <p className="muted" style={{ fontSize: 13 }}>Edit any section's content and images below — the storefront keeps the same look. Free delivery applies above <strong>{formatPrice(delivery.freeDeliveryThreshold)}</strong> (set under <em>Delivery</em>).</p>
+        <p className="muted" style={{ fontSize: 13 }}>Edit any section's content and images below - the storefront keeps the same look. Free delivery applies above <strong>{formatPrice(delivery.freeDeliveryThreshold)}</strong> (set under <em>Delivery</em>).</p>
       </div>
 
       <div className="status-filter" style={{ marginBottom: 20 }}>
@@ -222,9 +224,10 @@ export function HomepageEditor() {
           <div className="field-wide"><SingleImagePicker value={form.heroImage} onChange={setHero("heroImage")} suggested="1920 × 1280 px · 3:2 wide" label="Hero" /></div>
           <label>Hero badge <input value={form.heroBadge} onChange={(e) => setHero("heroBadge")(e.target.value)} /></label>
           <label>Hero eyebrow <input value={form.heroEyebrow} onChange={(e) => setHero("heroEyebrow")(e.target.value)} /></label>
-          <label>Title — line 1 <input value={form.heroTitleLine1} onChange={(e) => setHero("heroTitleLine1")(e.target.value)} /></label>
-          <label>Title — line 2 <input value={form.heroTitleLine2} onChange={(e) => setHero("heroTitleLine2")(e.target.value)} /></label>
+          <label>Title - line 1 <input value={form.heroTitleLine1} onChange={(e) => setHero("heroTitleLine1")(e.target.value)} /></label>
+          <label>Title - line 2 <input value={form.heroTitleLine2} onChange={(e) => setHero("heroTitleLine2")(e.target.value)} /></label>
           <label className="field-wide">Hero subtitle <textarea rows={3} value={form.heroSubtitle} onChange={(e) => setHero("heroSubtitle")(e.target.value)} /></label>
+          <label>Established year <input type="number" value={form.estYear} min={1900} max={2200} onChange={(e) => setHero("estYear")(Number(e.target.value))} placeholder="2026" /></label>
         </div>
       )}
 
@@ -238,7 +241,7 @@ export function HomepageEditor() {
 
       {tab === "Featured" && (
         <div className="editor-section form-grid">
-          <p className="field-wide muted" style={{ fontSize: 13 }}>"Current selection" — products shown are the ones marked <strong>Featured</strong> in the Products section. Edit the heading text here.</p>
+          <p className="field-wide muted" style={{ fontSize: 13 }}>"Current selection" - products shown are the ones marked <strong>Featured</strong> in the Products section. Edit the heading text here.</p>
           <label>Eyebrow <input value={hp.featured.eyebrow} onChange={(e) => setHp("featured")({ eyebrow: e.target.value })} /></label>
           <label>Title <input value={hp.featured.title} onChange={(e) => setHp("featured")({ title: e.target.value })} /></label>
           <label className="field-wide">Link label <input value={hp.featured.linkLabel} onChange={(e) => setHp("featured")({ linkLabel: e.target.value })} /></label>

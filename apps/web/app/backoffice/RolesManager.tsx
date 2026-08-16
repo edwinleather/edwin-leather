@@ -20,7 +20,10 @@ const FEATURE_LABELS: Record<string, string> = {
   reviews: "Reviews",
   media: "Media / Cloudinary",
   admins: "Admin users",
-  roles: "Roles & permissions"
+  roles: "Roles & permissions",
+  taxes: "GST & tax",
+  pages: "Customize page",
+  "error-logs": "Error logs"
 };
 
 const ROLES = ["employee", "admin"] as const;

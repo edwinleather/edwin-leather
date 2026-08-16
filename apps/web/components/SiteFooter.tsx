@@ -3,8 +3,10 @@
 import { ArrowUpRight } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
 import { SmoothLink } from "./SmoothLink";
+import { useCategories } from "@/lib/useCategories";
 
 export function SiteFooter() {
+  const categories = useCategories();
   return (
     <footer className="site-footer">
       <div className="container footer-grid">
@@ -16,9 +18,9 @@ export function SiteFooter() {
         <div>
           <div className="footer-label">Shop</div>
           <SmoothLink href="/shop">All goods</SmoothLink>
-          <SmoothLink href="/shop?category=Bags">Bags</SmoothLink>
-          <SmoothLink href="/shop?category=Wallets">Wallets</SmoothLink>
-          <SmoothLink href="/shop?category=Belts">Belts</SmoothLink>
+          {categories.map((item) => (
+            <SmoothLink key={item.slug} href={`/category/${item.slug}`}>{item.name}</SmoothLink>
+          ))}
         </div>
         <div>
           <div className="footer-label">Edwin</div>

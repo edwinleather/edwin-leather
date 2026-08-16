@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, PackageCheck, UserRound, LogOut, ChevronDown, ChevronUp, Pencil, Trash2, Plus, KeyRound, CircleCheck } from "lucide-react";
-import { getAddresses, addAddress, updateAddress, deleteAddress, updateProfile, changePassword, getOrder, type Address, type OrderResponse } from "@/lib/api";
+import { MapPin, PackageCheck, UserRound, LogOut, ChevronDown, ChevronUp, Pencil, Trash2, Plus, KeyRound, CircleCheck, RotateCcw } from "lucide-react";
+import { getAddresses, addAddress, updateAddress, deleteAddress, updateProfile, changePassword, getOrder, getOrderReturn, type Address, type OrderResponse } from "@/lib/api";
 import { useAuth } from "@/components/useAuth";
 import { Loader } from "@/components/Loader";
+import { ReturnRequestForm, type ReturnOrderDetail } from "@/components/ReturnRequestForm";
 import { formatPrice } from "@/lib/format";
 import { logAndGeneric } from "@/lib/errors";
 
@@ -42,6 +43,8 @@ export default function AccountPage() {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [orderDetail, setOrderDetail] = useState<OrderResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [returnFormOrder, setReturnFormOrder] = useState<OrderResponse | null>(null);
+  const [returnStatuses, setReturnStatuses] = useState<Record<string, string | null>>({});
 
   const [addressForm, setAddressForm] = useState<Address | null>(null);
   const [savingAddress, setSavingAddress] = useState(false);
@@ -89,6 +92,7 @@ export default function AccountPage() {
     const detail = await getOrder(orderId);
     setOrderDetail(detail);
     setDetailLoading(false);
+    getOrderReturn(orderId).then((status) => setReturnStatuses((prev) => ({ ...prev, [orderId]: status ? status.status : null })));
   }
 
   function openAddressForm(address?: Address) {
@@ -154,7 +158,7 @@ export default function AccountPage() {
         <div className="page-intro page-intro--compact">
           <span className="eyebrow">Your customer area</span>
           <h1>Good to see you{user?.firstName ? `, ${user.firstName}` : ""}.</h1>
-          <p>Your profile, orders and saved addresses — all pulled straight from your account.</p>
+          <p>Your profile, orders and saved addresses - all pulled straight from your account.</p>
         </div>
         <div className="account-grid">
           <aside className="account-nav">
@@ -186,6 +190,7 @@ export default function AccountPage() {
                         <p>{order.lines[0]?.variantLabel ? `${order.lines[0].variantLabel} · ` : ""}{order.lines.reduce((sum, line) => sum + line.quantity, 0)} piece(s)</p>
                       </div>
                       <div className="order-card__status"><StatusPill status={order.orderStatus} /><strong>{formatPrice(order.total)}</strong></div>
+                      <div className="order-card__date muted">{order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : "-"}</div>
                     </div>
                   ))
                 )}
@@ -220,7 +225,7 @@ export default function AccountPage() {
                               <div className="order-detail__meta">
                                 <span>Order #{orderDetail.orderNumber}</span>
                                 <span>Placed {orderDetail.createdAt ? new Date(orderDetail.createdAt).toLocaleDateString() : "recently"}</span>
-                                <span>Payment: {orderDetail.paymentMethod} · {orderDetail.paymentStatus.replace("_", " ")}</span>
+                                <span>Payment: {orderDetail.paymentMethod === "cod" ? "Cash on Delivery" : `${orderDetail.paymentMethod} · ${orderDetail.paymentStatus.replace("_", " ")}`}</span>
                               </div>
                               <h4>Items</h4>
                               <div className="order-lines">
@@ -259,6 +264,24 @@ export default function AccountPage() {
                                     ))}
                                   </ul>
                                 </div>
+                              )}
+                              {orderDetail.orderStatus === "delivered" && !returnStatuses[orderDetail.id] && (
+                                <div className="order-detail__block">
+                                  <button className="button button--ghost button--small" onClick={() => setReturnFormOrder(orderDetail)}><RotateCcw size={14} /> Request a return</button>
+                                </div>
+                              )}
+                              {returnStatuses[orderDetail.id] && (
+                                <div className="order-detail__block return-status">
+                                  <h4>Return</h4>
+                                  <p><span className={`status-pill status-pill--${returnStatuses[orderDetail.id] === "rejected" ? "bad" : "good"}`}>{returnStatuses[orderDetail.id]?.replace("_", " ")}</span> Your return request is being reviewed.</p>
+                                </div>
+                              )}
+                              {returnFormOrder && returnFormOrder.id === orderDetail.id && (
+                                <ReturnRequestForm
+                                  order={{ id: returnFormOrder.id, lines: returnFormOrder.lines }}
+                                  onDone={() => { setReturnStatuses((prev) => ({ ...prev, [orderDetail.id]: "requested" })); setReturnFormOrder(null); }}
+                                  onClose={() => setReturnFormOrder(null)}
+                                />
                               )}
                             </>
                           ) : (

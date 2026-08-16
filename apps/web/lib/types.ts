@@ -5,6 +5,7 @@ export type ProductVariant = {
   color: string;
   size?: string;
   inventory: number;
+  allowBackorder?: boolean;
 };
 
 export type Product = {
@@ -24,6 +25,7 @@ export type Product = {
   description: string;
   details: string[];
   images: string[];
+  imageAlts: string[];
   variants: ProductVariant[];
   featured?: boolean;
   newArrival?: boolean;
@@ -39,4 +41,6 @@ export type CartItem = {
   variantId: string;
   variantLabel: string;
   quantity: number;
+  isOutOfStock?: boolean;
+  codAvailable?: boolean;
 };

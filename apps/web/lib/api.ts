@@ -87,6 +87,35 @@ export async function adminGetTax(): Promise<TaxConfig | null> {
   }
 }
 
+export type CodConfig = { enabled: boolean };
+
+export async function adminGetCod(): Promise<CodConfig | null> {
+  try {
+    const response = await fetch(`${API_URL}/admin/cod`, { credentials: "include" });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function adminSaveCod(config: CodConfig): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/admin/cod`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(config)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || `Save failed (${response.status})` };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Could not reach the admin service." };
+  }
+}
+
 export type PlaceOrderPayload = {
   email: string;
   customerId?: string;
@@ -117,7 +146,7 @@ export type OrderResponse = {
   discountAmount: number;
   total: number;
   currency: string;
-  lines: { productId: string; sku: string; name: string; variantLabel?: string; quantity: number; unitPrice: number; lineTotal: number }[];
+  lines: { productId: string; variantId: string; sku: string; name: string; variantLabel?: string; quantity: number; unitPrice: number; lineTotal: number }[];
   shippingAddress?: { fullName?: string; line1?: string; line2?: string; city?: string; state?: string; postalCode?: string; phone?: string };
   tracking?: { awb?: string; trackingId?: string; courier?: string; deliveryPartnerName?: string; trackingUrl?: string };
   timeline?: { type: string; message?: string; at: string }[];
@@ -175,6 +204,37 @@ export async function getOrder(orderId: string): Promise<OrderResponse | null> {
   }
 }
 
+export type ReturnItemInput = { productId: string; variantId: string; quantity: number; issueType?: string };
+export type ReturnRequestInput = { orderId: string; reason: string; reasonCategory: string; condition?: string; notes?: string; items?: ReturnItemInput[] };
+export type ReturnStatus = { returnNumber: string; status: string; reason: string; reasonCategory?: string; condition?: string; refundAmount?: number; createdAt?: string };
+
+export async function requestReturn(input: ReturnRequestInput): Promise<{ ok: boolean; error?: string; data?: { returnNumber: string; status: string; refundAmount?: number } }> {
+  try {
+    const response = await fetch(`${API_URL}/returns`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(input)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.ok) return { ok: false, error: body?.error || `Request failed (${response.status})` };
+    return { ok: true, data: body.data };
+  } catch {
+    return { ok: false, error: "Could not reach the return service." };
+  }
+}
+
+export async function getOrderReturn(orderId: string): Promise<ReturnStatus | null> {
+  try {
+    const response = await fetch(`${API_URL}/returns/order/${orderId}`, { credentials: "include" });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.ok) return null;
+    return body.data as ReturnStatus | null;
+  } catch {
+    return null;
+  }
+}
+
 export async function updateProfile(payload: { firstName?: string; lastName?: string; phone?: string }): Promise<{ ok: boolean; error?: string; user?: { _id: string; firstName?: string; lastName?: string; phone?: string; email: string; provider?: string } }> {
   try {
     const response = await fetch(`${API_URL}/account/me`, {
@@ -209,7 +269,7 @@ export async function logout() {
   try {
     await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include" });
   } catch {
-    // ignore — session will be cleared client-side regardless
+    // ignore - session will be cleared client-side regardless
   }
 }
 
@@ -325,6 +385,8 @@ export type CartLine = {
   price?: number;
   variantLabel?: string;
   quantity: number;
+  isOutOfStock?: boolean;
+  codAvailable?: boolean;
 };
 
 export async function getCart(): Promise<CartLine[] | null> {

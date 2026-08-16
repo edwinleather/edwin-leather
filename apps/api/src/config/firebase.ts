@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
-import { env, isConfigured } from "../config/env.js";
+import { env } from "../config/env.js";
 
 // Firebase ID tokens are standard RS256 JWTs signed by Google's Secure Token
 // service. firebase-admin verifies them via jwks-rsa, which does `require("jose")`
-// — an ESM-only module — and crashes any CommonJS serverless bundle (Vercel,
+// - an ESM-only module - and crashes any CommonJS serverless bundle (Vercel,
 // Netlify) with ERR_REQUIRE_ESM. We verify the token directly with Node's built-in
 // crypto + Google's public certs, so it runs on any Node version and any bundler.
 const KEYS_URL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
@@ -28,7 +28,9 @@ async function fetchPublicKeys(): Promise<Record<string, string>> {
 }
 
 export function firebaseReady() {
-  return isConfigured(env.firebaseProjectId);
+  // The project ID is a public identifier (it appears in the ID token's aud
+  // claim), so it only needs to be non-empty - not a long "secret".
+  return Boolean(env.firebaseProjectId);
 }
 
 export type FirebaseClaims = {

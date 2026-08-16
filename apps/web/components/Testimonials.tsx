@@ -12,13 +12,13 @@ const testimonials = [
     initials: "AS"
   },
   {
-    quote: <>The Wallet is the quietest flex I own. People ask about it constantly — it just keeps getting richer in colour.</>,
+    quote: <>The Wallet is the quietest flex I own. People ask about it constantly - it just keeps getting richer in colour.</>,
     name: "Meera Iyer",
     role: "Bengaluru",
     initials: "MI"
   },
   {
-    quote: <>Hesitated for months before replacing a cheap bag. Wish I had done it years earlier — this one is <em>my</em> bag now.</>,
+    quote: <>Hesitated for months before replacing a cheap bag. Wish I had done it years earlier - this one is <em>my</em> bag now.</>,
     name: "Kabir Singh",
     role: "Mumbai",
     initials: "KS"

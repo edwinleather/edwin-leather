@@ -102,7 +102,7 @@ export function ReturnsManager({ mode = "returns" }: { mode?: "returns" | "refun
                 <td><strong>{r.returnNumber}</strong></td>
                 <td>{r.orderId.slice(-8).toUpperCase()}</td>
                 <td>{r.email}</td>
-                <td>{r.items?.[0]?.nameSnapshot || "—"}</td>
+                <td>{r.items?.[0]?.nameSnapshot || "-"}</td>
                 <td>{r.reason}</td>
                 <td><span className={`status ${r.status === "returned" || r.status === "refunded" ? "status--confirmed" : ""}`}>{statusLabel(r.status)}</span></td>
                 <td style={{ textAlign: "right" }}>

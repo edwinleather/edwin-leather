@@ -5,11 +5,20 @@ import { ApiError } from "../middleware/error.js";
 
 export const productsRouter = Router();
 
+// Reject query parameters that look like MongoDB operators ($gt, $ne, $regex, $in…)
+// so a malicious client can never inject into the filter object.
+function isOperator(obj: unknown): boolean {
+  if (!obj || typeof obj !== "object") return false;
+  return Object.keys(obj).some((k) => k.startsWith("$"));
+}
+
 productsRouter.get("/", async (req, res, next) => {
   try {
     if (!(await ensureDatabase())) return next(new ApiError(503, "Catalog unavailable. Configure MONGODB_URI."));
+    const category = req.query.category;
+    if (isOperator(category)) return next(new ApiError(400, "Invalid category filter"));
     const filter: Record<string, unknown> = { active: true };
-    if (typeof req.query.category === "string") filter.category = req.query.category;
+    if (typeof category === "string") filter.category = category;
     const data = await Product.find(filter).sort({ featured: -1, createdAt: -1 }).lean();
     return res.json({ ok: true, source: "mongodb", data });
   } catch (error) {

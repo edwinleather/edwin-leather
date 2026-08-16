@@ -58,7 +58,7 @@ export function DeliverySettingsManager() {
           <input type="number" min={0} value={threshold} onChange={(e) => setThreshold(e.target.value)} />
         </label>
       </div>
-      <p className="delivery-config-hint">Orders equal to or above {threshold || "—"} receive free delivery. Below it, the per-state fee below applies (default {defaultFee || "—"} where a state is not listed).</p>
+      <p className="delivery-config-hint">Orders equal to or above {threshold || "-"} receive free delivery. Below it, the per-state fee below applies (default {defaultFee || "-"} where a state is not listed).</p>
 
       <div className="admin-table-wrap delivery-table-wrap">
         <table className="admin-table">
@@ -68,7 +68,7 @@ export function DeliverySettingsManager() {
               <tr key={state}>
                 <td>{state}</td>
                 <td className="delivery-fee-cell">
-                  <input type="number" min={0} value={fees[state] ?? ""} placeholder="—" onChange={(e) => setFees((current) => ({ ...current, [state]: Number(e.target.value) }))} />
+                  <input type="number" min={0} value={fees[state] ?? ""} placeholder="-" onChange={(e) => setFees((current) => ({ ...current, [state]: Number(e.target.value) }))} />
                   {config.stateFees.some((entry) => entry.state === state) && <small>custom</small>}
                 </td>
               </tr>

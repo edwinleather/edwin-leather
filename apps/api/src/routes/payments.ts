@@ -7,7 +7,6 @@ import { ensureDatabase } from "../config/db.js";
 import { ApiError } from "../middleware/error.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { Order } from "../models/Order.js";
-import { sendOrderEmail } from "../services/email.js";
 
 export const paymentsRouter = Router();
 
@@ -64,15 +63,17 @@ paymentsRouter.post("/verify", requireAuth, async (req: AuthenticatedRequest, re
     if (!order) return next(new ApiError(404, "Order not found"));
 
     const client = razorpay();
-    const valid = createHmac("sha256", env.razorpayKeySecret).update(`${input.orderId}|${input.paymentId}`).digest("hex") === input.signature;
+    const calculated = createHmac("sha256", env.razorpayKeySecret).update(`${input.orderId}|${input.paymentId}`).digest("hex");
+    const supplied = Buffer.from(input.signature, "utf8");
+    const expected = Buffer.from(calculated, "utf8");
+    const valid = supplied.length === expected.length && timingSafeEqual(supplied, expected);
     if (!valid) return next(new ApiError(400, "Payment verification failed"));
 
     order.payment.status = "paid";
     order.payment.gatewayPaymentId = input.paymentId;
     if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
-    order.timeline.push({ type: "order_received", message: "Payment received — order received", at: new Date(), actorId: order.customerId });
+    order.timeline.push({ type: "order_received", message: "Payment received - order received", at: new Date(), actorId: order.customerId });
     await order.save();
-    if (order.orderStatus === "order_received") sendOrderEmail(order as never, "paid").catch(() => undefined);
 
     return res.json({ ok: true, status: order.orderStatus });
   } catch (error) {
@@ -103,9 +104,8 @@ paymentsRouter.post("/webhook", async (req, res, next) => {
         order.payment.status = "paid";
         order.payment.gatewayPaymentId = entity.id;
         if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
-        order.timeline.push({ type: "order_received", message: "Payment confirmed — order received", at: new Date() });
+        order.timeline.push({ type: "order_received", message: "Payment confirmed - order received", at: new Date() });
         await order.save();
-        if (order.orderStatus === "order_received") sendOrderEmail(order as never, "paid").catch(() => undefined);
       }
     }
 

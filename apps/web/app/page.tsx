@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { Hero } from "@/components/Hero";
 import { BrandMarquee, CategoryRail, ClosingStatement, EditorialSplit, FeaturedSection, NewArrivalsSection } from "@/components/HomeSections";
 import { StatsBar } from "@/components/StatsBar";
 import { Reviews } from "@/components/Reviews";
 import { getCatalog } from "@/lib/catalog";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" }
+};
 
 export default async function HomePage() {
   const catalog = await getCatalog();

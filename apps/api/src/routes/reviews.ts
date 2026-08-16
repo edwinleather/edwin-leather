@@ -3,11 +3,17 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { ApiError } from "../middleware/error.js";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { Review } from "../models/Review.js";
 import { Product } from "../models/Product.js";
 import { Order } from "../models/Order.js";
+import { User } from "../models/User.js";
+import { uploadImage } from "../services/cloudinary.js";
 
 export const reviewsRouter = Router();
+
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGES = 4;
 
 const createSchema = z.object({
   productId: z.string().min(1),
@@ -15,8 +21,19 @@ const createSchema = z.object({
   title: z.string().min(1).max(120),
   body: z.string().min(3).max(2000),
   authorName: z.string().min(1).max(80),
-  location: z.string().max(80).optional()
+  location: z.string().max(80).optional(),
+  images: z.array(z.object({ url: z.string().url().max(500), publicId: z.string().max(200) })).max(MAX_IMAGES).optional()
 });
+
+// Only signed-in, email-verified customers can upload images.
+async function requireVerifiedCustomer(req: AuthenticatedRequest) {
+  if (!req.auth?.sub) throw new ApiError(401, "Sign in to upload images.");
+  const user = await User.findById(req.auth.sub).select("emailVerifiedAt role").lean();
+  if (!user) throw new ApiError(401, "Account not found.");
+  if (!user.emailVerifiedAt && user.role === "customer") {
+    throw new ApiError(403, "Please verify your email before uploading images.", { code: "EMAIL_NOT_VERIFIED" });
+  }
+}
 
 // Optional: read the customer session (if any) so we can mark "Verified purchase".
 function optionalCustomerId(req: Request): { customerId?: string; email?: string } {
@@ -30,6 +47,22 @@ function optionalCustomerId(req: Request): { customerId?: string; email?: string
     return {};
   }
 }
+
+// Public: customers upload a review image (up to 3) before submitting the review.
+// The image is uploaded to Cloudinary and returned as { url, publicId } so the
+// client can attach it to the review when submitting. Images are moderated only
+// when the review itself is approved.
+reviewsRouter.post("/media/upload", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    await requireVerifiedCustomer(req);
+    const input = z.object({ dataUri: z.string().min(5) }).parse(req.body);
+    const asset = await uploadImage(input.dataUri, "edwin/reviews", MAX_IMAGE_BYTES);
+    return res.status(201).json({ ok: true, url: asset.url, publicId: asset.publicId });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid upload input", error.flatten()));
+    return next(error);
+  }
+});
 
 // Public: customers submit a review (text-only for safety). It lands as "pending"
 // for an admin to approve. Verified purchase is derived from the customer's orders.
@@ -54,7 +87,7 @@ reviewsRouter.post("/", async (req, res, next) => {
       rating: input.rating,
       title: input.title.trim(),
       body: input.body.trim(),
-      images: [],
+      images: input.images ?? [],
       verifiedPurchase,
       status: "pending"
     });

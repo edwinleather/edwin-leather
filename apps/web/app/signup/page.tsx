@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { AuthPanel } from "@/components/AuthPanel";
 
-export const metadata: Metadata = { title: "Sign Up" };
+export const metadata: Metadata = { title: "Sign Up", alternates: { canonical: "/signup" } };
 
 export default function SignupPage() {
   return (
     <div className="auth-page">
       <div className="auth-visual">
-        <Image src="https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=1500&q=88" alt="Leather wallet detail" fill priority sizes="(max-width: 900px) 100vw, 48vw" />
+        <Image src="https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894275/edwin/assets/jmsky5qf33pm7v9izsel.webp" alt="Leather wallet detail" fill priority sizes="(max-width: 900px) 100vw, 48vw" />
         <div className="auth-visual__veil" />
         <div className="auth-visual__copy"><span className="eyebrow">Start an account</span><p>A simpler checkout, a clearer order history, and a place for the things you carry.</p></div>
       </div>

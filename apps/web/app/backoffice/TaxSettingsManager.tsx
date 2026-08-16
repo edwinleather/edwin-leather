@@ -49,7 +49,7 @@ export function TaxSettingsManager() {
         <label>GST rate (%)
           <input type="number" min={0} max={100} value={rate} onChange={(e) => setRate(e.target.value)} />
         </label>
-        <label>GST free above (₹) — 0 = always charge GST
+        <label>GST free above (₹) - 0 = always charge GST
           <input type="number" min={0} value={freeAbove} onChange={(e) => setFreeAbove(e.target.value)} />
         </label>
       </div>

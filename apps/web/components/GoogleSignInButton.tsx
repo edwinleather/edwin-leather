@@ -3,31 +3,25 @@
 import { useState } from "react";
 import { signInWithGoogle, currentIdToken, firebaseConfigured } from "@/lib/firebase";
 import { completeFirebaseAuth } from "@/lib/api";
-import { GENERIC_ERROR, logAndGeneric } from "@/lib/errors";
+import { logAndGeneric } from "@/lib/errors";
 
 export function GoogleSignInButton({ onSuccess, onError, label }: { onSuccess?: (email: string) => void; onError?: (message: string) => void; label?: string }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleClick() {
     if (busy) return;
-    setError(null);
     setBusy(true);
     try {
       const user = await signInWithGoogle();
       const idToken = await user.getIdToken();
       const result = await completeFirebaseAuth(idToken);
       if (!result.ok) {
-        const generic = logAndGeneric(result.error, "google:session");
-        setError(generic);
-        onError?.(generic);
+        onError?.(logAndGeneric(result.error, "google:session"));
       } else {
         onSuccess?.(result.user.email);
       }
     } catch (cause) {
-      const generic = logAndGeneric(cause, "google");
-      setError(generic);
-      onError?.(generic);
+      onError?.(logAndGeneric(cause, "google"));
     } finally {
       setBusy(false);
     }
@@ -48,7 +42,6 @@ export function GoogleSignInButton({ onSuccess, onError, label }: { onSuccess?: 
         <GoogleIcon />
         <span>{busy ? <><span className="btn-spinner" aria-hidden="true" /> Connecting…</> : label ?? "Continue with Google"}</span>
       </button>
-      {error && <p className="auth-error">{error}</p>}
     </>
   );
 }

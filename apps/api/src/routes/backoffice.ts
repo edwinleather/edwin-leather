@@ -9,6 +9,8 @@ import { DeliveryConfig } from "../models/DeliveryConfig.js";
 import { TaxConfig } from "../models/TaxConfig.js";
 import { getDeliveryConfig, invalidateDeliveryConfigCache } from "../services/delivery.js";
 import { getTaxConfig, invalidateTaxConfigCache } from "../services/tax.js";
+import { getCodConfig, invalidateCodConfigCache } from "../services/cod.js";
+import { CodConfig } from "../models/CodConfig.js";
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
 import { SiteSetting } from "../models/SiteSetting.js";
@@ -16,6 +18,7 @@ import { orderResponse } from "../services/orders.js";
 import { PageContent } from "../models/PageContent.js";
 import { PAGE_KEYS, defaultPageContent } from "../services/pages.js";
 import { requireBackofficeFeature } from "../middleware/backoffice.js";
+import { exportAllDatabases, importAllDatabases } from "../services/databaseExport.js";
 
 export const backofficeRouter = Router();
 
@@ -25,11 +28,11 @@ const DEFAULT_HOMEPAGE = {
   marquee: { items: ["MADE TO AGE", "EDWIN LEATHERS", "SMALL BATCH", "FULL GRAIN"] },
   featured: { eyebrow: "Current selection", title: "Objects for the everyday.", linkLabel: "Shop all" },
   editorial: {
-    image: "https://images.unsplash.com/photo-1523779917675-b6ed3a42a561?auto=format&fit=crop&w=1600&q=82",
+    image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894065/edwin/assets/hvt6qhohydohffwjtbm7.webp",
     eyebrow: "Material first",
     title: "The surface should remember you.",
     paragraph:
-      "We choose leather for how it will look after years of use—not for how flawless it looks under studio lights on day one. Grain, small marks, and tonal variation are part of the material, not defects to hide.",
+      "We choose leather for how it will look after years of use-not for how flawless it looks under studio lights on day one. Grain, small marks, and tonal variation are part of the material, not defects to hide.",
     features: ["Full-grain hides", "Repair-minded construction", "Small-batch finishing"],
     buttonLabel: "How we make it"
   },
@@ -48,9 +51,9 @@ const DEFAULT_HOMEPAGE = {
     eyebrow: "Shop by ritual",
     title: "Where will it go with you?",
     cards: [
-      { title: "Bags", copy: "Carry a little better.", image: "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=1100&q=88" },
-      { title: "Wallets", copy: "Small, useful, personal.", image: "https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=1100&q=88" },
-      { title: "Belts", copy: "One piece. No shortcuts.", image: "https://images.unsplash.com/photo-1624222247344-550fb60583dc?auto=format&fit=crop&w=1100&q=88" }
+      { title: "Bags", copy: "Carry a little better.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894146/edwin/assets/uiaqojlrt5zq2d8o8zmo.webp" },
+      { title: "Wallets", copy: "Small, useful, personal.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894275/edwin/assets/jmsky5qf33pm7v9izsel.webp" },
+      { title: "Belts", copy: "One piece. No shortcuts.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894758/edwin/assets/eqapt0yuxl1vs0sqw9j1.webp" }
     ]
   },
   newArrivals: { eyebrow: "Recently cut", title: "New to the bench.", note: "From the workshop" },
@@ -58,7 +61,7 @@ const DEFAULT_HOMEPAGE = {
 };
 
 // Homepage / site content settings (announcement + hero + every section)
-backofficeRouter.get("/settings", requireBackofficeAdmin, async (_req, res, next) => {
+backofficeRouter.get("/settings", requireBackofficeAdmin, requireBackofficeFeature("homepage"), async (_req, res, next) => {
   try {
     const doc = await SiteSetting.findOne({ key: "site" }).lean();
     const defaults = {
@@ -68,9 +71,10 @@ backofficeRouter.get("/settings", requireBackofficeAdmin, async (_req, res, next
       heroTitleLine1: "Objects for",
       heroTitleLine2: "your next decade.",
       heroImage:
-        "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1920&q=80",
+        "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894110/edwin/assets/wjorleikcvlc21h4tjys.webp",
       heroSubtitle:
         "Full-grain leather. Considered proportions. Hardware that earns its patina. Objects for the everyday, without the disposable part.",
+      estYear: 2026,
       homepage: DEFAULT_HOMEPAGE
     };
     return res.json({ ok: true, data: { ...defaults, ...doc, homepage: { ...DEFAULT_HOMEPAGE, ...(doc?.homepage ?? {}) } } });
@@ -79,8 +83,39 @@ backofficeRouter.get("/settings", requireBackofficeAdmin, async (_req, res, next
   }
 });
 
-backofficeRouter.put("/settings", requireBackofficeAdmin, async (req, res, next) => {
+backofficeRouter.put("/settings", requireBackofficeAdmin, requireBackofficeFeature("homepage"), async (req, res, next) => {
   try {
+    const homepageSchema = z.object({
+      marquee: z.object({ items: z.array(z.string().max(60)) }).optional(),
+      featured: z.object({ eyebrow: z.string().max(80), title: z.string().max(120), linkLabel: z.string().max(60) }).optional(),
+      editorial: z
+        .object({
+          image: z.string().max(1000),
+          eyebrow: z.string().max(80),
+          title: z.string().max(120),
+          paragraph: z.string().max(2000),
+          features: z.array(z.string().max(80)),
+          buttonLabel: z.string().max(60)
+        })
+        .optional(),
+      stats: z
+        .object({
+          eyebrow: z.string().max(80),
+          title: z.string().max(120),
+          note: z.string().max(500),
+          items: z.array(z.object({ value: z.number(), mark: z.string().max(10).optional(), label: z.string().max(80) }))
+        })
+        .optional(),
+      categories: z
+        .object({
+          eyebrow: z.string().max(80),
+          title: z.string().max(120),
+          cards: z.array(z.object({ title: z.string().max(80), copy: z.string().max(200), image: z.string().max(1000) }))
+        })
+        .optional(),
+      newArrivals: z.object({ eyebrow: z.string().max(80), title: z.string().max(120), note: z.string().max(60) }).optional(),
+      closing: z.object({ eyebrow: z.string().max(80), line1: z.string().max(200), line2: z.string().max(200) }).optional()
+    });
     const input = z
       .object({
         announcement: z.string().max(160).optional(),
@@ -90,7 +125,8 @@ backofficeRouter.put("/settings", requireBackofficeAdmin, async (req, res, next)
         heroTitleLine2: z.string().max(80).optional(),
         heroImage: z.string().max(1000).optional(),
         heroSubtitle: z.string().max(500).optional(),
-        homepage: z.record(z.string(), z.unknown()).optional()
+        estYear: z.number().int().min(1900).max(2200).optional(),
+        homepage: homepageSchema.optional()
       })
       .parse(req.body);
     await SiteSetting.updateOne({ key: "site" }, { $set: { ...input, updatedBy: (req as BackofficeRequest).admin!.id } }, { upsert: true });
@@ -134,7 +170,7 @@ backofficeRouter.get("/stats", requireBackofficeAdmin, async (_req, res, next) =
         id: mapped.id,
         orderNumber: mapped.orderNumber,
         customer,
-        item: first ? `${first.nameSnapshot}${order.lines.length > 1 ? ` +${order.lines.length - 1}` : ""}` : "—",
+        item: first ? `${first.nameSnapshot}${order.lines.length > 1 ? ` +${order.lines.length - 1}` : ""}` : "-",
         total: mapped.total,
         orderStatus: mapped.orderStatus
       };
@@ -146,7 +182,7 @@ backofficeRouter.get("/stats", requireBackofficeAdmin, async (_req, res, next) =
 });
 
 // Delivery fee configuration (per-state fees + free-delivery threshold)
-backofficeRouter.get("/delivery", requireBackofficeAdmin, async (_req, res, next) => {
+backofficeRouter.get("/delivery", requireBackofficeAdmin, requireBackofficeFeature("shipping"), async (_req, res, next) => {
   try {
     const data = await getDeliveryConfig();
     return res.json({ ok: true, data });
@@ -155,7 +191,7 @@ backofficeRouter.get("/delivery", requireBackofficeAdmin, async (_req, res, next
   }
 });
 
-backofficeRouter.put("/delivery", requireBackofficeAdmin, async (req, res, next) => {
+backofficeRouter.put("/delivery", requireBackofficeAdmin, requireBackofficeFeature("shipping"), async (req, res, next) => {
   try {
     const input = z
       .object({
@@ -179,7 +215,7 @@ backofficeRouter.put("/delivery", requireBackofficeAdmin, async (req, res, next)
 });
 
 // GST configuration (global rate + optional waiver above a subtotal threshold)
-backofficeRouter.get("/tax", requireBackofficeAdmin, async (_req, res, next) => {
+backofficeRouter.get("/tax", requireBackofficeAdmin, requireBackofficeFeature("taxes"), async (_req, res, next) => {
   try {
     const data = await getTaxConfig();
     return res.json({ ok: true, data });
@@ -188,7 +224,7 @@ backofficeRouter.get("/tax", requireBackofficeAdmin, async (_req, res, next) => 
   }
 });
 
-backofficeRouter.put("/tax", requireBackofficeAdmin, async (req, res, next) => {
+backofficeRouter.put("/tax", requireBackofficeAdmin, requireBackofficeFeature("taxes"), async (req, res, next) => {
   try {
     const input = z
       .object({
@@ -203,6 +239,33 @@ backofficeRouter.put("/tax", requireBackofficeAdmin, async (req, res, next) => {
     );
     invalidateTaxConfigCache();
     const data = await getTaxConfig();
+    return res.json({ ok: true, data });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
+    return next(error);
+  }
+});
+
+// Cash on Delivery availability (global toggle; if off, per-product COD is ignored)
+backofficeRouter.get("/cod", requireBackofficeAdmin, requireBackofficeFeature("shipping"), async (_req, res, next) => {
+  try {
+    const data = await getCodConfig();
+    return res.json({ ok: true, data });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+backofficeRouter.put("/cod", requireBackofficeAdmin, requireBackofficeFeature("shipping"), async (req, res, next) => {
+  try {
+    const input = z.object({ enabled: z.boolean() }).parse(req.body);
+    await CodConfig.updateOne(
+      { key: "default" },
+      { $set: { enabled: input.enabled, updatedBy: (req as BackofficeRequest).admin!.id } },
+      { upsert: true }
+    );
+    invalidateCodConfigCache();
+    const data = await getCodConfig();
     return res.json({ ok: true, data });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
@@ -354,5 +417,38 @@ backofficeRouter.put("/pages/:key", requireBackofficeAdmin, requireBackofficeFea
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid page content", error.flatten()));
     return next(error);
+  }
+});
+
+// ----------------------------------------------------------------- Database migration
+// Superadmin: download the entire database (main + backoffice) as a BSON Extended
+// JSON dump that preserves every field type, so it can be uploaded into a new
+// database with the same names without losing any data.
+backofficeRouter.get("/export/database", requireSuperadmin, async (_req, res, next) => {
+  try {
+    const dump = await exportAllDatabases();
+    const filename = `edwin-database-${new Date().toISOString().slice(0, 10)}.json`;
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.send(JSON.stringify(dump, null, 2));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// Superadmin: upload a previously exported dump and fully restore it into the
+// connected databases (same database names). This overwrites existing data.
+backofficeRouter.post("/import/database", requireSuperadmin, async (req, res, next) => {
+  try {
+    const body = req.body;
+    const result = await importAllDatabases(body);
+    return res.json({
+      ok: true,
+      message: `Restored ${result.collections} collections (${result.documents} documents) across ${result.databases.join(", ")}.`,
+      data: result
+    });
+  } catch (error) {
+    if (error instanceof ApiError) return next(error);
+    return next(new ApiError(400, "Invalid database import file"));
   }
 });

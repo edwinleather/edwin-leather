@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { FileText, Plus, Save, Trash2, Truck } from "lucide-react";
 import { DeliverySettingsManager } from "./DeliverySettingsManager";
 import { InvoiceSettingsManager } from "./InvoiceSettingsManager";
+import { TaxSettingsManager } from "./TaxSettingsManager";
+import { CodSettingsManager } from "./CodSettingsManager";
 import { OrderInvoice } from "./OrderInvoice";
 import { formatPrice } from "@/lib/format";
 
@@ -22,7 +24,7 @@ type Order = {
   tracking?: { deliveryPartnerName?: string; trackingId?: string; trackingUrl?: string; awb?: string };
 };
 
-const ACTIVE_STATUSES = new Set(["pending_payment", "order_received", "confirmed", "processing", "packing", "shipping", "packed", "shipped", "return_requested"]);
+const ACTIVE_STATUSES = new Set(["order_received", "confirmed", "processing", "packing", "shipping", "packed", "shipped", "return_requested"]);
 const FULLFILLMENT_STEPS: { value: string; label: string }[] = [
   { value: "order_received", label: "Order received" },
   { value: "packing", label: "Packing your order" },
@@ -55,6 +57,7 @@ function OrderFulfillmentRow({ order, partners, onApply, onInvoice }: { order: O
   const [partnerId, setPartnerId] = useState(order.tracking?.deliveryPartnerName ? partners.find((p) => p.name === order.tracking?.deliveryPartnerName)?._id ?? "" : "");
   const [trackingId, setTrackingId] = useState(order.tracking?.trackingId ?? "");
   const current = stepIndex(order.orderStatus);
+  const showShipping = next === "shipped" || next === "shipping" || order.orderStatus === "shipped" || order.orderStatus === "shipping";
   return (
     <tr>
       <td>
@@ -66,28 +69,36 @@ function OrderFulfillmentRow({ order, partners, onApply, onInvoice }: { order: O
       <td><span className="status">{order.paymentMethod === "cod" ? "COD" : order.paymentMethod}</span> <span className="muted" style={{ fontSize: 10 }}>{order.paymentStatus.replace(/_/g, " ")}</span></td>
       <td>
         <select value={next} onChange={(e) => setNext(e.target.value)}>
-          <option value="">— Set status —</option>
+          <option value="">- Set status -</option>
           {FULLFILLMENT_STEPS.filter((s) => s.value !== "delivered" || current >= 0).map((s) => <option key={s.value} value={s.value}>{s.label}{current >= 0 && s.value === order.orderStatus ? " ✓" : ""}</option>)}
         </select>
       </td>
-      <td>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          <select value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
-            <option value="">— Partner —</option>
-            {partners.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
-          </select>
-          <input value={trackingId} onChange={(e) => setTrackingId(e.target.value)} placeholder="Tracking ID" style={{ width: 110 }} />
-          <button className="button button--dark" disabled={!next} onClick={() => onApply(next, partnerId || undefined, trackingId || undefined)}><Truck size={13} /> Apply</button>
-        </div>
-      </td>
-      {order.tracking?.trackingUrl ? <td><a className="text-button" href={order.tracking.trackingUrl} target="_blank" rel="noreferrer">Track</a></td> : <td className="muted">—</td>}
+      {showShipping ? (
+        <td>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <select value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+              <option value="">- Partner -</option>
+              {partners.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+            </select>
+            <input value={trackingId} onChange={(e) => setTrackingId(e.target.value)} placeholder="Tracking ID" style={{ width: 110 }} />
+            <button className="button button--dark" disabled={!next} onClick={() => onApply(next, partnerId || undefined, trackingId || undefined)}><Truck size={13} /> Apply</button>
+          </div>
+        </td>
+      ) : (
+        <td>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button className="button button--dark" disabled={!next} onClick={() => onApply(next)}>Apply</button>
+          </div>
+        </td>
+      )}
+      {order.tracking?.trackingUrl ? <td><a className="text-button" href={order.tracking.trackingUrl} target="_blank" rel="noreferrer">Track</a></td> : <td className="muted">-</td>}
       <td><button className="text-button" onClick={onInvoice}><FileText size={13} /> Invoice</button></td>
     </tr>
   );
 }
 
 export function DeliveryManager() {
-  const [tab, setTab] = useState<"fulfillment" | "fee" | "invoice">("fulfillment");
+  const [tab, setTab] = useState<"fulfillment" | "fee" | "invoice" | "tax" | "cod">("fulfillment");
   const [orders, setOrders] = useState<Order[]>([]);
   const [partners, setPartners] = useState<DeliveryPartner[]>([]);
   const [invoice, setInvoice] = useState<{ orderId: string; orderNumber: string } | null>(null);
@@ -174,6 +185,8 @@ export function DeliveryManager() {
           <button className={tab === "fulfillment" ? "active" : ""} onClick={() => setTab("fulfillment")}>Orders to ship ({active.length})</button>
           <button className={tab === "fee" ? "active" : ""} onClick={() => setTab("fee")}>Delivery fee</button>
           <button className={tab === "invoice" ? "active" : ""} onClick={() => setTab("invoice")}>Invoice</button>
+          <button className={tab === "tax" ? "active" : ""} onClick={() => setTab("tax")}>GST &amp; tax</button>
+          <button className={tab === "cod" ? "active" : ""} onClick={() => setTab("cod")}>COD</button>
         </div>
       </header>
 
@@ -183,6 +196,10 @@ export function DeliveryManager() {
         <DeliverySettingsManager />
       ) : tab === "invoice" ? (
         <InvoiceSettingsManager />
+      ) : tab === "tax" ? (
+        <TaxSettingsManager />
+      ) : tab === "cod" ? (
+        <CodSettingsManager />
       ) : (
         <>
           <section className="admin-panel">
@@ -190,7 +207,7 @@ export function DeliveryManager() {
               <div><span className="eyebrow">Couriers</span><h2>Delivery partners</h2></div>
               <button className="button button--dark" onClick={() => setAdding((v) => !v)}>{adding ? "Cancel" : <><Plus size={15} /> Add partner</>}</button>
             </div>
-            <p className="delivery-config-hint">Add the couriers you use. Each needs a name and a tracking link — use <code>{`{tracking_id}`}</code> as the placeholder for the tracking number. Customers can then click <strong>Track</strong> on their order.</p>
+            <p className="delivery-config-hint">Add the couriers you use. Each needs a name and a tracking link - use <code>{`{tracking_id}`}</code> as the placeholder for the tracking number. Customers can then click <strong>Track</strong> on their order.</p>
             {adding && (
               <form className="checkout-form" onSubmit={(e) => { e.preventDefault(); addPartner(); }} style={{ borderTop: "1px solid var(--line)", paddingTop: 18, marginBottom: 20 }}>
                 <div className="form-grid">
@@ -216,7 +233,7 @@ export function DeliveryManager() {
             <div className="admin-panel__head">
               <div><span className="eyebrow">Outstanding</span><h2>Orders awaiting action ({active.length})</h2></div>
             </div>
-            <p className="delivery-config-hint">Orders still moving through fulfillment — from payment received through to shipped. Update the status and assign a delivery partner + tracking ID. Customers see each status and a Track link once shipped.</p>
+            <p className="delivery-config-hint">Orders still moving through fulfillment - from payment received through to shipped. Update the status and assign a delivery partner + tracking ID. Customers see each status and a Track link once shipped.</p>
             {loading ? <p className="muted">Loading orders…</p> : active.length === 0 ? <p className="muted">No outstanding orders. Everything is delivered or closed.</p> : (
               <div className="admin-table-wrap">
                 <table className="admin-table">

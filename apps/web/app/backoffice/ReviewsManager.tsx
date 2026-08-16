@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ImagePlus, Loader2, Save, Star, Trash2, X } from "lucide-react";
+import { Check, ImagePlus, Loader2, Save, Search, Star, Trash2, X } from "lucide-react";
 import { ImageHint } from "./ImageHint";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
@@ -133,7 +133,7 @@ function ReviewForm({ review, products, onSaved, onClose }: { review: Review | n
         </label>
         <label>Product (optional)
           <select value={form.productId} onChange={set("productId")}>
-            <option value="">— General review —</option>
+            <option value="">- General review -</option>
             {products.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
           </select>
         </label>
@@ -189,6 +189,7 @@ export function ReviewsManager() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
 
   async function load() {
     try {
@@ -230,7 +231,11 @@ export function ReviewsManager() {
     if (res.ok) setReviews((list) => list.filter((r) => r._id !== review._id));
   }
 
-  const visible = filter === "all" ? reviews : reviews.filter((r) => r.status === filter);
+  const visible = (filter === "all" ? reviews : reviews.filter((r) => r.status === filter)).filter((r) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return r.authorName.toLowerCase().includes(q) || (r.title ?? "").toLowerCase().includes(q) || r.body.toLowerCase().includes(q) || (r.productName ?? "").toLowerCase().includes(q);
+  });
   const statusBadge = (s: Review["status"]) => (s === "approved" ? "status status--confirmed" : s === "rejected" ? "status" : "status status--pending");
 
   return (
@@ -247,6 +252,8 @@ export function ReviewsManager() {
           <button key={f} className={filter === f ? "active" : ""} onClick={() => setFilter(f)}>{f} ({f === "all" ? reviews.length : reviews.filter((r) => r.status === f).length})</button>
         ))}
       </div>
+
+      <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search author, title or review" /></label>
 
       {(creating || editing) && (
         <section className="admin-panel">

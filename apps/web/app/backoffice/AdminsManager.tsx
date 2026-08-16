@@ -73,7 +73,7 @@ export function AdminsManager() {
     if (res.ok) load();
   }
 
-  if (!rows) return <div className="admin-panel">Loading admin users…</div>;
+  if (!rows) return <div className="admin-panel">{error ? <p className="auth-error">{error}</p> : "Loading admin users…"}</div>;
 
   return (
     <div className="admin-panel">
@@ -106,7 +106,7 @@ export function AdminsManager() {
             {visible.length === 0 && <tr><td colSpan={5} className="muted">No admin users match your search.</td></tr>}
             {visible.map((row) => (
               <tr key={row.id}>
-                <td><strong>{row.name || "—"}</strong></td>
+                <td><strong>{row.name || "-"}</strong></td>
                 <td>{row.email}</td>
                 <td>
                   <select value={row.role} onChange={(e) => patch(row, { role: e.target.value as Role })}>

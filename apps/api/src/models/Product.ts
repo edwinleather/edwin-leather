@@ -37,6 +37,7 @@ const productSchema = new Schema(
     images: [{ url: String, publicId: String, alt: String }],
     variants: [variantSchema],
     featured: { type: Boolean, default: false },
+    codAvailable: { type: Boolean, default: true },
     active: { type: Boolean, default: true }
   },
   { timestamps: true }

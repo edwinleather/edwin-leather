@@ -26,6 +26,7 @@ type Product = {
   images: ImageAsset[];
   variants: Variant[];
   featured: boolean;
+  codAvailable: boolean;
   active: boolean;
 };
 
@@ -83,7 +84,7 @@ export function ProductsManager() {
             {products.length > 0 && filtered.length === 0 && <tr><td colSpan={7} className="muted">No products match your search.</td></tr>}
             {filtered.map((p) => (
               <tr key={p._id}>
-                <td>{p.images?.[0] ? <img src={p.images[0].url} alt="" width={44} height={52} style={{ objectFit: "cover", borderRadius: 8 }} /> : <span className="muted">—</span>}</td>
+                <td>{p.images?.[0] ? <img src={p.images[0].url} alt="" width={44} height={52} style={{ objectFit: "cover", borderRadius: 8 }} /> : <span className="muted">-</span>}</td>
                 <td><strong>{p.name}</strong>{p.featured && <span className="featured-tag">Featured</span>}</td>
                 <td>{p.category}</td>
                 <td>{formatPrice(p.price)}{p.compareAtPrice ? <span className="muted" style={{ display: "block", fontSize: 11 }}>was {formatPrice(p.compareAtPrice)}</span> : null}</td>
@@ -109,12 +110,12 @@ export function ProductsManager() {
 }
 
 function emptyProduct(): Omit<Product, "_id" | "images" | "variants"> {
-  return { slug: "", name: "", subtitle: "", description: "", category: "", collection: "", brand: "", hsn: "", gst: undefined, deliveryBy: "", price: 0, featured: false, active: true };
+  return { slug: "", name: "", subtitle: "", description: "", category: "", collection: "", brand: "", hsn: "", gst: undefined, deliveryBy: "", price: 0, featured: false, codAvailable: true, active: true };
 }
 
 function ProductForm({ product, categories, onSaved, onClose }: { product: Product | null; categories: Category[]; onSaved: () => void; onClose: () => void }) {
   const [form, setForm] = useState<Omit<Product, "_id" | "images" | "variants">>(() =>
-    product ? { slug: product.slug, name: product.name, subtitle: product.subtitle ?? "", description: product.description, category: product.category, collection: product.collection ?? "", brand: product.brand ?? "", hsn: product.hsn ?? "", gst: product.gst, deliveryBy: product.deliveryBy ?? "", price: product.price, compareAtPrice: product.compareAtPrice, featured: product.featured, active: product.active } : { ...emptyProduct(), compareAtPrice: undefined }
+    product ? { slug: product.slug, name: product.name, subtitle: product.subtitle ?? "", description: product.description, category: product.category, collection: product.collection ?? "", brand: product.brand ?? "", hsn: product.hsn ?? "", gst: product.gst, deliveryBy: product.deliveryBy ?? "", price: product.price, compareAtPrice: product.compareAtPrice, featured: product.featured, codAvailable: product.codAvailable, active: product.active } : { ...emptyProduct(), compareAtPrice: undefined }
   );
   const [images, setImages] = useState<ImageAsset[]>(product?.images ?? []);
   const [variants, setVariants] = useState<Variant[]>(product?.variants ?? []);
@@ -220,6 +221,7 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
         active: v.active
       })),
       featured: form.featured,
+      codAvailable: form.codAvailable,
       active: form.active
     };
     try {
@@ -283,7 +285,7 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
           <div><span className="eyebrow">Stock</span><h3 style={{ margin: 0 }}>Variants</h3></div>
           <button type="button" className="button button--ghost" onClick={addVariant}><Plus size={14} /> Add variant</button>
         </div>
-        {variants.length === 0 && <p className="muted" style={{ margin: "4px 0 12px" }}>No variants yet — add size/colour options and stock.</p>}
+        {variants.length === 0 && <p className="muted" style={{ margin: "4px 0 12px" }}>No variants yet - add size/colour options and stock.</p>}
         {variants.map((v, i) => (
           <div key={i} className="variant-editor">
             <div className="variant-editor__grid">
@@ -310,6 +312,7 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
       <div className="form-actions">
         <div style={{ display: "flex", gap: 16 }}>
           <label className="toggle-label"><input type="checkbox" checked={form.featured} onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))} /> Featured</label>
+          <label className="toggle-label"><input type="checkbox" checked={form.codAvailable} onChange={(e) => setForm((f) => ({ ...f, codAvailable: e.target.checked }))} /> COD available</label>
           <label className="toggle-label"><input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} /> Active</label>
         </div>
         <div style={{ display: "flex", gap: 10 }}>

@@ -14,6 +14,8 @@ export function CartDrawer() {
   const threshold = delivery.freeDeliveryThreshold;
   const progress = Math.min((subtotal / threshold) * 100, 100);
   const remaining = Math.max(threshold - subtotal, 0);
+  const available = items.filter((item) => !item.isOutOfStock);
+  const unavailable = items.filter((item) => item.isOutOfStock);
 
   return (
     <AnimatePresence>
@@ -61,7 +63,7 @@ export function CartDrawer() {
               </div>
             ) : (
               <div className="cart-lines">
-                {items.map((item) => (
+                {available.map((item) => (
                   <div className="cart-line" key={item.lineId}>
                     <SmoothLink href={`/product/${item.slug}`} className="cart-line__image" onClick={closeCart}>
                       <SmartImage src={item.image} alt={item.name} sizes="96px" />
@@ -83,10 +85,33 @@ export function CartDrawer() {
                     </div>
                   </div>
                 ))}
+                {unavailable.length > 0 && (
+                  <div className="cart-unavailable">
+                    <span className="eyebrow">No longer available</span>
+                    {unavailable.map((item) => (
+                      <div className="cart-line cart-line--dim" key={item.lineId}>
+                        <SmoothLink href={`/product/${item.slug}`} className="cart-line__image" onClick={closeCart}>
+                          <SmartImage src={item.image} alt={item.name} sizes="96px" />
+                        </SmoothLink>
+                        <div className="cart-line__body">
+                          <div>
+                            <SmoothLink href={`/product/${item.slug}`} onClick={closeCart} className="cart-line__name">{item.name}</SmoothLink>
+                            <div className="muted tiny">{item.variantLabel}</div>
+                          </div>
+                          <div className="cart-line__bottom">
+                            <span className="sold-out-tag">Sold out</span>
+                            <div className="cart-line__price">{formatPrice(item.price * item.quantity)}</div>
+                          </div>
+                          <button className="text-button tiny" onClick={() => removeItem(item.lineId)}>Remove</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
-            {items.length > 0 && (
+            {available.length > 0 && (
               <>
                 <div className="drawer-footer">
                 <div className="drawer-total"><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div>
@@ -95,6 +120,12 @@ export function CartDrawer() {
                 <SmoothLink href="/cart" className="button button--ghost button--full" onClick={closeCart}>View bag</SmoothLink>
               </div>
               </>
+            )}
+            {available.length === 0 && items.length > 0 && (
+              <div className="drawer-footer">
+                <div className="drawer-total"><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div>
+                <p className="muted tiny">Your items are no longer available. Remove them to continue.</p>
+              </div>
             )}
           </motion.aside>
         </>

@@ -23,10 +23,22 @@ export async function reserveStock(lines: StockLine[]) {
       failures.push({ sku: line.sku, available, requested: line.quantity });
       continue;
     }
-    await Product.findOneAndUpdate(
-      { _id: line.productId, ...lineMatch(line), "variants.active": true },
+    // Atomic conditional update: only decrement if enough is actually in stock.
+    // This re-checks availability within the same write, preventing concurrent
+    // requests from over-reserving past the physical stock.
+    const res = await Product.findOneAndUpdate(
+      {
+        _id: line.productId,
+        ...lineMatch(line),
+        "variants.active": true,
+        ...(variant.allowBackorder ? {} : { "variants.inventoryAvailable": { $gte: line.quantity } })
+      },
       { $inc: { "variants.$.inventoryAvailable": -line.quantity, "variants.$.inventoryReserved": line.quantity } }
     ).lean();
+    if (!res) {
+      failures.push({ sku: line.sku, available, requested: line.quantity });
+      continue;
+    }
     reserved.push(line);
   }
 

@@ -6,6 +6,7 @@ import { RouteLoader } from "./RouteLoader";
 import { ScrollProgress } from "./ScrollProgress";
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
+import { WhatsAppWidget } from "./WhatsAppWidget";
 
 export function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -21,6 +22,7 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
       <main>{children}</main>
       <SiteFooter />
       <CartDrawer />
+      <WhatsAppWidget />
     </>
   );
 }

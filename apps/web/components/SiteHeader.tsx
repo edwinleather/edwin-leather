@@ -12,19 +12,22 @@ import { Loader } from "./Loader";
 import { siteConfig } from "@/lib/site-config";
 import { useDeliveryConfig } from "@/lib/delivery";
 import { useSiteSettings } from "@/lib/site-settings";
+import { useCategories, useSearchNavigation } from "@/lib/useCategories";
 import { formatPrice } from "@/lib/format";
+import { GooeyInput } from "./ui/gooey-input";
 
-const nav = [
-  ["Shop", "/shop"],
-  ["Bags", "/shop?category=Bags"],
-  ["Wallets", "/shop?category=Wallets"],
-  ["Belts", "/shop?category=Belts"],
-  ["Our story", "/story"]
-] as const;
+const baseNav: { label: string; href: string }[] = [
+  { label: "Shop", href: "/shop" },
+  { label: "Our story", href: "/story" }
+];
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuLoading, setMenuLoading] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const categories = useCategories();
+  const { submitSearch } = useSearchNavigation();
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -39,6 +42,24 @@ export function SiteHeader() {
   const { loaded, settings } = useSiteSettings();
   const announcement = settings?.announcement?.trim() || `Free delivery across India on orders above ${formatPrice(delivery.freeDeliveryThreshold)}`;
 
+  const desktopNav = [...baseNav, ...categories.map((item) => ({ label: item.name, href: `/category/${item.slug}` }))];
+
+  const categoryActive = (href: string) => href.startsWith("/category/") && pathname === href;
+
+  function submitFromIcon() {
+    if (!searchQuery.trim()) return;
+    submitSearch(searchQuery);
+    setSearchQuery("");
+    setSearchOpen(false);
+  }
+
+  function submitOnEnter(value: string) {
+    if (!value.trim()) return;
+    submitSearch(value);
+    setSearchQuery("");
+    setSearchOpen(false);
+  }
+
   return (
     <>
       <div className="announcement-bar" aria-hidden={!loaded ? true : undefined}>{loaded ? announcement : ""}</div>
@@ -48,10 +69,23 @@ export function SiteHeader() {
             <Menu size={20} />
           </button>
           <nav className="desktop-nav" aria-label="Primary navigation">
-            {nav.slice(0, 3).map(([label, href]) => (
-              <SmoothLink key={label} href={href} className={pathname.startsWith("/shop") && !href.includes("?category=") && href === "/shop" ? "active" : ""}>{label}</SmoothLink>
+            {desktopNav.map(({ label, href }) => (
+              <SmoothLink
+                key={label}
+                href={href}
+                className={
+                  href === "/shop" && pathname === "/shop"
+                    ? "active"
+                    : href === "/story" && pathname === "/story"
+                      ? "active"
+                      : categoryActive(href)
+                        ? "active"
+                        : ""
+                }
+              >
+                {label}
+              </SmoothLink>
             ))}
-            <SmoothLink href="/shop?category=Travel">Travel</SmoothLink>
           </nav>
 
           <SmoothLink href="/" className="brand" ariaLabel="Edwin Leathers home">
@@ -60,8 +94,25 @@ export function SiteHeader() {
           </SmoothLink>
 
           <div className="header-actions">
-            <ThemeToggle />
-            <SmoothLink href="/shop" className="header-action desktop-only" ariaLabel="Search products"><Search size={18} /></SmoothLink>
+            {!searchOpen && <ThemeToggle />}
+            <GooeyInput
+              placeholder="Search by name, category or SKU…"
+              className="header-search__gooey desktop-only"
+              classNames={{ bubble: "hidden" }}
+              collapsedWidth={40}
+              expandedWidth={searchOpen ? 260 : 40}
+              expandedOffset={0}
+              defaultValue={searchQuery}
+              onValueChange={setSearchQuery}
+              onSubmit={submitOnEnter}
+              onOpenChange={(open) => {
+                if (open) setSearchOpen(true);
+                else { setSearchOpen(false); setSearchQuery(""); }
+              }}
+            />
+            {searchOpen && (
+              <button type="button" className="header-action desktop-only" aria-label="Submit search" onClick={submitFromIcon}><Search size={18} /></button>
+            )}
             <SmoothLink href={authed ? "/account" : "/login"} className="header-action desktop-only" ariaLabel={authed ? "Account" : "Log in"}><UserRound size={18} /></SmoothLink>
             <SmoothLink href="/shop" className="button button--cream header-cta desktop-only">Shop now</SmoothLink>
             <button className="header-action cart-button" onClick={openCart} aria-label={`Open cart with ${count} items`}>
@@ -79,6 +130,15 @@ export function SiteHeader() {
               <div className="brand brand--light"><img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} /><span className="brand__word">EDWIN <i>Leathers</i></span></div>
               <button className="icon-button icon-button--light" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button>
             </div>
+            <motion.form
+              className="mobile-menu__search"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              onSubmit={(e) => { e.preventDefault(); submitSearch(searchQuery); setMenuOpen(false); setSearchQuery(""); }}
+            >
+              <Search size={16} />
+              <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search products…" aria-label="Search products" />
+            </motion.form>
             <motion.nav
               className="mobile-menu__nav"
               initial="hidden"
@@ -88,7 +148,7 @@ export function SiteHeader() {
               {menuLoading ? (
                 <Loader label="Opening menu" size="sm" />
               ) : (
-                nav.map(([label, href], index) => (
+                [...baseNav, ...categories.map((item) => ({ label: item.name, href: `/category/${item.slug}` }))].map(({ label, href }, index) => (
                   <motion.div key={label} variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0 } }}>
                     <SmoothLink href={href} onClick={() => setMenuOpen(false)}><span>0{index + 1}</span>{label}</SmoothLink>
                   </motion.div>

@@ -185,7 +185,7 @@ export function CouponsManager() {
                 <td><strong>{c.code}</strong></td>
                 <td>{c.discountType.replace(/_/g, " ")}</td>
                 <td>{c.discountType === "percentage" ? `${c.value}%` : formatPrice(c.value)}</td>
-                <td>{c.minimumOrder ? formatPrice(c.minimumOrder) : "—"}</td>
+                <td>{c.minimumOrder ? formatPrice(c.minimumOrder) : "-"}</td>
                 <td>{c.usedCount ?? 0}{c.usageLimit ? ` / ${c.usageLimit}` : ""}</td>
                 <td><span className={`status ${c.active ? "status--confirmed" : ""}`}>{c.active ? "Active" : "Disabled"}</span></td>
                 <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>

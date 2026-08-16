@@ -142,7 +142,7 @@ function OrderRow({ order, expanded, onToggle, onStatus }: { order: Order; expan
       <tr>
         <td><strong>{order.orderNumber}</strong></td>
         <td>{customer}</td>
-        <td>{first ? `${first.name}${order.lines.length > 1 ? ` +${order.lines.length - 1}` : ""}` : "—"}</td>
+        <td>{first ? `${first.name}${order.lines.length > 1 ? ` +${order.lines.length - 1}` : ""}` : "-"}</td>
         <td>{formatPrice(order.total)}</td>
         <td><span className={`status ${order.paymentStatus === "paid" || order.paymentStatus === "cod_pending" ? "status--confirmed" : ""}`}>{statusLabel(order.paymentMethod)} · {statusLabel(order.paymentStatus)}</span></td>
         <td><span className={`status status--${order.orderStatus}`}>{statusLabel(order.orderStatus)}</span></td>
@@ -167,7 +167,7 @@ function OrderRow({ order, expanded, onToggle, onStatus }: { order: Order; expan
                     <p className="muted" style={{ lineHeight: 1.6 }}>
                       {order.shippingAddress.fullName}<br />{order.shippingAddress.line1}<br />{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}<br />{order.shippingAddress.phone}
                     </p>
-                  ) : <p className="muted">—</p>}
+                  ) : <p className="muted">-</p>}
                 </div>
                 <div>
                   <span className="eyebrow">Totals</span>

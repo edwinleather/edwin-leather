@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CartItem, Product, ProductVariant } from "@/lib/types";
+import { variantInStock } from "@/lib/utils";
+import { trackAddToCart } from "@/lib/analytics";
 import { getCart, saveCart, type CartLine } from "@/lib/api";
 import { useAuth } from "@/components/useAuth";
 
@@ -31,7 +33,9 @@ function toLine(item: CartItem): CartLine {
     image: item.image,
     price: item.price,
     variantLabel: item.variantLabel,
-    quantity: item.quantity
+    quantity: item.quantity,
+    isOutOfStock: item.isOutOfStock,
+    codAvailable: item.codAvailable
   };
 }
 
@@ -45,7 +49,9 @@ function toItem(line: CartLine): CartItem {
     image: line.image ?? "",
     price: line.price ?? 0,
     variantLabel: line.variantLabel ?? "",
-    quantity: line.quantity
+    quantity: line.quantity,
+    isOutOfStock: line.isOutOfStock,
+    codAvailable: line.codAvailable
   };
 }
 
@@ -125,7 +131,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, hydrated, authed, user]);
 
   const addItem = useCallback((product: Product, variant: ProductVariant, quantity = 1) => {
+    if (!variantInStock(variant)) return;
     const lineId = `${product.id}:${variant.id}`;
+    trackAddToCart({
+      item_id: product.id,
+      item_name: product.name,
+      price: product.price,
+      quantity,
+      item_category: product.category,
+      item_variant: variant.label
+    });
     setItems((current) => {
       const found = current.find((item) => item.lineId === lineId);
       if (found) {
@@ -166,18 +181,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({
-      items,
-      count: items.reduce((sum, item) => sum + item.quantity, 0),
-      subtotal: items.reduce((sum, item) => sum + item.quantity * item.price, 0),
-      isOpen,
-      openCart: () => setIsOpen(true),
-      closeCart: () => setIsOpen(false),
-      addItem,
-      removeItem,
-      setQuantity,
-      clearCart: () => setItems([])
-    }),
+    () => {
+      const available = items.filter((item) => !item.isOutOfStock);
+      return {
+        items,
+        count: items.reduce((sum, item) => sum + item.quantity, 0),
+        subtotal: available.reduce((sum, item) => sum + item.quantity * item.price, 0),
+        isOpen,
+        openCart: () => setIsOpen(true),
+        closeCart: () => setIsOpen(false),
+        addItem,
+        removeItem,
+        setQuantity,
+        clearCart: () => setItems([])
+      };
+    },
     [items, isOpen, addItem, removeItem, setQuantity]
   );
 

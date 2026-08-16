@@ -8,7 +8,7 @@ export function siteUrl(): string {
       new URL(raw);
       return raw.replace(/\/+$/, "");
     } catch {
-      // invalid URL — fall through to localhost fallback
+      // invalid URL - fall through to localhost fallback
     }
   }
   return "http://localhost:3000";

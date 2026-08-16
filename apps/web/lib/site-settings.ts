@@ -24,6 +24,7 @@ export type SiteSettings = {
   heroTitleLine2: string;
   heroSubtitle: string;
   heroImage: string;
+  estYear: number;
   homepage: HomepageSettings;
 };
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { MessageCircleMore, PackageCheck, Sparkles } from "lucide-react";
 import { FeedbackForm } from "@/components/FeedbackForm";
 
-export const metadata: Metadata = { title: "Feedback", description: "Share feedback about your Edwin Leathers product or shopping experience." };
+export const metadata: Metadata = { title: "Feedback", description: "Share feedback about your Edwin Leathers product or shopping experience.", alternates: { canonical: "/feedback" } };
 
 export default function FeedbackPage() {
   return (

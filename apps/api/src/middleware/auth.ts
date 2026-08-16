@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { env } from "../config/env.js";
+import { env, isConfigured } from "../config/env.js";
 import { ApiError } from "./error.js";
 
 type SessionPayload = { sub: string; role: "customer" | "admin" | "superadmin"; email: string };
@@ -8,6 +8,7 @@ type SessionPayload = { sub: string; role: "customer" | "admin" | "superadmin"; 
 export type AuthenticatedRequest = Request & { auth?: SessionPayload };
 
 export function requireAuth(req: AuthenticatedRequest, _res: Response, next: NextFunction) {
+  if (!isConfigured(env.jwtSecret)) return next(new ApiError(503, "Authentication is not configured"));
   const token = req.cookies?.[env.cookieName];
   if (!token) return next(new ApiError(401, "Authentication required"));
 

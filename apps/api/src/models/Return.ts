@@ -7,7 +7,8 @@ const returnItemSchema = new Schema(
     variantId: Schema.Types.ObjectId,
     sku: String,
     nameSnapshot: String,
-    quantity: { type: Number, required: true, min: 1 }
+    quantity: { type: Number, required: true, min: 1 },
+    issueType: String
   },
   { _id: true }
 );
@@ -20,6 +21,8 @@ const returnSchema = new Schema(
     email: { type: String, required: true },
     items: [returnItemSchema],
     reason: { type: String, required: true },
+    reasonCategory: String,
+    condition: String,
     notes: String,
     status: {
       type: String,

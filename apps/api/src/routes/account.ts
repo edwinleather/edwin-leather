@@ -95,7 +95,17 @@ accountRouter.delete("/addresses/:addressId", async (req: AuthenticatedRequest, 
 accountRouter.get("/orders", async (req: AuthenticatedRequest, res, next) => {
   try {
     if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
-    const orders = await Order.find({ customerId: req.auth!.sub }).sort({ createdAt: -1 });
+    // Hide stale unpaid orders (payment pending for more than 2 days) from the
+    // customer's view. They remain visible in the backoffice. COD/paid orders
+    // with an "order_received" status are unaffected.
+    const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const orders = await Order.find({
+      customerId: req.auth!.sub,
+      $or: [
+        { "payment.status": { $ne: "pending" } },
+        { createdAt: { $gte: cutoff } }
+      ]
+    }).sort({ createdAt: -1 });
     return res.json({ ok: true, orders: orders.map(orderResponse) });
   } catch (error) {
     return next(error);
@@ -105,7 +115,15 @@ accountRouter.get("/orders", async (req: AuthenticatedRequest, res, next) => {
 accountRouter.get("/orders/:orderId", async (req: AuthenticatedRequest, res, next) => {
   try {
     if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
-    const order = await Order.findOne({ _id: req.params.orderId, customerId: req.auth!.sub });
+    const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const order = await Order.findOne({
+      _id: req.params.orderId,
+      customerId: req.auth!.sub,
+      $or: [
+        { "payment.status": { $ne: "pending" } },
+        { createdAt: { $gte: cutoff } }
+      ]
+    });
     if (!order) return next(new ApiError(404, "Order not found"));
     return res.json({ ok: true, order: orderResponse(order) });
   } catch (error) {

@@ -148,7 +148,7 @@ function ErrorRow({ item, expanded, onToggle }: { item: ErrorLog; expanded: bool
           <td colSpan={5} className="admin-row--expanded">
             {item.code && <p><strong>Code:</strong> {item.code}</p>}
             {item.path && <p><strong>Path:</strong> {item.method} {item.path}</p>}
-            <p><strong>Message:</strong> {item.message ?? "—"}</p>
+            <p><strong>Message:</strong> {item.message ?? "-"}</p>
             {detail && <pre className="admin-stack">{detail}</pre>}
           </td>
         </tr>

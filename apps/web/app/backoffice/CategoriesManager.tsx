@@ -121,7 +121,7 @@ export function CategoriesManager() {
 
       <div className="admin-table-wrap">
         <table className="admin-table">
-          <thead><tr><th>Name</th><th>Slug</th><th>Products</th><th>Order</th><th>Status</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Slug</th><th>Description</th><th>Order</th><th>Status</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
           <tbody>
             {rows.length === 0 && <tr><td colSpan={6} className="muted">No categories yet.</td></tr>}
             {rows.length > 0 && filtered.length === 0 && <tr><td colSpan={6} className="muted">No categories match your search.</td></tr>}
@@ -129,7 +129,7 @@ export function CategoriesManager() {
               <tr key={c._id}>
                 <td><strong>{c.name}</strong></td>
                 <td className="muted">/{c.slug}</td>
-                <td>{c.description ? c.description.slice(0, 40) : "—"}</td>
+                <td>{c.description ? c.description.slice(0, 40) : "-"}</td>
                 <td>{c.displayOrder}</td>
                 <td><span className={`status ${c.active ? "status--confirmed" : ""}`}>{c.active ? "Active" : "Hidden"}</span></td>
                 <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>

@@ -44,7 +44,7 @@ export function Hero() {
             transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
           >
             <SmartImage
-              src={settings?.heroImage?.trim() || "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1920&q=80"}
+              src={settings?.heroImage?.trim() || "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894110/edwin/assets/wjorleikcvlc21h4tjys.webp"}
               alt="Rich brown leather travel bag"
               priority
               sizes="100vw"
@@ -86,9 +86,8 @@ export function Hero() {
         </motion.div>
 
         <div className="hero__meta">
-          <span>Est. 2026</span><i /><span>Hand-finished in India</span><i /><span>Free delivery over {formatPrice(delivery.freeDeliveryThreshold)}</span>
+          <span>Est. {settings?.estYear || 2026}</span><i /><span>Hand-finished in India</span><i /><span>Free delivery over {formatPrice(delivery.freeDeliveryThreshold)}</span>
         </div>
-        <div className="hero__index">EST. / 2026</div>
         <a href="#featured" className="hero__scroll" aria-label="Scroll to products"><ArrowDown size={17} /></a>
       </div>
     </section>
