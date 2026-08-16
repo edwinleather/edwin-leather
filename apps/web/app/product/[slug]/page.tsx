@@ -7,11 +7,6 @@ import { ReviewForm } from "@/components/ReviewForm";
 import { SmartImage } from "@/components/SmartImage";
 import { getCatalog, getProductBySlug } from "@/lib/catalog";
 
-export async function generateStaticParams() {
-  const catalog = await getCatalog();
-  return catalog.map((product) => ({ slug: product.slug }));
-}
-
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
