@@ -19,7 +19,6 @@
     "dotenv": "^17.4.2",
     "express": "latest",
     "express-rate-limit": "latest",
-    "firebase-admin": "^14.2.0",
     "helmet": "latest",
     "jsonwebtoken": "latest",
     "mongoose": "latest",
