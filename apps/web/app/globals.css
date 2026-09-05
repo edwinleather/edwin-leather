@@ -1430,6 +1430,10 @@ body.lb-open .site-header { display: none; }
   .footer-bottom { grid-template-columns: 1fr; gap: 12px; }
   .footer-bottom > div { order: 3; }
   .footer-bottom > span:last-child { text-align: left; }
+  .profile-menu__dropdown { min-width: 180px; max-width: calc(100vw - 24px); }
+  .shop-search { min-width: 0; flex: 1; }
+  .quantity-control { height: 44px; grid-template-columns: 34px 32px 34px; }
+  .quantity-control--large { height: 50px; width: 100px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
