@@ -139,7 +139,7 @@ export type ResolvedVariant = {
   attributes: { key: string; name: string; value: string }[];
 };
 
-type ResolveProduct = {
+export type ResolveProduct = {
   _id: unknown;
   price: number;
   compareAtPrice?: number | null;
@@ -148,7 +148,7 @@ type ResolveProduct = {
   variantDimensions?: { attributeId: unknown }[];
 };
 
-type ResolveProductVariant = {
+export type ResolveProductVariant = {
   _id: unknown;
   sku: string;
   price: number;
