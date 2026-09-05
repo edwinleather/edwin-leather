@@ -153,12 +153,11 @@ export async function seedDatabase() {
 
     for (const product of seedProducts) {
       const { name: _seedName, ...productFields } = product;
-      const demoName = `demo_${product.name}`;
       await Product.updateOne(
         { slug: product.slug },
         {
-          $set: { name: demoName },
           $setOnInsert: {
+            name: product.name,
             ...productFields,
             variants: product.variants.map((variant) => ({
               label: variant.label,
