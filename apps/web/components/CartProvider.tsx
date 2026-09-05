@@ -4,23 +4,23 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { CartItem, Product, ProductVariant } from "@/lib/types";
 import { variantInStock } from "@/lib/utils";
 import { trackAddToCart } from "@/lib/analytics";
-import { getCart, saveCart, type CartLine } from "@/lib/api";
+import { resolveUnitPrice } from "@/lib/pricing";
+import { getCart, saveCart, checkStock, type CartLine } from "@/lib/api";
 import { useAuth } from "@/components/useAuth";
 
 type CartContextValue = {
   items: CartItem[];
   count: number;
   subtotal: number;
-  isOpen: boolean;
-  openCart: () => void;
-  closeCart: () => void;
-  addItem: (product: Product, variant: ProductVariant, quantity?: number) => void;
+  addItem: (product: Product, variant: ProductVariant, quantity?: number, openDrawer?: boolean) => void;
   removeItem: (lineId: string) => void;
   setQuantity: (lineId: string, quantity: number) => void;
+  refreshStock: () => Promise<CartItem[]>;
   clearCart: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
+const DrawerContext = createContext<{ isOpen: boolean; openCart: () => void; closeCart: () => void } | null>(null);
 const STORAGE_KEY = "edwin-leathers-cart-v1";
 
 function toLine(item: CartItem): CartLine {
@@ -32,9 +32,12 @@ function toLine(item: CartItem): CartLine {
     name: item.name,
     image: item.image,
     price: item.price,
+    priceSnapshot: item.priceSnapshot ?? item.price,
     variantLabel: item.variantLabel,
+    variantSnapshot: item.variantSnapshot ?? item.variantLabel,
     quantity: item.quantity,
     isOutOfStock: item.isOutOfStock,
+    maxQuantity: item.maxQuantity,
     codAvailable: item.codAvailable
   };
 }
@@ -48,9 +51,12 @@ function toItem(line: CartLine): CartItem {
     name: line.name ?? "",
     image: line.image ?? "",
     price: line.price ?? 0,
+    priceSnapshot: line.priceSnapshot ?? line.price ?? 0,
     variantLabel: line.variantLabel ?? "",
+    variantSnapshot: line.variantSnapshot ?? line.variantLabel ?? "",
     quantity: line.quantity,
     isOutOfStock: line.isOutOfStock,
+    maxQuantity: line.maxQuantity,
     codAvailable: line.codAvailable
   };
 }
@@ -130,13 +136,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     };
   }, [items, hydrated, authed, user]);
 
-  const addItem = useCallback((product: Product, variant: ProductVariant, quantity = 1) => {
+  const addItem = useCallback((product: Product, variant: ProductVariant, quantity = 1, openDrawer = true) => {
     if (!variantInStock(variant)) return;
     const lineId = `${product.id}:${variant.id}`;
+    const unitPrice = resolveUnitPrice(variant);
     trackAddToCart({
       item_id: product.id,
       item_name: product.name,
-      price: product.price,
+      price: unitPrice,
       quantity,
       item_category: product.category,
       item_variant: variant.label
@@ -146,7 +153,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (found) {
         return current.map((item) =>
           item.lineId === lineId
-            ? { ...item, quantity: Math.min(item.quantity + quantity, Math.max(variant.inventory, 1)) }
+            ? { ...item, quantity: Math.min(item.quantity + quantity, variant.allowBackorder ? Infinity : Math.max(variant.inventory, 1)) }
             : item
         );
       }
@@ -158,18 +165,42 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           slug: product.slug,
           name: product.name,
           image: product.images[0],
-          price: product.price,
+          price: unitPrice,
+          priceSnapshot: unitPrice,
           variantId: variant.id,
           variantLabel: variant.label,
-          quantity: Math.min(quantity, Math.max(variant.inventory, 1))
+          variantSnapshot: variant.label,
+          quantity: Math.min(quantity, variant.allowBackorder ? Infinity : Math.max(variant.inventory, 1))
         }
       ];
     });
-    setIsOpen(true);
+    if (openDrawer) setIsOpen(true);
   }, []);
 
   const removeItem = useCallback((lineId: string) => {
     setItems((current) => current.filter((item) => item.lineId !== lineId));
+  }, []);
+
+  // Re-check live stock for every cart line. Out-of-stock lines get flagged so
+  // they're shown separately and excluded from checkout; in-stock lines get
+  // their quantity clamped to what's actually available to avoid conflicts.
+  // Returns the updated (clamped) list so callers can build a payload from it
+  // immediately without waiting on React state.
+  const refreshStock = useCallback(async (): Promise<CartItem[]> => {
+    const current = itemsRef.current;
+    if (current.length === 0) return current;
+    const checked = await checkStock(current.map(toLine));
+    if (checked.length === 0) return current;
+    const next = (prev: CartItem[]) => prev.map((item) => {
+      const live = checked.find((c) => c.lineId === item.lineId);
+      if (!live) return item;
+      const out = Boolean(live.isOutOfStock);
+      const max = live.maxQuantity && live.maxQuantity > 0 ? live.maxQuantity : undefined;
+      const quantity = out ? item.quantity : max ? Math.min(item.quantity, max) : item.quantity;
+      return { ...item, isOutOfStock: out, maxQuantity: max ?? item.maxQuantity, quantity };
+    });
+    setItems(next);
+    return next(current);
   }, []);
 
   const setQuantity = useCallback((lineId: string, quantity: number) => {
@@ -180,6 +211,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((current) => current.map((item) => (item.lineId === lineId ? { ...item, quantity } : item)));
   }, []);
 
+  const clearCart = useCallback(() => {
+    setItems([]);
+    // Persist empty cart to server immediately (skip debounce to avoid race on navigation).
+    if (hydrated && authed && user) {
+      saveCart([]).catch(() => {});
+    }
+  }, [hydrated, authed, user]);
+
   const value = useMemo(
     () => {
       const available = items.filter((item) => !item.isOutOfStock);
@@ -187,23 +226,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         items,
         count: items.reduce((sum, item) => sum + item.quantity, 0),
         subtotal: available.reduce((sum, item) => sum + item.quantity * item.price, 0),
-        isOpen,
-        openCart: () => setIsOpen(true),
-        closeCart: () => setIsOpen(false),
         addItem,
         removeItem,
         setQuantity,
-        clearCart: () => setItems([])
+        refreshStock,
+        clearCart
       };
     },
-    [items, isOpen, addItem, removeItem, setQuantity]
+    [items, addItem, removeItem, setQuantity, refreshStock, clearCart]
   );
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  const drawerValue = useMemo(() => ({
+    isOpen,
+    openCart: () => setIsOpen(true),
+    closeCart: () => setIsOpen(false)
+  }), [isOpen]);
+
+  return (
+    <CartContext.Provider value={value}>
+      <DrawerContext.Provider value={drawerValue}>
+        {children}
+      </DrawerContext.Provider>
+    </CartContext.Provider>
+  );
 }
 
 export function useCart() {
   const context = useContext(CartContext);
   if (!context) throw new Error("useCart must be used inside CartProvider");
+  return context;
+}
+
+export function useCartDrawer() {
+  const context = useContext(DrawerContext);
+  if (!context) throw new Error("useCartDrawer must be used inside CartProvider");
   return context;
 }

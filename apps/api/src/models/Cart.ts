@@ -11,7 +11,9 @@ const cartItemSchema = new Schema(
     name: String,
     image: String,
     price: Number,
+    priceSnapshot: Number,
     variantLabel: String,
+    variantSnapshot: String,
     quantity: { type: Number, required: true, min: 1, max: 50 }
   },
   { _id: false }

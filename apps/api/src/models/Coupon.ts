@@ -21,4 +21,7 @@ const couponSchema = new Schema(
   { timestamps: true }
 );
 
+couponSchema.index({ code: 1, active: 1 });
+couponSchema.index({ active: 1, applicableCategories: 1 });
+
 export const Coupon = models.Coupon || model("Coupon", couponSchema);

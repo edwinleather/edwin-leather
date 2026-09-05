@@ -17,4 +17,6 @@ const errorLogSchema = new Schema(
   { timestamps: true }
 );
 
+errorLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 86400 }); // 30-day TTL
+
 export const ErrorLog = models.ErrorLog || model("ErrorLog", errorLogSchema);

@@ -1,12 +1,16 @@
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
+import { ProductVariant } from "../models/ProductVariant.js";
 import { SiteSetting } from "../models/SiteSetting.js";
+import { Types } from "mongoose";
 import { ApiError } from "../middleware/error.js";
-import { reserveStock, type StockLine } from "./inventory.js";
+import { reserveStock, releaseStock, type StockLine } from "./inventory.js";
+import { resolveVariantById } from "./variants.js";
 import { recordCouponUsage, validateCoupon } from "./coupons.js";
 import { computeDeliveryFee, getDeliveryConfig } from "./delivery.js";
 import { computeGst, getTaxConfig } from "./tax.js";
 import { getCodConfig } from "./cod.js";
+import { getActivePromotions, resolvePromotedPrice } from "./pricing.js";
 
 export type OrderLineInput = { productId: string; variantId: string; quantity: number };
 
@@ -36,7 +40,7 @@ async function nextOrderNumber() {
   const prefix = (setting?.invoice?.orderPrefix || "LEA").trim().toUpperCase();
   const now = Date.now().toString().slice(-6);
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const suffix = Math.floor(100 + Math.random() * 900).toString();
+    const suffix = Math.floor(1000 + Math.random() * 9000).toString();
     const candidate = `${prefix}${now}${suffix}`;
     const exists = await Order.exists({ orderNumber: candidate });
     if (!exists) return candidate;
@@ -45,8 +49,17 @@ async function nextOrderNumber() {
 }
 
 export async function createOrder(input: CreateOrderInput) {
-  const itemsById = new Map(input.items.map((item) => [item.variantId, item]));
   const products = await Product.find({ _id: { $in: input.items.map((item) => item.productId) }, active: true }).lean();
+  const productVariants = await ProductVariant.find({ productId: { $in: input.items.map((item) => item.productId) } })
+    .populate("attributes.attributeId")
+    .lean();
+  const pvByProduct = new Map<string, typeof productVariants>();
+  for (const pv of productVariants) {
+    const pid = String(pv.productId);
+    const list = pvByProduct.get(pid) ?? [];
+    list.push(pv);
+    pvByProduct.set(pid, list);
+  }
 
   // Cash on Delivery is only allowed when globally enabled AND every product in
   // the cart allows COD. If global COD is off, per-product settings are ignored.
@@ -64,37 +77,69 @@ export async function createOrder(input: CreateOrderInput) {
   const orderLines = [];
   const lineCategories: string[] = [];
   const removedItems: { variantId: string; name: string; variantLabel?: string; reason: string }[] = [];
+  const promotions = await getActivePromotions();
 
-  for (const product of products) {
-    for (const variant of product.variants ?? []) {
-      const requested = itemsById.get(String(variant._id));
-      if (!requested) continue;
-      if (!variant.active) throw new ApiError(409, `${product.name} - this option is no longer available`);
-      // Exclude out-of-stock variants (unless on backorder) instead of failing
-      // the whole order, so the remaining items can still be purchased.
-      if (variant.inventoryAvailable <= 0 && !variant.allowBackorder) {
-        removedItems.push({ variantId: String(variant._id), name: product.name, variantLabel: variant.label, reason: "out_of_stock" });
-        continue;
-      }
-      lines.push({ productId: String(product._id), variantId: String(variant._id), sku: variant.sku, quantity: requested.quantity });
-      const unitPrice = variant.priceOverride ?? product.price;
-      orderLines.push({
-        productId: product._id,
-        variantId: variant._id,
-        sku: variant.sku,
-        nameSnapshot: product.name,
-        variantSnapshot: variant.label,
-        quantity: requested.quantity,
-        unitPrice,
-        lineTotal: unitPrice * requested.quantity
-      });
-      lineCategories.push(product.category);
+  for (const item of input.items) {
+    const product = products.find((p) => String(p._id) === item.productId);
+    if (!product) {
+      removedItems.push({ variantId: item.variantId, name: "Unknown product", reason: "product_not_found" });
+      continue;
     }
+    const resolved = resolveVariantById(product, pvByProduct.get(String(product._id)) ?? [], item.variantId);
+    if (!resolved) {
+      removedItems.push({ variantId: item.variantId, name: product.name, reason: "variant_not_found" });
+      continue;
+    }
+    if (!resolved.active) throw new ApiError(409, `${product.name} - this option is no longer available`);
+    // Exclude out-of-stock variants (unless on backorder) instead of failing
+    // the whole order, so the remaining items can still be purchased.
+    if (resolved.stock <= 0 && !resolved.allowBackorder) {
+      removedItems.push({ variantId: resolved.variantId, name: product.name, variantLabel: resolved.label, reason: "out_of_stock" });
+      continue;
+    }
+    // If less is in stock than requested, order only what is available. This
+    // avoids failing the whole order on a partial-stock conflict; the client
+    // surfaces the adjustment to the shopper.
+    const quantity = resolved.allowBackorder
+      ? item.quantity
+      : Math.min(item.quantity, Math.max(0, resolved.stock));
+    if (quantity < item.quantity) {
+      removedItems.push({ variantId: resolved.variantId, name: product.name, variantLabel: resolved.label, reason: "quantity_adjusted" });
+    }
+    lines.push({ productId: String(product._id), variantId: resolved.variantId, sku: resolved.sku, quantity });
+    const priced = resolvePromotedPrice(
+      resolved.basePrice,
+      {
+        salePrice: resolved.salePrice,
+        compareAtPrice: resolved.compareAtPrice,
+        productId: String(product._id),
+        category: product.category
+      },
+      promotions
+    );
+    const unitPrice = priced.price;
+    const originalUnitPrice = resolved.price;
+    const lineDiscount = Math.max(0, originalUnitPrice - unitPrice);
+    orderLines.push({
+      productId: product._id,
+      variantId: new Types.ObjectId(resolved.variantId) as never,
+      sku: resolved.sku,
+      nameSnapshot: product.name,
+      variantSnapshot: resolved.label,
+      quantity,
+      unitPrice,
+      originalUnitPrice,
+      lineDiscount,
+      lineTotal: unitPrice * quantity,
+      promotion: priced.promotion ? { name: priced.promotion.name, amount: priced.promotion.amount } : undefined
+    });
+    lineCategories.push(product.category);
   }
 
   if (orderLines.length === 0) throw new ApiError(400, "One or more cart items could not be found");
 
   const subtotal = orderLines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const promotionDiscount = orderLines.reduce((sum, line) => sum + (line.lineDiscount ?? 0) * line.quantity, 0);
   const deliveryConfig = await getDeliveryConfig();
   const shippingAmount = computeDeliveryFee(deliveryConfig, subtotal, input.shippingAddress.state);
   const taxConfig = await getTaxConfig();
@@ -118,31 +163,36 @@ export async function createOrder(input: CreateOrderInput) {
 
   await reserveStock(lines);
 
-  const order = new Order({
-    orderNumber: await nextOrderNumber(),
-    customerId: input.customerId,
-    email: input.email,
-    lines: orderLines,
-    subtotal,
-    shippingAmount,
-    gstAmount,
-    gstRate: taxConfig.gstRate,
-    discountAmount,
-    coupon: discountAmount > 0 ? coupon : undefined,
-    total,
-    currency: "INR",
-    orderStatus: input.paymentMethod === "cod" ? "order_received" : "pending_payment",
-    payment: {
-      method: input.paymentMethod,
-      status: input.paymentMethod === "cod" ? "cod_pending" : "pending"
-    },
-    shippingAddress: input.shippingAddress
-  });
+  let order: InstanceType<typeof Order>;
+  try {
+    order = new Order({
+      orderNumber: await nextOrderNumber(),
+      customerId: input.customerId,
+      email: input.email,
+      lines: orderLines,
+      subtotal,
+      shippingAmount,
+      gstAmount,
+      gstRate: taxConfig.gstRate,
+      discountAmount,
+      promotionDiscount,
+      coupon: discountAmount > 0 ? coupon : undefined,
+      total,
+      currency: "INR",
+      orderStatus: input.paymentMethod === "cod" ? "order_received" : "pending_payment",
+      payment: {
+        method: input.paymentMethod,
+        status: input.paymentMethod === "cod" ? "cod_pending" : "pending"
+      },
+      shippingAddress: input.shippingAddress
+    });
 
-  pushTimeline(order, input.paymentMethod === "cod" ? "order_received" : "placed", input.paymentMethod === "cod" ? "Order received, payment due on delivery" : "Order placed, payment pending");
-  await order.save();
-
-  if (coupon.couponId) await recordCouponUsage(coupon.couponId);
+    pushTimeline(order, input.paymentMethod === "cod" ? "order_received" : "placed", input.paymentMethod === "cod" ? "Order received, payment due on delivery" : "Order placed, payment pending");
+    await order.save();
+  } catch (err) {
+    await releaseStock(lines);
+    throw err;
+  }
 
   return { order, removedItems };
 }
@@ -152,7 +202,7 @@ export function orderResponse(order: InstanceType<typeof Order>) {
     id: String(order._id),
     orderNumber: order.orderNumber,
     email: order.email,
-    lines: order.lines.map((line: { productId: { toString(): string }; variantId: { toString(): string }; sku: string; nameSnapshot: string; variantSnapshot?: string; quantity: number; unitPrice: number; lineTotal: number }) => ({
+    lines: order.lines.map((line: { productId: { toString(): string }; variantId: { toString(): string }; sku: string; nameSnapshot: string; variantSnapshot?: string; quantity: number; unitPrice: number; originalUnitPrice?: number; lineDiscount?: number; promotion?: { name?: string; amount?: number } | null; lineTotal: number }) => ({
       productId: String(line.productId),
       variantId: String(line.variantId),
       sku: line.sku,
@@ -160,12 +210,16 @@ export function orderResponse(order: InstanceType<typeof Order>) {
       variantLabel: line.variantSnapshot,
       quantity: line.quantity,
       unitPrice: line.unitPrice,
+      originalUnitPrice: line.originalUnitPrice ?? line.unitPrice,
+      lineDiscount: line.lineDiscount ?? 0,
+      promotion: line.promotion ?? null,
       lineTotal: line.lineTotal
     })),
     subtotal: order.subtotal,
     shippingAmount: order.shippingAmount,
     gstAmount: order.gstAmount,
     discountAmount: order.discountAmount,
+    promotionDiscount: order.promotionDiscount ?? 0,
     coupon: order.coupon,
     total: order.total,
     currency: order.currency,

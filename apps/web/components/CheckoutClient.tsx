@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import confetti from "canvas-confetti";
 import { Check, CreditCard, Landmark, ShieldCheck, Tag, Truck, XCircle } from "lucide-react";
 import { useCart } from "./CartProvider";
 import { useAuth } from "./useAuth";
@@ -36,7 +37,7 @@ function loadRazorpayScript(): Promise<boolean> {
 }
 
 export function CheckoutClient() {
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal, clearCart, refreshStock } = useCart();
   const availableItems = items.filter((item) => !item.isOutOfStock);
   const { authed, loading, user } = useAuth();
   const router = useRouter();
@@ -48,6 +49,7 @@ export function CheckoutClient() {
   const [couponChecking, setCouponChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [placed, setPlaced] = useState<Placed>(null);
+  const placedRef = useRef(false);
   const [pendingOrder, setPendingOrder] = useState<OrderResponse | null>(null);
   const [failed, setFailed] = useState<OrderResponse | null>(null);
   const [state, setState] = useState("");
@@ -64,6 +66,13 @@ export function CheckoutClient() {
   const deliveryConfig = useDeliveryConfig();
   const taxConfig = useTaxConfig();
 
+  // Re-check live stock on load so out-of-stock lines are excluded and quantities
+  // are clamped to what's actually available.
+  useEffect(() => {
+    refreshStock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fire one GA4 begin_checkout event per checkout page view.
   useEffect(() => {
     trackBeginCheckout(
@@ -78,6 +87,22 @@ export function CheckoutClient() {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fire confetti once when an order is placed successfully.
+  useEffect(() => {
+    if (placed && !placedRef.current) {
+      placedRef.current = true;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      const end = Date.now() + 1400;
+      const frame = () => {
+        confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ["#2b241e", "#d4a24c", "#f5e6d3"] });
+        confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#2b241e", "#d4a24c", "#f5e6d3"] });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      };
+      frame();
+    }
+    return () => { placedRef.current = false; };
+  }, [placed]);
 
   // Record a purchase exactly once per order (shared key with /thank-you so a
   // redirect to that page never double-counts).
@@ -167,7 +192,7 @@ export function CheckoutClient() {
     );
   }
 
-  const freeDelivery = subtotal === 0 || subtotal >= deliveryConfig.freeDeliveryThreshold || (applied?.valid && applied.freeShipping);
+  const freeDelivery = subtotal >= deliveryConfig.freeDeliveryThreshold || (applied?.valid && applied.freeShipping);
   const shipping = freeDelivery ? 0 : deliveryFeeFor(deliveryConfig, state);
   const gst = gstFor(taxConfig, subtotal);
   const discount = applied?.valid ? applied.amount : 0;
@@ -202,7 +227,23 @@ export function CheckoutClient() {
     setSubmitting(true);
     setError(null);
 
-    const form = new FormData(event.currentTarget);
+    // Capture the form element before any async gap — React synthetic events
+    // null out currentTarget after the first await.
+    const formEl = event.currentTarget;
+
+    // Re-check live stock right now and build the payload from the freshly
+    // clamped items. This closes the race where a quantity (or availability)
+    // changed after the page loaded, so we never ask the server for more than
+    // what is actually in stock.
+    const fresh = await refreshStock();
+    const freshAvailable = fresh.filter((item) => !item.isOutOfStock);
+    if (freshAvailable.length === 0) {
+      setSubmitting(false);
+      setError("The items in your bag are currently out of stock. Please remove them to continue.");
+      return;
+    }
+
+    const form = new FormData(formEl);
     const shippingAddress = {
       fullName: `${String(form.get("firstName") ?? "")} ${String(form.get("lastName") ?? "")}`.trim(),
       line1: String(form.get("address") ?? ""),
@@ -214,7 +255,7 @@ export function CheckoutClient() {
     const payload = {
       email: String(form.get("email") ?? ""),
       paymentMethod: method,
-      items: availableItems.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
+      items: freshAvailable.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
       couponCode: applied && applied.valid ? coupon.trim().toUpperCase() : undefined,
       shippingAddress
     };
@@ -223,7 +264,15 @@ export function CheckoutClient() {
 
     if (!result.ok) {
       setSubmitting(false);
-      setError(logAndGeneric(result.error, "checkout:place"));
+      // A 409 stock conflict means quantities shifted between the check above
+      // and the order write. Refresh once more and tell the user exactly which
+      // item changed rather than hiding it behind a generic message.
+      if (result.status === 409) {
+        await refreshStock();
+        setError("We adjusted your bag to the latest available stock. Please review your quantity and try again.");
+      } else {
+        setError(result.status && result.status < 500 ? result.error : logAndGeneric(result.error, "checkout:place"));
+      }
       return;
     }
 
@@ -258,6 +307,7 @@ export function CheckoutClient() {
     }
 
     let handled = false;
+    let verifying = false;
     const checkout = new window.Razorpay!({
       key: rzp.keyId,
       amount: rzp.amount,
@@ -266,6 +316,7 @@ export function CheckoutClient() {
       description: `Order ${order.orderNumber}`,
       order_id: rzp.orderId,
       handler: async (response: RazorpayResponse) => {
+        verifying = true;
         handled = true;
         const verified = await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
         setSubmitting(false);
@@ -281,7 +332,7 @@ export function CheckoutClient() {
       modal: {
         ondismiss: () => {
           setSubmitting(false);
-          if (!handled) setFailed(order);
+          if (!handled && !verifying) setFailed(order);
         }
       },
       prefill: { email: order.email },
@@ -391,9 +442,26 @@ if (placed) {
       <aside className="checkout-summary">
         <span className="eyebrow">Your order</span>
         <div className="checkout-items">
-          {availableItems.map((item) => <div className="checkout-item" key={item.lineId}><div><strong>{item.name}</strong><span>{item.variantLabel} × {item.quantity}</span></div><strong>{formatPrice(item.price * item.quantity)}</strong></div>)}
-          {availableItems.length === 0 && <p className="muted">Your cart is empty. Add a product before testing checkout.</p>}
+          {availableItems.map((item) => (
+            <div className="checkout-item" key={item.lineId}>
+              <div>
+                <strong>{item.name}</strong>
+                <span>{item.variantLabel} × {item.quantity}</span>
+                {item.maxQuantity && item.maxQuantity > 0 && item.quantity > item.maxQuantity && (
+                  <em className="checkout-note--warn">Only {item.maxQuantity} left - quantity adjusted.</em>
+                )}
+              </div>
+              <strong>{formatPrice(item.price * item.quantity)}</strong>
+            </div>
+          ))}
+          {availableItems.length === 0 && items.length > 0 && <p className="muted">The items in your bag are currently out of stock. Please remove them to continue.</p>}
+          {availableItems.length === 0 && items.length === 0 && <p className="muted">Your cart is empty. Add a product before testing checkout.</p>}
         </div>
+        {items.some((item) => item.isOutOfStock) && (
+          <p className="checkout-note checkout-note--warn">
+            <XCircle size={15} /> {items.filter((item) => item.isOutOfStock).length} item(s) in your bag are out of stock and were not included in this order.
+          </p>
+        )}
         <label className="coupon-row"><Tag size={15} /><input value={coupon} onChange={(event) => setCoupon(event.target.value)} placeholder="Coupon code" /><button type="button" onClick={applyCoupon} disabled={couponChecking}>{couponChecking ? <span className="btn-spinner" aria-hidden="true" /> : "Apply"}</button></label>
         {applied && <p className={`coupon-status ${applied.valid ? "is-valid" : "is-invalid"}`}>{applied.valid ? `${coupon.trim().toUpperCase()} applied - ${applied.note}` : applied.note}</p>}
         <div className="summary-row"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>

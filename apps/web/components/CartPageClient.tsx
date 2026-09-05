@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
@@ -7,9 +8,16 @@ import { SmartImage } from "./SmartImage";
 import { formatPrice } from "@/lib/format";
 
 export function CartPageClient() {
-  const { items, subtotal, setQuantity, removeItem } = useCart();
+  const { items, subtotal, setQuantity, removeItem, refreshStock } = useCart();
   const available = items.filter((item) => !item.isOutOfStock);
   const unavailable = items.filter((item) => item.isOutOfStock);
+
+  useEffect(() => {
+    refreshStock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const atMax = (item: (typeof items)[number]) => Boolean(item.maxQuantity && item.quantity >= item.maxQuantity);
   return (
     <div className="cart-page-grid">
       <section>
@@ -23,7 +31,7 @@ export function CartPageClient() {
                 <div className="cart-page-line__copy">
                   <div><SmoothLink href={`/product/${item.slug}`} className="cart-page-line__name">{item.name}</SmoothLink><p>{item.variantLabel}</p></div>
                   <div className="cart-page-line__actions">
-                    <div className="quantity-control"><button onClick={() => setQuantity(item.lineId, item.quantity - 1)}><Minus size={14} /></button><span>{item.quantity}</span><button onClick={() => setQuantity(item.lineId, item.quantity + 1)}><Plus size={14} /></button></div>
+                    <div className="quantity-control"><button onClick={() => setQuantity(item.lineId, item.quantity - 1)}><Minus size={14} /></button><span>{item.quantity}</span><button onClick={() => setQuantity(item.lineId, item.quantity + 1)} disabled={atMax(item)} aria-label="Increase quantity"><Plus size={14} /></button></div>
                     <strong>{formatPrice(item.price * item.quantity)}</strong>
                     <button className="remove-icon" onClick={() => removeItem(item.lineId)} aria-label={`Remove ${item.name}`}><Trash2 size={16} /></button>
                   </div>

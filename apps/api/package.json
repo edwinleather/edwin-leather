@@ -9,7 +9,11 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/src/server.js"
+    "start": "node dist/src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate:attributes": "tsx src/scripts/migrateAttributes.ts",
+    "migrate:product-attributes": "tsx src/scripts/migrateProductAttributes.ts"
   },
   "dependencies": {
     "@sentry/node": "^10.70.0",
@@ -22,6 +26,7 @@
     "helmet": "latest",
     "jsonwebtoken": "latest",
     "mongoose": "latest",
+    "nodemailer": "^9.1.1",
     "razorpay": "^2.9.8",
     "zod": "latest"
   },
@@ -30,8 +35,11 @@
     "@types/cors": "latest",
     "@types/express": "latest",
     "@types/jsonwebtoken": "latest",
+    "@types/nodemailer": "^6.4.17",
     "@types/node": "latest",
+    "@vitest/spy": "^4.1.11",
     "tsx": "latest",
-    "typescript": "~5.9.0"
+    "typescript": "~5.9.0",
+    "vitest": "^4.1.11"
   }
 }

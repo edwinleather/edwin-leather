@@ -59,6 +59,15 @@ export async function validateCoupon(code: string, lines: CouponLine[], email: s
     if (usedByCustomer >= coupon.usagePerCustomer) throw new ApiError(400, "You have already used this coupon");
   }
 
+  if (coupon.usageLimit) {
+    const updated = await Coupon.findOneAndUpdate(
+      { _id: coupon._id, usedCount: { $lt: coupon.usageLimit } },
+      { $inc: { usedCount: 1 } },
+      { new: true }
+    ).lean();
+    if (!updated) throw new ApiError(400, "This coupon has reached its usage limit");
+  }
+
   const discount = computeCouponDiscount(coupon, lines, shippingAmount);
   return { code: coupon.code, ...discount, couponId: String(coupon._id) };
 }

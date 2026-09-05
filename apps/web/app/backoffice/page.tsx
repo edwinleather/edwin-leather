@@ -10,6 +10,7 @@ import { InventoryManager } from "./InventoryManager";
 import { OrdersManager } from "./OrdersManager";
 import { CustomersManager } from "./CustomersManager";
 import { CouponsManager } from "./CouponsManager";
+import { PromotionsManager } from "./PromotionsManager";
 import { ReturnsManager } from "./ReturnsManager";
 import { DeliveryManager } from "./DeliveryManager";
 import { HomepageEditor } from "./HomepageEditor";
@@ -20,14 +21,17 @@ import { RolesManager } from "./RolesManager";
 import { AssetsManager } from "./AssetsManager";
 import { FeedbackManager } from "./FeedbackManager";
 import { ErrorLogsManager } from "./ErrorLogsManager";
+import { EmailLogsManager } from "./EmailLogsManager";
+import { EmailTemplatesManager } from "./EmailTemplatesManager";
 import { DatabaseManager } from "./DatabaseManager";
+import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { siteConfig } from "@/lib/site-config";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
 type SectionId =
   | "overview" | "products" | "categories" | "inventory" | "orders" | "customers"
-  | "coupons" | "returns" | "delivery" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs" | "pages" | "database";
+  | "coupons" | "promotions" | "returns" | "delivery" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs" | "email-logs" | "email-templates" | "pages" | "database" | "analytics";
 
 const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "overview", label: "Overview", feature: "overview" },
@@ -37,6 +41,7 @@ const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "orders", label: "Orders", feature: "orders" },
   { id: "customers", label: "Customers", feature: "customers" },
   { id: "coupons", label: "Coupons", feature: "coupons" },
+  { id: "promotions", label: "Promotions", feature: "coupons" },
   { id: "returns", label: "Returns & refunds", feature: "returns" },
   { id: "delivery", label: "Delivery", feature: "shipping" },
   { id: "pages", label: "Customize page", feature: "pages" },
@@ -46,7 +51,10 @@ const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "roles", label: "Roles", feature: "roles" },
   { id: "assets", label: "Assets", feature: "media" },
   { id: "error-logs", label: "Error Logs", feature: "error-logs" },
-  { id: "database", label: "Database", feature: "superadmin" }
+  { id: "email-logs", label: "Email Logs", feature: "error-logs" },
+  { id: "email-templates", label: "Email Templates", feature: "error-logs" },
+  { id: "database", label: "Database", feature: "superadmin" },
+  { id: "analytics", label: "Analytics", feature: "products" }
 ];
 
 type Stats = {
@@ -153,6 +161,7 @@ export default function BackofficePage() {
         {active === "orders" && <OrdersManager />}
         {active === "customers" && <CustomersManager />}
         {active === "coupons" && <CouponsManager />}
+        {active === "promotions" && <PromotionsManager />}
         {active === "returns" && (
           <>
             <header className="admin-header"><div><span className="eyebrow">Customer support</span><h1>Returns &amp; refunds</h1></div></header>
@@ -180,12 +189,15 @@ export default function BackofficePage() {
         {active === "roles" && <RolesManager />}
         {active === "assets" && <AssetsManager />}
         {active === "error-logs" && <ErrorLogsManager />}
+        {active === "email-logs" && <EmailLogsManager />}
+        {active === "email-templates" && <EmailTemplatesManager />}
         {active === "database" && (
           <>
             <header className="admin-header"><div><span className="eyebrow">Superadmin</span><h1>Database backup &amp; restore</h1></div></header>
             <DatabaseManager />
           </>
         )}
+        {active === "analytics" && <AnalyticsDashboard />}
       </main>
     </div>
   );

@@ -2,20 +2,29 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import Razorpay from "razorpay";
-import { env, isConfigured } from "../config/env.js";
+import { env, isConfigured, isRazorpayConfigured } from "../config/env.js";
 import { ensureDatabase } from "../config/db.js";
 import { ApiError } from "../middleware/error.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { Order } from "../models/Order.js";
+import { commitStock } from "../services/inventory.js";
+import { sendPaymentReceivedEmail } from "../services/send-order-email.js";
 
 export const paymentsRouter = Router();
 
 function razorpay() {
-  if (!isConfigured(env.razorpayKeyId) || !isConfigured(env.razorpayKeySecret)) {
+  if (!isRazorpayConfigured(env.razorpayKeyId) || !isRazorpayConfigured(env.razorpayKeySecret)) {
     throw new ApiError(503, "Razorpay credentials are not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
   }
   return new Razorpay({ key_id: env.razorpayKeyId, key_secret: env.razorpayKeySecret });
 }
+
+// Public status check so the frontend can degrade gracefully when Razorpay
+// credentials are missing (e.g. in local dev or a fresh deploy).
+paymentsRouter.get("/status", (_req, res) => {
+  const configured = isRazorpayConfigured(env.razorpayKeyId) && isRazorpayConfigured(env.razorpayKeySecret);
+  return res.json({ ok: true, onlinePaymentsAvailable: configured });
+});
 
 const createOrderSchema = z.object({
   orderId: z.string().min(1),
@@ -74,6 +83,7 @@ paymentsRouter.post("/verify", requireAuth, async (req: AuthenticatedRequest, re
     if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
     order.timeline.push({ type: "order_received", message: "Payment received - order received", at: new Date(), actorId: order.customerId });
     await order.save();
+    sendPaymentReceivedEmail(order).catch(() => {});
 
     return res.json({ ok: true, status: order.orderStatus });
   } catch (error) {
@@ -106,6 +116,15 @@ paymentsRouter.post("/webhook", async (req, res, next) => {
         if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
         order.timeline.push({ type: "order_received", message: "Payment confirmed - order received", at: new Date() });
         await order.save();
+        sendPaymentReceivedEmail(order).catch(() => {});
+        await commitStock(
+          order.lines.map((line: { productId: { toString(): string }; variantId: { toString(): string }; sku: string; quantity: number }) => ({
+            productId: String(line.productId),
+            variantId: String(line.variantId),
+            sku: line.sku,
+            quantity: line.quantity
+          }))
+        );
       }
     }
 

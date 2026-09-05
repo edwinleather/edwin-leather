@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
 export type DeliveryConfig = {
   defaultFee: number;
@@ -155,7 +155,7 @@ export type OrderResponse = {
 
 export type PlaceOrderResult =
   | { ok: true; order: OrderResponse }
-  | { ok: false; error: string };
+  | { ok: false; error: string; status?: number };
 
 export async function placeOrder(payload: PlaceOrderPayload): Promise<PlaceOrderResult> {
   try {
@@ -167,9 +167,10 @@ export async function placeOrder(payload: PlaceOrderPayload): Promise<PlaceOrder
     });
     const body = await response.json().catch(() => null);
     if (!response.ok) {
-      return { ok: false, error: body?.error || `Request failed (${response.status})` };
+      return { ok: false, error: body?.error || `Request failed (${response.status})`, status: response.status };
     }
-    return { ok: true, order: body?.order };
+    if (!body?.order) return { ok: false, error: "Invalid response from checkout service." };
+    return { ok: true, order: body.order };
   } catch {
     return { ok: false, error: "Could not reach the checkout service. Your order was not charged." };
   }
@@ -353,6 +354,7 @@ export async function createRazorpayOrder(orderId: string, receipt: string): Pro
     });
     const body = await response.json().catch(() => null);
     if (!response.ok) return { ok: false, error: body?.error || `Payment setup failed (${response.status})` };
+    if (!body?.orderId || !body?.amount || !body?.currency || !body?.keyId) return { ok: false, error: "Invalid response from payment service." };
     return { ok: true, orderId: body.orderId, amount: body.amount, currency: body.currency, keyId: body.keyId };
   } catch {
     return { ok: false, error: "Could not reach the payment service." };
@@ -383,9 +385,12 @@ export type CartLine = {
   name?: string;
   image?: string;
   price?: number;
+  priceSnapshot?: number;
   variantLabel?: string;
+  variantSnapshot?: string;
   quantity: number;
   isOutOfStock?: boolean;
+  maxQuantity?: number;
   codAvailable?: boolean;
 };
 
@@ -411,6 +416,25 @@ export async function saveCart(items: CartLine[]): Promise<boolean> {
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+export type StockCheckLine = CartLine & { isOutOfStock?: boolean; maxQuantity?: number };
+
+export async function checkStock(items: CartLine[]): Promise<StockCheckLine[]> {
+  if (items.length === 0) return [];
+  try {
+    const response = await fetch(`${API_URL}/cart/stock-check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(items),
+      credentials: "include"
+    });
+    if (!response.ok) return [];
+    const body = await response.json();
+    return Array.isArray(body?.items) ? (body.items as StockCheckLine[]) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -455,7 +479,8 @@ export async function fetchMe(): Promise<AccountMe> {
     const response = await fetch(`${API_URL}/account/me`, { credentials: "include" });
     const body = await response.json().catch(() => null);
     if (!response.ok) return { ok: false, error: body?.error };
-    return { ok: true, user: body?.user };
+    if (!body?.user) return { ok: false, error: "Invalid response from account service." };
+    return { ok: true, user: body.user };
   } catch {
     return { ok: false, error: "Could not reach the account service." };
   }

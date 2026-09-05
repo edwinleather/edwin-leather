@@ -18,6 +18,7 @@ type Coupon = {
   usedCount?: number;
   expiresAt?: string;
   active: boolean;
+  applicableCategories?: string[];
 };
 
 const TYPES = [
@@ -26,7 +27,7 @@ const TYPES = [
   ["free_shipping", "Free delivery"]
 ] as const;
 
-const EMPTY: CouponForm = { code: "", discountType: "percentage", value: 0, minimumOrder: 0, maximumDiscount: undefined, usageLimit: undefined, usagePerCustomer: undefined, expiresAt: "", active: true };
+const EMPTY: CouponForm = { code: "", discountType: "percentage", value: 0, minimumOrder: 0, maximumDiscount: undefined, usageLimit: undefined, usagePerCustomer: undefined, expiresAt: "", active: true, applicableCategories: [] };
 
 type CouponForm = {
   code: string;
@@ -38,6 +39,7 @@ type CouponForm = {
   usagePerCustomer?: number;
   expiresAt: string;
   active: boolean;
+  applicableCategories: string[];
 };
 
 function typeLabel(t: string) {
@@ -54,6 +56,7 @@ export function CouponsManager() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
+  const [categories, setCategories] = useState<{ name: string }[]>([]);
 
   const load = useCallback(() => {
     fetch(`${API}/admin/coupons`, { credentials: "include" })
@@ -64,6 +67,10 @@ export function CouponsManager() {
 
   useEffect(() => {
     load();
+    fetch(`${API}/admin/categories`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((body) => setCategories(body?.data ?? []))
+      .catch(() => setCategories([]));
   }, [load]);
 
   const q = query.trim().toLowerCase();
@@ -86,7 +93,8 @@ export function CouponsManager() {
       usageLimit: c.usageLimit,
       usagePerCustomer: c.usagePerCustomer,
       expiresAt: c.expiresAt ? c.expiresAt.slice(0, 10) : "",
-      active: c.active
+      active: c.active,
+      applicableCategories: c.applicableCategories ?? []
     });
     setEditing(c);
     setCreating(false);
@@ -105,8 +113,9 @@ export function CouponsManager() {
       maximumDiscount: form.maximumDiscount ? Number(form.maximumDiscount) : undefined,
       usageLimit: form.usageLimit ? Number(form.usageLimit) : undefined,
       usagePerCustomer: form.usagePerCustomer ? Number(form.usagePerCustomer) : undefined,
-      expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : undefined,
-      active: form.active
+      expiresAt: form.expiresAt ? new Date(form.expiresAt + "T00:00:00").toISOString() : undefined,
+      active: form.active,
+      applicableCategories: form.applicableCategories
     };
     const res = await fetch(editing ? `${API}/admin/coupons/${editing._id}` : `${API}/admin/coupons`, {
       method: editing ? "PATCH" : "POST",
@@ -163,6 +172,31 @@ export function CouponsManager() {
             <label>Per customer <input type="number" min="1" value={form.usagePerCustomer ?? ""} onChange={(e) => setForm({ ...form, usagePerCustomer: e.target.value ? Number(e.target.value) : undefined })} /></label>
             <label>Expires <input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></label>
           </div>
+          {categories.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <span className="muted" style={{ fontSize: 13, display: "block", marginBottom: 6 }}>Restrict to categories (leave empty for all)</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {categories.map((cat) => {
+                  const checked = form.applicableCategories.includes(cat.name);
+                  return (
+                    <label key={cat.name} className="toggle-label" style={{ fontSize: 13, gap: 4 }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          const next = checked
+                            ? form.applicableCategories.filter((c) => c !== cat.name)
+                            : [...form.applicableCategories, cat.name];
+                          setForm({ ...form, applicableCategories: next });
+                        }}
+                      />
+                      {cat.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="form-actions">
             <label className="toggle-label"><input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> Active</label>
             <div style={{ display: "flex", gap: 10 }}>

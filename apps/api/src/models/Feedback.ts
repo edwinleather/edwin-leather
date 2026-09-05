@@ -15,4 +15,6 @@ const feedbackSchema = new Schema(
   { timestamps: true }
 );
 
+feedbackSchema.index({ createdAt: -1 });
+
 export const Feedback = models.Feedback || model("Feedback", feedbackSchema);

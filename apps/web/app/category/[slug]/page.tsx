@@ -16,13 +16,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const category = await getCategoryBySlug(slug);
   if (!category) return { title: "Category not found" };
   return {
-    title: category.name,
-    description: category.description,
+    title: category.seoTitle || category.name,
+    description: category.seoDescription || category.description,
     alternates: { canonical: `/category/${category.slug}` },
     openGraph: {
       type: "website",
-      title: `${category.name} - Edwin Leathers`,
-      description: category.description,
+      title: category.seoTitle || `${category.name} - Edwin Leathers`,
+      description: category.seoDescription || category.description,
       url: `${SITE}/category/${category.slug}`,
       images: category.imageUrl ? [{ url: category.imageUrl }] : undefined
     }
@@ -31,10 +31,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [category, catalog, categories] = await Promise.all([getCategoryBySlug(slug), getCatalog(), getCategoryList()]);
+  const category = await getCategoryBySlug(slug);
   if (!category) notFound();
 
-  const products = catalog.filter((product) => product.category === category.name);
+  const [catalog, categories] = await Promise.all([getCatalog({ category: category.name }), getCategoryList()]);
+
+  const products = catalog;
   const relatedCategories = categories.filter((item) => item.slug !== category.slug);
 
   const breadcrumbJsonLd = {

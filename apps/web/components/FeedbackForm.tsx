@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { Check, Star } from "lucide-react";
-import { useAuth } from "@/components/useAuth";
 import { GENERIC_ERROR, logAndGeneric } from "@/lib/errors";
 
 export function FeedbackForm() {
-  const { user } = useAuth();
   const [rating, setRating] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

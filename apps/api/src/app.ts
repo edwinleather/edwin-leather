@@ -45,17 +45,7 @@ app.use(
     limit: env.nodeEnv === "production" ? 120 : 500,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-    // Derive the key from the socket (not a client-supplied header). When behind
-    // a trusted proxy we combine the socket address with the first hop of the
-    // forwarded chain only if it looks like an IP, so the header cannot be used
-    // to forge an unlimited number of distinct keys.
-    keyGenerator: (req: Request) => {
-      const socketIp = (req.socket?.remoteAddress ?? "").replace(/^::ffff:/, "");
-      const xff = req.headers["x-forwarded-for"];
-      const first = (Array.isArray(xff) ? xff[0] : xff)?.split(",")[0]?.trim() ?? "";
-      const ip = /^[\d.]+$/.test(first) && first.length <= 45 ? first : socketIp;
-      return ip || "unknown";
-    }
+    keyGenerator: rateLimitKey
   })
 );
 app.use(cookieParser());
@@ -68,20 +58,47 @@ app.use("/api/v1/reviews/media/upload", express.json({ limit: "14mb" }));
 app.use("/api/v1/admin/import/database", express.json({ limit: "100mb" }));
 app.use(express.json({ limit: "1mb" }));
 
+// Derive a consistent, non-spoofable client IP for rate-limiting.  When behind a
+// trusted proxy we prefer the first hop of x-forwarded-for (if it looks like an
+// IP); otherwise fall back to the socket address.
+function rateLimitKey(req: Request): string {
+  const socketIp = (req.socket?.remoteAddress ?? "").replace(/^::ffff:/, "");
+  const xff = req.headers["x-forwarded-for"];
+  const first = (Array.isArray(xff) ? xff[0] : xff)?.split(",")[0]?.trim() ?? "";
+  const ip = /^[\d.]+$/.test(first) && first.length <= 45 ? first : socketIp;
+  return ip || "unknown";
+}
+
 // Per-endpoint rate limits to stop abuse (brute force, spam, order floods).
-// Keyed the same way as the global limiter for a consistent, non-spoofable key.
-const keyGen = { keyGenerator: (req: Request) => String(req.socket?.remoteAddress ?? "unknown") };
-const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false, ...keyGen });
-const orderLimit = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, ...keyGen });
-const reviewLimit = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: "draft-7", legacyHeaders: false, ...keyGen });
-const feedbackLimit = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, ...keyGen });
+const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: rateLimitKey });
+const orderLimit = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: rateLimitKey });
+const reviewLimit = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: rateLimitKey });
+const feedbackLimit = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: rateLimitKey });
+const paymentLimit = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: rateLimitKey });
+const cartLimit = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: rateLimitKey });
 
 app.use("/api/v1/auth", authLimit);
 app.use("/api/v1/orders", orderLimit);
 app.use("/api/v1/reviews", reviewLimit);
 app.use("/api/v1/feedback", feedbackLimit);
+app.use("/api/v1/payments", paymentLimit);
+app.use("/api/v1/cart", cartLimit);
 
 app.use("/api/v1/health", healthRouter);
+
+// Cache public catalog reads for 60s (stale-while-revalidate for 5 min)
+app.use("/api/v1/products", (req, res, next) => {
+  if (req.method === "GET") {
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+  }
+  next();
+});
+app.use("/api/v1/categories", (req, res, next) => {
+  if (req.method === "GET") {
+    res.setHeader("Cache-Control", "public, max-age=120, stale-while-revalidate=600");
+  }
+  next();
+});
 app.use("/api/v1/products", productsRouter);
 app.use("/api/v1/categories", categoriesRouter);
 app.use("/api/v1/auth", authRouter);

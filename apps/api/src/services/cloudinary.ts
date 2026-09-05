@@ -1,8 +1,8 @@
 import { v2 as cloudinary } from "cloudinary";
-import { env, isConfigured } from "../config/env.js";
+import { env } from "../config/env.js";
 import { ApiError } from "../middleware/error.js";
 
-const configured = isConfigured(env.cloudinaryCloudName) && isConfigured(env.cloudinaryApiKey) && isConfigured(env.cloudinaryApiSecret);
+const configured = Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret);
 
 if (configured) {
   cloudinary.config({

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { MapPin, PackageCheck, UserRound, LogOut, ChevronDown, ChevronUp, Pencil, Trash2, Plus, KeyRound, CircleCheck, RotateCcw } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { MapPin, PackageCheck, UserRound, LogOut, Pencil, Trash2, Plus, KeyRound, CircleCheck, RotateCcw, X } from "lucide-react";
 import { getAddresses, addAddress, updateAddress, deleteAddress, updateProfile, changePassword, getOrder, getOrderReturn, type Address, type OrderResponse } from "@/lib/api";
 import { useAuth } from "@/components/useAuth";
 import { Loader } from "@/components/Loader";
@@ -34,6 +35,8 @@ function StatusPill({ status }: { status: string }) {
 
 export default function AccountPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderParam = searchParams.get("order");
   const { user, authed, loading, signOut, refresh } = useAuth();
   const [tab, setTab] = useState<Tab>("overview");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -79,6 +82,16 @@ export default function AccountPage() {
       setProfileDraft({ firstName: user.firstName, lastName: user.lastName, phone: user.phone });
     }
   }, [user]);
+
+  // Handle ?order= query param from email "View Order" links
+  useEffect(() => {
+    if (!orderParam || ordersLoading || orders.length === 0) return;
+    const match = orders.find((o) => o.orderNumber === orderParam || o.id === orderParam);
+    if (match) {
+      setTab("orders");
+      toggleOrderDetail(match.id);
+    }
+  }, [orderParam, orders, ordersLoading]);
 
   async function toggleOrderDetail(orderId: string) {
     if (expandedOrder === orderId) {
@@ -214,81 +227,8 @@ export default function AccountPage() {
                           <p>{order.lines[0]?.variantLabel ? `${order.lines[0].variantLabel} · ` : ""}{order.lines.reduce((sum, line) => sum + line.quantity, 0)} piece(s)</p>
                         </div>
                         <div className="order-card__status"><StatusPill status={order.orderStatus} /><strong>{formatPrice(order.total)}</strong></div>
-                        {expandedOrder === order.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        <span className="order-card__chevron">View</span>
                       </button>
-                      {expandedOrder === order.id && (
-                        <div className="order-detail">
-                          {detailLoading ? (
-                            <Loader label="Loading details" size="sm" />
-                          ) : orderDetail ? (
-                            <>
-                              <div className="order-detail__meta">
-                                <span>Order #{orderDetail.orderNumber}</span>
-                                <span>Placed {orderDetail.createdAt ? new Date(orderDetail.createdAt).toLocaleDateString() : "recently"}</span>
-                                <span>Payment: {orderDetail.paymentMethod === "cod" ? "Cash on Delivery" : `${orderDetail.paymentMethod} · ${orderDetail.paymentStatus.replace("_", " ")}`}</span>
-                              </div>
-                              <h4>Items</h4>
-                              <div className="order-lines">
-                                {orderDetail.lines?.map((line) => (
-                                  <div className="order-line" key={line.sku}>
-                                    <span>{line.name}{line.variantLabel ? ` (${line.variantLabel})` : ""} × {line.quantity}</span>
-                                    <span>{formatPrice(line.lineTotal)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="order-totals">
-                                <span><span>Subtotal</span><span>{formatPrice(orderDetail.subtotal)}</span></span>
-                                <span><span>Shipping</span><span>{formatPrice(orderDetail.shippingAmount)}</span></span>
-                                {orderDetail.discountAmount > 0 && <span><span>Discount</span><span>−{formatPrice(orderDetail.discountAmount)}</span></span>}
-                                <span className="order-totals__grand"><span>Total</span><span>{formatPrice(orderDetail.total)}</span></span>
-                              </div>
-                              {orderDetail.tracking?.trackingId && (
-                                <div className="order-detail__block">
-                                  <h4>Tracking</h4>
-                                  <p>AWB {orderDetail.tracking.trackingId}{orderDetail.tracking.courier ? ` · ${orderDetail.tracking.courier}` : ""}</p>
-                                  {orderDetail.tracking.trackingUrl && <a className="text-button" href={orderDetail.tracking.trackingUrl} target="_blank" rel="noreferrer">Track shipment →</a>}
-                                </div>
-                              )}
-                              {orderDetail.shippingAddress && (
-                                <div className="order-detail__block">
-                                  <h4>Deliver to</h4>
-                                  <p>{orderDetail.shippingAddress.fullName}<br />{orderDetail.shippingAddress.line1}{orderDetail.shippingAddress.line2 ? `, ${orderDetail.shippingAddress.line2}` : ""}<br />{orderDetail.shippingAddress.city}, {orderDetail.shippingAddress.state} {orderDetail.shippingAddress.postalCode}</p>
-                                </div>
-                              )}
-                              {orderDetail.timeline && orderDetail.timeline.length > 0 && (
-                                <div className="order-detail__block">
-                                  <h4>Timeline</h4>
-                                  <ul className="order-timeline">
-                                    {orderDetail.timeline.map((entry, index) => (
-                                      <li key={index}><CircleCheck size={15} /><span>{entry.message || entry.type.replace("_", " ")}<time>{entry.at ? new Date(entry.at).toLocaleString() : ""}</time></span></li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              {orderDetail.orderStatus === "delivered" && !returnStatuses[orderDetail.id] && (
-                                <div className="order-detail__block">
-                                  <button className="button button--ghost button--small" onClick={() => setReturnFormOrder(orderDetail)}><RotateCcw size={14} /> Request a return</button>
-                                </div>
-                              )}
-                              {returnStatuses[orderDetail.id] && (
-                                <div className="order-detail__block return-status">
-                                  <h4>Return</h4>
-                                  <p><span className={`status-pill status-pill--${returnStatuses[orderDetail.id] === "rejected" ? "bad" : "good"}`}>{returnStatuses[orderDetail.id]?.replace("_", " ")}</span> Your return request is being reviewed.</p>
-                                </div>
-                              )}
-                              {returnFormOrder && returnFormOrder.id === orderDetail.id && (
-                                <ReturnRequestForm
-                                  order={{ id: returnFormOrder.id, lines: returnFormOrder.lines }}
-                                  onDone={() => { setReturnStatuses((prev) => ({ ...prev, [orderDetail.id]: "requested" })); setReturnFormOrder(null); }}
-                                  onClose={() => setReturnFormOrder(null)}
-                                />
-                              )}
-                            </>
-                          ) : (
-                            <p className="auth-note">Could not load order details.</p>
-                          )}
-                        </div>
-                      )}
                     </div>
                   ))
                 )}
@@ -367,6 +307,105 @@ export default function AccountPage() {
           </section>
         </div>
       </div>
+
+      <AnimatePresence>
+        {expandedOrder && (
+          <motion.div
+            className="added-modal__backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => { setExpandedOrder(null); setOrderDetail(null); }}
+          >
+            <motion.div
+              className="order-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Order details"
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.96 }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="order-modal__head">
+                <div><span className="eyebrow">Order details</span><h3>{orderDetail ? `#${orderDetail.orderNumber}` : "Loading…"}</h3></div>
+                <button className="icon-button" onClick={() => { setExpandedOrder(null); setOrderDetail(null); }} aria-label="Close"><X size={16} /></button>
+              </div>
+              <div className="order-modal__body">
+                {detailLoading ? (
+                  <Loader label="Loading details" size="sm" />
+                ) : orderDetail ? (
+                  <>
+                    <div className="order-detail__meta">
+                      <span>Placed {orderDetail.createdAt ? new Date(orderDetail.createdAt).toLocaleDateString() : "recently"}</span>
+                      <span>Payment: {orderDetail.paymentMethod === "cod" ? "Cash on Delivery" : `${orderDetail.paymentMethod} · ${orderDetail.paymentStatus.replace("_", " ")}`}</span>
+                    </div>
+                    <h4>Items</h4>
+                    <div className="order-lines">
+                      {orderDetail.lines?.map((line) => (
+                        <div className="order-line" key={line.sku}>
+                          <span>{line.name}{line.variantLabel ? ` (${line.variantLabel})` : ""} × {line.quantity}</span>
+                          <span>{formatPrice(line.lineTotal)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="order-totals">
+                      <span><span>Subtotal</span><span>{formatPrice(orderDetail.subtotal)}</span></span>
+                      <span><span>Shipping</span><span>{formatPrice(orderDetail.shippingAmount)}</span></span>
+                      {orderDetail.discountAmount > 0 && <span><span>Discount</span><span>−{formatPrice(orderDetail.discountAmount)}</span></span>}
+                      <span className="order-totals__grand"><span>Total</span><span>{formatPrice(orderDetail.total)}</span></span>
+                    </div>
+                    {orderDetail.tracking?.trackingId && (
+                      <div className="order-detail__block">
+                        <h4>Tracking</h4>
+                        <p>AWB {orderDetail.tracking.trackingId}{orderDetail.tracking.courier ? ` · ${orderDetail.tracking.courier}` : ""}</p>
+                        {orderDetail.tracking.trackingUrl && <a className="text-button" href={orderDetail.tracking.trackingUrl} target="_blank" rel="noreferrer">Track shipment →</a>}
+                      </div>
+                    )}
+                    {orderDetail.shippingAddress && (
+                      <div className="order-detail__block">
+                        <h4>Deliver to</h4>
+                        <p>{orderDetail.shippingAddress.fullName}<br />{orderDetail.shippingAddress.line1}{orderDetail.shippingAddress.line2 ? `, ${orderDetail.shippingAddress.line2}` : ""}<br />{orderDetail.shippingAddress.city}, {orderDetail.shippingAddress.state} {orderDetail.shippingAddress.postalCode}</p>
+                      </div>
+                    )}
+                    {orderDetail.timeline && orderDetail.timeline.length > 0 && (
+                      <div className="order-detail__block">
+                        <h4>Timeline</h4>
+                        <ul className="order-timeline">
+                          {orderDetail.timeline.map((entry, index) => (
+                            <li key={index}><CircleCheck size={15} /><span>{entry.message || entry.type.replace("_", " ")}<time>{entry.at ? new Date(entry.at).toLocaleString() : ""}</time></span></li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {orderDetail.orderStatus === "delivered" && !returnStatuses[orderDetail.id] && (
+                      <div className="order-detail__block">
+                        <button className="button button--ghost button--small" onClick={() => setReturnFormOrder(orderDetail)}><RotateCcw size={14} /> Request a return</button>
+                      </div>
+                    )}
+                    {returnStatuses[orderDetail.id] && (
+                      <div className="order-detail__block return-status">
+                        <h4>Return</h4>
+                        <p><span className={`status-pill status-pill--${returnStatuses[orderDetail.id] === "rejected" ? "bad" : "good"}`}>{returnStatuses[orderDetail.id]?.replace("_", " ")}</span> Your return request is being reviewed.</p>
+                      </div>
+                    )}
+                    {returnFormOrder && returnFormOrder.id === orderDetail.id && (
+                      <ReturnRequestForm
+                        order={{ id: returnFormOrder.id, lines: returnFormOrder.lines }}
+                        onDone={() => { setReturnStatuses((prev) => ({ ...prev, [orderDetail.id]: "requested" })); setReturnFormOrder(null); }}
+                        onClose={() => setReturnFormOrder(null)}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <p className="auth-note">Could not load order details.</p>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -8,15 +8,16 @@ export const DEFAULT_TAX_CONFIG: TaxConfig = {
   gstFreeAbove: 0
 };
 
-let cached: TaxConfig | null = null;
+let cached: { data: TaxConfig; ts: number } | null = null;
 let inflight: Promise<TaxConfig> | null = null;
 
 export async function loadTaxConfig(): Promise<TaxConfig> {
-  if (cached) return cached;
+  if (cached && Date.now() - cached.ts < 5 * 60 * 1000) return cached.data;
+  cached = null;
   if (!inflight) {
     inflight = getTaxConfig().then((config) => {
       const resolved = config ?? DEFAULT_TAX_CONFIG;
-      cached = resolved;
+      cached = { data: resolved, ts: Date.now() };
       return resolved;
     }).finally(() => {
       inflight = null;

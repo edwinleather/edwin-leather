@@ -6,6 +6,6 @@ export const metadata: Metadata = PAGE_METADATA.shipping;
 
 export default async function ShippingPolicyPage() {
   const content = await getPageContent("shipping");
-  if (!content) return null;
+  if (!content) return <div className="container" style={{ padding: "120px 0 80px" }}><p>This page is currently unavailable.</p></div>;
   return <PageRenderer content={content} page="shipping" />;
 }

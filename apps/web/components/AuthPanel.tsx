@@ -6,6 +6,7 @@ import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Phone, UserRound } from "lu
 import { completeFirebaseAuth } from "@/lib/api";
 import { createAccountWithEmail, signInWithPassword, sendPasswordReset, currentIdToken, resendEmailVerification, firebaseConfigured } from "@/lib/firebase";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { PlaceholdersInput } from "@/components/ui/PlaceholdersInput";
 import { useAuth } from "@/components/useAuth";
 import { GENERIC_ERROR, logAndGeneric } from "@/lib/errors";
 
@@ -65,7 +66,8 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
     setError(null);
 
     if (!firebaseConfigured()) {
-      setError("Firebase isn't configured yet. Add your NEXT_PUBLIC_FIREBASE_* values first.");
+      console.error("[auth] Firebase is not configured (NEXT_PUBLIC_FIREBASE_* missing).");
+      setError(GENERIC_ERROR);
       return;
     }
 
@@ -124,7 +126,7 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
   async function handleForgot(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    if (!firebaseConfigured()) { setError("Firebase isn't configured yet."); return; }
+    if (!firebaseConfigured()) { console.error("[auth] Firebase is not configured."); setError(GENERIC_ERROR); return; }
     setBusy(true);
     try {
       await sendPasswordReset(email);
@@ -195,39 +197,41 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
           <>
             <label>
               First name
-              <span className="input-shell"><UserRound size={16} /><input required autoComplete="given-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Aarav" /></span>
+              <PlaceholdersInput label="First name" icon={<UserRound size={16} />} inputProps={{ required: true, autoComplete: "given-name", value: firstName, onChange: (event) => setFirstName(event.target.value) }} />
             </label>
             <label>
               Last name
-              <span className="input-shell"><UserRound size={16} /><input required autoComplete="family-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Sharma" /></span>
+              <PlaceholdersInput label="Last name" icon={<UserRound size={16} />} inputProps={{ autoComplete: "family-name", value: lastName, onChange: (event) => setLastName(event.target.value) }} />
             </label>
           </>
         )}
         <label>
           Email address
-          <span className="input-shell"><Mail size={16} /><input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></span>
+          <PlaceholdersInput label="Email address" icon={<Mail size={16} />} inputProps={{ required: true, type: "email", autoComplete: "email", value: email, onChange: (event) => setEmail(event.target.value) }} />
         </label>
         {mode === "signup" && (
           <label>
             Phone
-            <span className="input-shell"><Phone size={16} /><input required inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 98765 43210" /></span>
+            <PlaceholdersInput label="Phone" icon={<Phone size={16} />} inputProps={{ required: true, inputMode: "tel", autoComplete: "tel", value: phone, onChange: (event) => setPhone(event.target.value) }} />
           </label>
         )}
         <label>
           Password
-          <span className="input-shell">
-            <LockKeyhole size={16} />
-            <input required type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-          </span>
+          <PlaceholdersInput
+            label="Password"
+            icon={<LockKeyhole size={16} />}
+            rightSlot={<button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
+            inputProps={{ required: true, type: showPassword ? "text" : "password", autoComplete: mode === "login" ? "current-password" : "new-password", minLength: 8, value: password, onChange: (event) => setPassword(event.target.value) }}
+          />
         </label>
         {mode === "signup" && (
           <label>
             Confirm password
-            <span className="input-shell">
-              <LockKeyhole size={16} />
-              <input required type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="••••••••" />
-            </span>
+            <PlaceholdersInput
+              label="Confirm password"
+              icon={<LockKeyhole size={16} />}
+              inputProps={{ required: true, type: showPassword ? "text" : "password", value: confirmPassword, onChange: (event) => setConfirmPassword(event.target.value) }}
+            />
           </label>
         )}
         <button className="button button--dark button--full" type="submit" disabled={busy}>
@@ -259,7 +263,14 @@ function messageOf(error: unknown): string {
   if (/user-not-found/i.test(message)) return "No account found for that email.";
   if (/weak-password/i.test(message)) return "Password must be at least 6 characters.";
   if (/too-many-requests/i.test(message)) return "We've sent quite a few emails recently. Please wait about a minute before trying again.";
-  if (/network-request-failed/i.test(message)) return "Could not reach Firebase. Check your connection.";
-  if (/configuration-not-found/i.test(message)) return "Firebase isn't configured for this project yet.";
-  return logAndGeneric(error, "auth");
+  // Everything below is technical — log the real detail to the console and
+  // only surface a generic message in the UI.
+  if (message) console.error("[auth]", error);
+  if (/network-request-failed|socket|fetch failed|timed? ?out|abort|connection/i.test(message)) {
+    return "Network error, check your connection.";
+  }
+  if (/configuration-not-found|not configured|api[_-]?key/i.test(message)) {
+    return "Something went wrong on our side. Please try again.";
+  }
+  return GENERIC_ERROR;
 }

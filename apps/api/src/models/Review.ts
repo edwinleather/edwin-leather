@@ -22,4 +22,7 @@ const reviewSchema = new Schema(
   { timestamps: true }
 );
 
+reviewSchema.index({ productId: 1, status: 1, createdAt: -1 });
+reviewSchema.index({ createdAt: -1 });
+
 export const Review = models.Review || model("Review", reviewSchema);

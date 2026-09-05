@@ -13,6 +13,8 @@ import { getCodConfig, invalidateCodConfigCache } from "../services/cod.js";
 import { CodConfig } from "../models/CodConfig.js";
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
+import { ProductVariant } from "../models/ProductVariant.js";
+import { Inventory } from "../models/Inventory.js";
 import { SiteSetting } from "../models/SiteSetting.js";
 import { orderResponse } from "../services/orders.js";
 import { PageContent } from "../models/PageContent.js";
@@ -141,7 +143,7 @@ backofficeRouter.put("/settings", requireBackofficeAdmin, requireBackofficeFeatu
 // Live overview stats + recent orders for the backoffice dashboard.
 backofficeRouter.get("/stats", requireBackofficeAdmin, async (_req, res, next) => {
   try {
-    const [revenueAgg, orderCount, customerCount, lowStock, recent] = await Promise.all([
+    const [revenueAgg, orderCount, customerCount, lowStock, variantLowStock, recent] = await Promise.all([
       Order.aggregate([
         { $match: { orderStatus: { $nin: ["cancelled", "refunded"] } } },
         { $group: { _id: null, total: { $sum: "$total" } } }
@@ -153,6 +155,7 @@ backofficeRouter.get("/stats", requireBackofficeAdmin, async (_req, res, next) =
         { $match: { "variants.active": true, "variants.inventoryAvailable": { $lte: 3 } } },
         { $count: "count" }
       ]),
+      Inventory.countDocuments({ $expr: { $lte: ["$available", "$lowStockThreshold"] }, allowBackorder: false }),
       Order.find().sort({ createdAt: -1 }).limit(8)
     ]);
 
@@ -160,7 +163,7 @@ backofficeRouter.get("/stats", requireBackofficeAdmin, async (_req, res, next) =
       revenue: revenueAgg[0]?.total ?? 0,
       orders: orderCount,
       customers: customerCount,
-      lowStockSkus: lowStock[0]?.count ?? 0
+      lowStockSkus: (lowStock[0]?.count ?? 0) + variantLowStock
     };
     const recentOrders = recent.map((order) => {
       const mapped = orderResponse(order);
@@ -411,7 +414,7 @@ backofficeRouter.put("/pages/:key", requireBackofficeAdmin, requireBackofficeFea
     const saved = await PageContent.findOneAndUpdate(
       { key },
       { $set: { key, content: input.content, updatedBy: (req as BackofficeRequest).admin!.id } },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, returnDocument: "after", runValidators: true }
     );
     return res.json({ ok: true, data: saved.content });
   } catch (error) {

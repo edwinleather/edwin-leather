@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { Star, BadgeCheck } from "lucide-react";
 import { Reveal } from "./Reveal";
 import { Loader } from "./Loader";
-
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+import { API_URL } from "@/lib/api";
 
 type ReviewImage = { url: string; publicId?: string; alt?: string };
 type Review = {
@@ -50,7 +49,7 @@ export function Reviews() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API}/reviews`, { cache: "no-store" })
+    fetch(`${API_URL}/reviews`, { cache: "no-store", credentials: "include" })
       .then((r) => r.json())
       .then((body) => {
         if (body?.ok) setData(body.data);

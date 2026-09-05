@@ -48,7 +48,7 @@ export const DEFAULT_DELIVERY_CONFIG: DeliveryConfig = {
   freeDeliveryThreshold: 2499
 };
 
-let cached: DeliveryConfig | null = null;
+let cached: { data: DeliveryConfig; ts: number } | null = null;
 let inflight: Promise<DeliveryConfig | null> | null = null;
 
 export function deliveryFeeFor(config: DeliveryConfig, state?: string): number {
@@ -58,11 +58,12 @@ export function deliveryFeeFor(config: DeliveryConfig, state?: string): number {
 
 // Fetches the delivery config once (module-level cache shared across the app).
 export async function loadDeliveryConfig(): Promise<DeliveryConfig> {
-  if (cached) return cached;
+  if (cached && Date.now() - cached.ts < 5 * 60 * 1000) return cached.data;
+  cached = null;
   if (!inflight) {
     inflight = getDeliveryConfig().then((config) => {
       const resolved = config ?? DEFAULT_DELIVERY_CONFIG;
-      cached = resolved;
+      cached = { data: resolved, ts: Date.now() };
       return resolved;
     }).finally(() => {
       inflight = null;

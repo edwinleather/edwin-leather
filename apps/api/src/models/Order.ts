@@ -9,8 +9,14 @@ const lineSchema = new Schema(
     sku: { type: String, required: true },
     nameSnapshot: { type: String, required: true },
     variantSnapshot: String,
+    productName: String,
+    variantName: String,
+    price: Number,
     quantity: { type: Number, required: true, min: 1 },
     unitPrice: { type: Number, required: true, min: 0 },
+    originalUnitPrice: Number,
+    lineDiscount: { type: Number, default: 0 },
+    promotion: { name: String, amount: Number },
     lineTotal: { type: Number, required: true, min: 0 }
   },
   { _id: true }
@@ -27,6 +33,7 @@ const orderSchema = new Schema(
     gstAmount: { type: Number, default: 0 },
     gstRate: { type: Number, default: 0 },
     discountAmount: { type: Number, default: 0 },
+    promotionDiscount: { type: Number, default: 0 },
     coupon: {
       couponId: { type: Schema.Types.ObjectId, ref: "Coupon" },
       code: String,
@@ -66,9 +73,13 @@ const orderSchema = new Schema(
       country: { type: String, default: "IN" },
       phone: String
     },
-    timeline: [{ type: { type: String }, message: String, at: { type: Date, default: Date.now }, actorId: Schema.Types.ObjectId }]
+    timeline: [{ type: { type: String }, message: String, at: { type: Date, default: Date.now }, actorId: Schema.Types.ObjectId }],
+    emailsSent: { type: Map, of: Date, default: {} }
   },
   { timestamps: true }
 );
+
+orderSchema.index({ customerId: 1, createdAt: -1 });
+orderSchema.index({ orderStatus: 1, createdAt: -1 });
 
 export const Order = models.Order || model("Order", orderSchema);

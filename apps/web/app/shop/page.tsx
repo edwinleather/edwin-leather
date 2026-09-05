@@ -19,7 +19,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 
 export default async function ShopPage({ searchParams }: { searchParams: Promise<{ category?: string; q?: string }> }) {
   const params = await searchParams;
-  const [products, categories] = await Promise.all([getCatalog(), getCategories()]);
+  const [products, categories] = await Promise.all([getCatalog({ category: params.category, q: params.q }), getCategories()]);
   return (
     <div className="page-shell shop-page">
       <div className="container">

@@ -3,26 +3,13 @@ import { siteUrl } from "@/lib/site-url";
 
 const SITE = siteUrl();
 
-// Keep internal, authenticated, and transactional routes out of search.
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
         userAgent: "*",
         allow: "/",
-        disallow: [
-          "/backoffice",
-          "/backoffice/",
-          "/admin",
-          "/account",
-          "/account/",
-          "/cart",
-          "/checkout",
-          "/login",
-          "/signup",
-          "/thank-you",
-          "/api/"
-        ]
+        disallow: ["/admin", "/backoffice", "/api", "/cart", "/checkout", "/account"]
       }
     ],
     sitemap: `${SITE}/sitemap.xml`

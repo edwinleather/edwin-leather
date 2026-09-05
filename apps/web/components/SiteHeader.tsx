@@ -1,19 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./useAuth";
-import { useCart } from "./CartProvider";
+import { useCart, useCartDrawer } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
 import { ThemeToggle } from "./ThemeToggle";
 import { Loader } from "./Loader";
 import { siteConfig } from "@/lib/site-config";
-import { useDeliveryConfig } from "@/lib/delivery";
-import { useSiteSettings } from "@/lib/site-settings";
 import { useCategories, useSearchNavigation } from "@/lib/useCategories";
-import { formatPrice } from "@/lib/format";
 import { GooeyInput } from "./ui/gooey-input";
 
 const baseNav: { label: string; href: string }[] = [
@@ -21,13 +18,28 @@ const baseNav: { label: string; href: string }[] = [
   { label: "Our story", href: "/story" }
 ];
 
+const STORAGE_KEY = "edwin-cat-visits";
+
+function getTopCategories(all: { name: string; slug: string }[], limit = 4) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const counts: Record<string, number> = raw ? JSON.parse(raw) : {};
+    const ranked = [...all].sort((a, b) => (counts[b.slug] ?? 0) - (counts[a.slug] ?? 0));
+    return ranked.slice(0, limit);
+  } catch {
+    return all.slice(0, limit);
+  }
+}
+
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuLoading, setMenuLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const categories = useCategories();
+  const allCategories = useCategories();
   const { submitSearch } = useSearchNavigation();
+
+  const categories = useMemo(() => getTopCategories(allCategories, 4), [allCategories]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -35,12 +47,23 @@ export function SiteHeader() {
     const t = setTimeout(() => setMenuLoading(false), 420);
     return () => clearTimeout(t);
   }, [menuOpen]);
-  const { count, openCart } = useCart();
+  const { count } = useCart();
+  const { openCart } = useCartDrawer();
   const { authed } = useAuth();
   const pathname = usePathname();
-  const delivery = useDeliveryConfig();
-  const { loaded, settings } = useSiteSettings();
-  const announcement = settings?.announcement?.trim() || `Free delivery across India on orders above ${formatPrice(delivery.freeDeliveryThreshold)}`;
+
+  // Track category visits for personalized nav ranking.
+  useEffect(() => {
+    const match = pathname.match(/^\/category\/([^/]+)/);
+    if (!match) return;
+    const slug = match[1];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const counts: Record<string, number> = raw ? JSON.parse(raw) : {};
+      counts[slug] = (counts[slug] ?? 0) + 1;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(counts));
+    } catch { /* ignore */ }
+  }, [pathname]);
 
   const desktopNav = [...baseNav, ...categories.map((item) => ({ label: item.name, href: `/category/${item.slug}` }))];
 
@@ -62,7 +85,6 @@ export function SiteHeader() {
 
   return (
     <>
-      <div className="announcement-bar" aria-hidden={!loaded ? true : undefined}>{loaded ? announcement : ""}</div>
       <header className="site-header">
         <div className="site-header__inner container-wide">
           <button className="mobile-menu-button icon-button" onClick={() => setMenuOpen(true)} aria-label="Open menu">
@@ -148,7 +170,7 @@ export function SiteHeader() {
               {menuLoading ? (
                 <Loader label="Opening menu" size="sm" />
               ) : (
-                [...baseNav, ...categories.map((item) => ({ label: item.name, href: `/category/${item.slug}` }))].map(({ label, href }, index) => (
+                [...baseNav, ...allCategories.map((item) => ({ label: item.name, href: `/category/${item.slug}` }))].map(({ label, href }, index) => (
                   <motion.div key={label} variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0 } }}>
                     <SmoothLink href={href} onClick={() => setMenuOpen(false)}><span>0{index + 1}</span>{label}</SmoothLink>
                   </motion.div>

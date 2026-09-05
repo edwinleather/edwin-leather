@@ -24,7 +24,7 @@ const ELIGIBLE_STATUSES = ["delivered"];
 async function nextReturnNumber() {
   const now = Date.now().toString().slice(-6);
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const suffix = Math.floor(100 + Math.random() * 900).toString();
+    const suffix = Math.floor(1000 + Math.random() * 9000).toString();
     const candidate = `RET${now}${suffix}`;
     const exists = await Return.exists({ returnNumber: candidate });
     if (!exists) return candidate;

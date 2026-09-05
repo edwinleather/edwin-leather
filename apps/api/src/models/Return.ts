@@ -38,4 +38,6 @@ const returnSchema = new Schema(
   { timestamps: true }
 );
 
+returnSchema.index({ status: 1, createdAt: -1 });
+
 export const Return = models.Return || model("Return", returnSchema);

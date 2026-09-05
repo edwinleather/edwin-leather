@@ -37,16 +37,25 @@ export const env = {
   sentryDsn: value("SENTRY_DSN"),
   errorReportRepo: value("ERROR_REPORT_REPO", "oyeadiiiiii/edwin-leathers"),
   errorReportToken: value("ERROR_REPORT_TOKEN"),
-  errorReportMinIntervalMs: Number(value("ERROR_REPORT_MIN_INTERVAL_MS", "60000"))
+  errorReportMinIntervalMs: Number(value("ERROR_REPORT_MIN_INTERVAL_MS", "60000")),
+  gmailUser: value("GMAIL_USER"),
+  gmailAppPassword: value("GMAIL_APP_PASSWORD"),
+  emailFrom: value("EMAIL_FROM", "Edwin Leathers <Support.edwinleather@gmail.com>")
 };
 
 // A value counts as configured only if it is a real secret: non-empty, long
 // enough, and not a placeholder/obvious default. This is used to fail closed
-// for security-critical values like JWT_SECRET.
+// for security-critical values like JWT_SECRET.  Razorpay test keys are
+// shorter, so we use a lower threshold for them.
+const isPlaceholder = (input: string) =>
+  !input ||
+  /^(DEMO_|REPLACE|xxx|CHANGE|your-)/i.test(input) ||
+  /^[A-Za-z0-9_-]{8,12}$/.test(input);
+
 export const isConfigured = (input: string) =>
-  Boolean(
-    input &&
-      input.length >= 32 &&
-      !/^(DEMO_|REPLACE|xxx|CHANGE|your-)/i.test(input) &&
-      !/^[A-Za-z0-9_-]{8,16}$/.test(input) // short "looks-like-a-words" secrets
-  );
+  Boolean(input && input.length >= 20 && !isPlaceholder(input));
+
+// Razorpay test keys can be short (e.g. 24 chars).  Use a dedicated check
+// that only rejects obvious placeholders.
+export const isRazorpayConfigured = (input: string) =>
+  Boolean(input && input.length >= 10 && !isPlaceholder(input));

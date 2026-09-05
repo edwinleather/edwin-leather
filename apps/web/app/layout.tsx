@@ -41,8 +41,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: siteConfig.favicon, type: "image/jpeg", sizes: "64x64" },
-      { url: "/favicon.svg", type: "image/svg+xml" }
+      { url: siteConfig.favicon, type: "image/jpeg", sizes: "64x64" }
     ],
     shortcut: { url: siteConfig.favicon, type: "image/jpeg" },
     apple: [{ url: siteConfig.favicon, type: "image/jpeg" }]
@@ -52,6 +51,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+      </head>
       <body>
         <script
           dangerouslySetInnerHTML={{

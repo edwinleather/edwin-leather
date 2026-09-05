@@ -55,7 +55,7 @@ function optionalCustomerId(req: Request): { customerId?: string; email?: string
 reviewsRouter.post("/media/upload", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     await requireVerifiedCustomer(req);
-    const input = z.object({ dataUri: z.string().min(5) }).parse(req.body);
+    const input = z.object({ dataUri: z.string().min(5).max(15_000_000) }).parse(req.body);
     const asset = await uploadImage(input.dataUri, "edwin/reviews", MAX_IMAGE_BYTES);
     return res.status(201).json({ ok: true, url: asset.url, publicId: asset.publicId });
   } catch (error) {

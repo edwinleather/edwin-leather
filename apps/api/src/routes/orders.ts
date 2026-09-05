@@ -2,12 +2,15 @@ import { Router } from "express";
 import { z } from "zod";
 import { ensureDatabase } from "../config/db.js";
 import { Product } from "../models/Product.js";
+import { ProductVariant } from "../models/ProductVariant.js";
 import { User } from "../models/User.js";
 import { ApiError } from "../middleware/error.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { createOrder, orderResponse } from "../services/orders.js";
+import { resolveVariantById } from "../services/variants.js";
 import { validateCoupon } from "../services/coupons.js";
 import { computeDeliveryFee, getDeliveryConfig } from "../services/delivery.js";
+import { sendOrderConfirmationEmail } from "../services/send-order-email.js";
 
 export const ordersRouter = Router();
 
@@ -51,6 +54,7 @@ ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next)
     }
 
     const { order, removedItems } = await createOrder({ ...input, customerId: String(req.auth!.sub) });
+    sendOrderConfirmationEmail(order).catch(() => {});
     return res.status(201).json({ ok: true, order: orderResponse(order), removedItems });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid order input", error.flatten()));
@@ -66,17 +70,28 @@ ordersRouter.post("/validate-coupon", requireAuth, async (req: AuthenticatedRequ
 
     const itemsById = new Map(input.items.map((item) => [item.variantId, item]));
     const products = await Product.find({ _id: { $in: input.items.map((item) => item.productId) }, active: true }).lean();
+    const productVariants = await ProductVariant.find({ productId: { $in: input.items.map((item) => item.productId) } })
+      .populate("attributes.attributeId")
+      .lean();
+    const pvByProduct = new Map<string, typeof productVariants>();
+    for (const pv of productVariants) {
+      const pid = String(pv.productId);
+      const list = pvByProduct.get(pid) ?? [];
+      list.push(pv);
+      pvByProduct.set(pid, list);
+    }
 
     const orderLines: { productId: string; category: string; quantity: number; unitPrice: number }[] = [];
     for (const product of products) {
-      for (const variant of product.variants ?? []) {
-        const requested = itemsById.get(String(variant._id));
-        if (!requested) continue;
+      for (const item of input.items) {
+        if (String(item.productId) !== String(product._id)) continue;
+        const resolved = resolveVariantById(product, pvByProduct.get(String(product._id)) ?? [], item.variantId);
+        if (!resolved) continue;
         orderLines.push({
           productId: String(product._id),
           category: product.category,
-          quantity: requested.quantity,
-          unitPrice: variant.priceOverride ?? product.price
+          quantity: item.quantity,
+          unitPrice: resolved.price
         });
       }
     }

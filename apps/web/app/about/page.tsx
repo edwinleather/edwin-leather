@@ -6,6 +6,6 @@ export const metadata: Metadata = PAGE_METADATA.about;
 
 export default async function AboutPage() {
   const content = await getPageContent("about");
-  if (!content) return null;
+  if (!content) return <div className="container" style={{ padding: "120px 0 80px" }}><p>This page is currently unavailable.</p></div>;
   return <PageRenderer content={content} page="about" />;
 }

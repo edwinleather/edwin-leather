@@ -1,3 +1,5 @@
+import { API_URL } from "./api";
+
 export const PAGE_KEYS = ["story", "about", "shipping", "returns", "terms", "privacy"] as const;
 export type PageKey = (typeof PAGE_KEYS)[number];
 
@@ -27,8 +29,6 @@ export type PageContentData = {
   };
   blocks: PageBlock[];
 };
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
 export async function getPageContent(key: PageKey): Promise<PageContentData | null> {
   try {

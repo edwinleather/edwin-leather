@@ -28,17 +28,19 @@ export type SiteSettings = {
   homepage: HomepageSettings;
 };
 
-let cached: SiteSettings | null = null;
+let cached: { data: SiteSettings; ts: number } | null = null;
 let inflight: Promise<SiteSettings | null> | null = null;
 
 export async function loadSiteSettings(): Promise<SiteSettings | null> {
-  if (cached) return cached;
+  if (cached && Date.now() - cached.ts < 5 * 60 * 1000) return cached.data;
+  cached = null;
   if (!inflight) {
     inflight = fetch(`${API}/site/settings`, { credentials: "include" })
       .then((r) => r.json())
       .then((body) => {
-        cached = body?.data ?? null;
-        return cached;
+        const data = body?.data ?? null;
+        if (data) cached = { data, ts: Date.now() };
+        return data;
       })
       .catch(() => null)
       .finally(() => {
@@ -50,7 +52,7 @@ export async function loadSiteSettings(): Promise<SiteSettings | null> {
 
 export function useSiteSettings(): { loaded: boolean; settings: SiteSettings | null } {
   const [loaded, setLoaded] = useState(!!cached);
-  const [settings, setSettings] = useState<SiteSettings | null>(cached);
+  const [settings, setSettings] = useState<SiteSettings | null>(cached?.data ?? null);
   useEffect(() => {
     let active = true;
     loadSiteSettings().then((value) => {

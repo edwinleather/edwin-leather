@@ -2,20 +2,27 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Minus, Plus, ShoppingBag, X } from "lucide-react";
-import { useCart } from "./CartProvider";
+import { useEffect } from "react";
+import { useCart, useCartDrawer } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
 import { SmartImage } from "./SmartImage";
 import { formatPrice } from "@/lib/format";
 import { useDeliveryConfig } from "@/lib/delivery";
 
 export function CartDrawer() {
-  const { items, subtotal, isOpen, closeCart, removeItem, setQuantity } = useCart();
+  const { items, subtotal, removeItem, setQuantity, refreshStock } = useCart();
+  const { isOpen, closeCart } = useCartDrawer();
   const delivery = useDeliveryConfig();
   const threshold = delivery.freeDeliveryThreshold;
-  const progress = Math.min((subtotal / threshold) * 100, 100);
+  const progress = threshold > 0 ? Math.min((subtotal / threshold) * 100, 100) : 0;
   const remaining = Math.max(threshold - subtotal, 0);
   const available = items.filter((item) => !item.isOutOfStock);
   const unavailable = items.filter((item) => item.isOutOfStock);
+
+  useEffect(() => {
+    if (isOpen) refreshStock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -77,7 +84,7 @@ export function CartDrawer() {
                         <div className="quantity-control">
                           <button onClick={() => setQuantity(item.lineId, item.quantity - 1)} aria-label="Decrease quantity"><Minus size={14} /></button>
                           <span>{item.quantity}</span>
-                          <button onClick={() => setQuantity(item.lineId, item.quantity + 1)} aria-label="Increase quantity"><Plus size={14} /></button>
+                          <button onClick={() => setQuantity(item.lineId, item.quantity + 1)} disabled={Boolean(item.maxQuantity && item.quantity >= item.maxQuantity)} aria-label="Increase quantity"><Plus size={14} /></button>
                         </div>
                         <div className="cart-line__price">{formatPrice(item.price * item.quantity)}</div>
                       </div>

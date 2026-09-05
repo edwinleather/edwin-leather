@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Minus, Plus, ShieldCheck, Truck } from "lucide-react";
-import type { Product } from "@/lib/types";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Minus, Plus, ShieldCheck, Truck } from "lucide-react";
+import { resolveUnitPrice, resolveProductPrice } from "@/lib/pricing";
+import type { Product, ProductVariant, ProductVariantItem } from "@/lib/types";
 import { trackViewItem } from "@/lib/analytics";
 import { formatPrice } from "@/lib/format";
 import { useCart } from "./CartProvider";
@@ -12,10 +14,59 @@ import { SmoothLink } from "./SmoothLink";
 
 export function ProductPurchasePanel({ product }: { product: Product }) {
   const delivery = useDeliveryConfig();
-  const [variantId, setVariantId] = useState(product.variants.find(variantInStock)?.id ?? product.variants[0].id);
-  const [quantity, setQuantity] = useState(1);
   const { addItem } = useCart();
-  const variant = useMemo(() => product.variants.find((item) => item.id === variantId) ?? product.variants[0], [product, variantId]);
+  const [quantity, setQuantity] = useState(1);
+  const [added, setAdded] = useState(false);
+
+  const hasAttrVariants = (product.productVariants?.length ?? 0) > 0 && (product.variantAttributes?.length ?? 0) > 0;
+
+  // Legacy flow: pick from the embedded color/size variant buttons.
+  const [variantId, setVariantId] = useState(product.variants.find(variantInStock)?.id ?? product.variants[0]?.id ?? "");
+  const legacyVariant = useMemo(() => product.variants.find((item) => item.id === variantId) ?? product.variants[0] ?? { id: "", label: "", sku: "", color: "", inventory: 0, price: 0 }, [product, variantId]);
+
+  // Attribute flow: select one value per dimension, then resolve the matching SKU.
+  const [selection, setSelection] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const dim of product.variantAttributes ?? []) {
+      const first = product.productVariants?.find((v) => v.attributes.some((a) => a.name === dim.name))?.attributes.find((a) => a.name === dim.name)?.value;
+      init[dim.name] = String(first ?? dim.options[0] ?? "");
+    }
+    return init;
+  });
+
+  const activeItem: ProductVariantItem | null = useMemo(() => {
+    if (!hasAttrVariants) return null;
+    return (
+      product.productVariants!.find(
+        (v) =>
+          v.active &&
+          v.attributes.every((a) => selection[a.name] !== undefined && selection[a.name] === String(a.value))
+      ) ?? null
+    );
+  }, [product, selection, hasAttrVariants]);
+
+  const variant: ProductVariant = useMemo(() => {
+    if (!activeItem) return legacyVariant;
+    const labels = (product.variantAttributes ?? []).map((d) => selection[d.name]).filter(Boolean);
+    const values = activeItem.attributes;
+    return {
+      id: activeItem.id,
+      label: labels.length > 0 ? labels.join(" / ") : values.map((a) => String(a.value)).join(" / "),
+      sku: activeItem.sku,
+      color: values[0] ? String(values[0].value) : "",
+      size: values[1] ? String(values[1].value) : undefined,
+      inventory: activeItem.stock,
+      allowBackorder: activeItem.allowBackorder,
+      price: activeItem.price,
+      salePrice: activeItem.salePrice,
+      promotionPrice: activeItem.promotionPrice
+    };
+  }, [activeItem, legacyVariant, product.variantAttributes, selection]);
+
+  const unitPrice = activeItem
+    ? resolveUnitPrice(activeItem)
+    : resolveProductPrice(product);
+  const inStock = activeItem ? activeItem.stock > 0 || Boolean(activeItem.allowBackorder) : variantInStock(variant);
 
   // Fire one GA4 view_item event per product page view.
   useEffect(() => {
@@ -29,6 +80,17 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id]);
 
+  const addToBag = () => {
+    if (!inStock) return;
+    addItem(product, variant, quantity, false);
+    setAdded(true);
+  };
+
+  const setSelectionValue = (name: string, value: string) => {
+    setSelection((s) => ({ ...s, [name]: value }));
+    setQuantity(1);
+  };
+
   return (
     <>
       <div className="purchase-panel">
@@ -37,26 +99,44 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
         <h1>{product.name}</h1>
         <p className="product-detail__subtitle">{product.subtitle}</p>
         <div className="product-detail__price">
-          <strong>{formatPrice(product.price)}</strong>
-          {product.compareAtPrice && <span>{formatPrice(product.compareAtPrice)}</span>}
+          <strong>{formatPrice(unitPrice)}</strong>
+          {product.compareAtPrice && product.compareAtPrice > unitPrice && <span>{formatPrice(product.compareAtPrice)}</span>}
         </div>
       </div>
       <p className="product-detail__description">{product.description}</p>
 
       <div className="variant-block">
-        <div className="variant-block__head"><span>Finish / size</span><small>{variantInStock(variant) ? `${variant.inventory} in stock` : "Sold out"}</small></div>
-        <div className="variant-grid">
-          {product.variants.map((item) => (
-            <button
-              key={item.id}
-              disabled={!variantInStock(item)}
-              className={item.id === variantId ? "active" : ""}
-              onClick={() => { setVariantId(item.id); setQuantity(1); }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+        <div className="variant-block__head"><span>Finish / size</span><small>{inStock ? `${variant.inventory} in stock` : "Sold out"}</small></div>
+        {hasAttrVariants ? (
+          <div className="variant-grid variant-grid--selects" style={{ flexDirection: "column", alignItems: "stretch", gap: 12 }}>
+            {(product.variantAttributes ?? []).map((dim) => (
+              <label key={dim.attributeId} className="variant-select">
+                <span>{dim.name}</span>
+                <select
+                  value={selection[dim.name] ?? ""}
+                  onChange={(e) => setSelectionValue(dim.name, e.target.value)}
+                >
+                  {dim.options.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <div className="variant-grid">
+            {product.variants.map((item) => (
+              <button
+                key={item.id}
+                disabled={!variantInStock(item)}
+                className={item.id === variantId ? "active" : ""}
+                onClick={() => { setVariantId(item.id); setQuantity(1); }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="purchase-row">
@@ -65,8 +145,8 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
           <span>{quantity}</span>
           <button onClick={() => setQuantity((value) => Math.min(Math.max(variant.inventory, 1), value + 1))} aria-label="Increase quantity"><Plus size={15} /></button>
         </div>
-        <button className="button button--dark purchase-button" disabled={!variantInStock(variant)} onClick={() => addItem(product, variant, quantity)}>
-          {variantInStock(variant) ? `Add to bag - ${formatPrice(product.price * quantity)}` : "Sold out"}
+        <button className="button button--dark purchase-button" disabled={!inStock} onClick={addToBag}>
+          {inStock ? `Add to bag - ${formatPrice(unitPrice * quantity)}` : "Sold out"}
         </button>
       </div>
 
@@ -90,10 +170,43 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
       </details>
       </div>
 
-      <div className="purchase-bar" hidden={!variantInStock(variant)}>
-        <div className="purchase-bar__price"><b>{formatPrice(product.price * quantity)}</b><span>{variant.label}</span></div>
-        <button className="button button--dark" onClick={() => addItem(product, variant, quantity)}>Add to bag <Plus size={15} /></button>
+      <div className="purchase-bar" hidden={!inStock}>
+        <div className="purchase-bar__price"><b>{formatPrice(unitPrice * quantity)}</b><span>{variant.label}</span></div>
+        <button className="button button--dark" onClick={addToBag}>Add to bag <Plus size={15} /></button>
       </div>
+
+      <AnimatePresence>
+        {added && (
+          <motion.div
+            className="added-modal__backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setAdded(false)}
+          >
+            <motion.div
+              className="added-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Added to bag"
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 12 }}
+              transition={{ type: "spring", damping: 26, stiffness: 340 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="added-modal__check"><Check size={20} /></span>
+              <span className="eyebrow">Added to your bag</span>
+              <h3>{product.name}</h3>
+              <p className="added-modal__variant">{variant.label} · {formatPrice(unitPrice * quantity)}</p>
+              <div className="added-modal__actions">
+                <SmoothLink href="/checkout" className="button button--dark button--full" onClick={() => setAdded(false)}>Checkout</SmoothLink>
+                <button className="button button--ghost button--full" onClick={() => setAdded(false)}>Keep shopping</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

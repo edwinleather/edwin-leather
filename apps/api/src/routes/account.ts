@@ -135,7 +135,7 @@ accountRouter.patch("/me", async (req: AuthenticatedRequest, res, next) => {
   try {
     if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
     const input = z.object({ firstName: z.string().min(2).max(60).optional(), lastName: z.string().max(60).optional(), phone: z.string().min(8).max(16).optional() }).parse(req.body);
-    const user = await User.findByIdAndUpdate(req.auth!.sub, { $set: input }, { new: true, runValidators: true }).select("-passwordHash -passwordResetTokenHash");
+    const user = await User.findByIdAndUpdate(req.auth!.sub, { $set: input }, { returnDocument: "after", runValidators: true }).select("-passwordHash -passwordResetTokenHash");
     if (!user) return next(new ApiError(404, "Account not found"));
     return res.json({ ok: true, user });
   } catch (error) {
