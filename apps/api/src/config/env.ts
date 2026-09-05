@@ -35,7 +35,7 @@ export const env = {
   superadminEmails: list("SUPERADMIN_EMAIL"),
   adminEmails: list("ADMIN_EMAILS"),
   sentryDsn: value("SENTRY_DSN"),
-  errorReportRepo: value("ERROR_REPORT_REPO", "oyeadiiiiii/edwin-leathers"),
+  errorReportRepo: value("ERROR_REPORT_REPO", "edwinleather/edwin-leather"),
   errorReportToken: value("ERROR_REPORT_TOKEN"),
   errorReportMinIntervalMs: Number(value("ERROR_REPORT_MIN_INTERVAL_MS", "60000")),
   gmailUser: value("GMAIL_USER"),
