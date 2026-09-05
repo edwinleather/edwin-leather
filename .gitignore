@@ -14,3 +14,4 @@ dist
 coverage
 vercel.env
 netlify.env
+logs/
