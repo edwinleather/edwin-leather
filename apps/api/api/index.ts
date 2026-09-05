@@ -1,9 +1,21 @@
-import { app } from "../src/app.js";
 import { connectDatabase, databaseReady } from "../src/config/db.js";
 import { seedDatabase } from "../src/config/seed.js";
 
-void connectDatabase().then(() => {
-  if (databaseReady()) return seedDatabase();
-});
+let dbConnected = false;
 
-export default app;
+async function ensureDb() {
+  if (dbConnected && databaseReady()) return;
+  dbConnected = await connectDatabase();
+  if (dbConnected) await seedDatabase();
+}
+
+let appRef: any = null;
+
+export default async function handler(req: any, res: any) {
+  await ensureDb();
+  if (!appRef) {
+    const mod = await import("../src/app.js");
+    appRef = mod.app;
+  }
+  return appRef(req, res);
+}

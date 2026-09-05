@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@sentry/node": "^10.70.0",
+    "serverless-http": "^4.0.0",
     "cloudinary": "^2.10.0",
     "cookie-parser": "latest",
     "cors": "latest",
@@ -35,8 +36,8 @@
     "@types/cors": "latest",
     "@types/express": "latest",
     "@types/jsonwebtoken": "latest",
-    "@types/nodemailer": "^6.4.17",
     "@types/node": "latest",
+    "@types/nodemailer": "^6.4.17",
     "@vitest/spy": "^4.1.11",
     "tsx": "latest",
     "typescript": "~5.9.0",
