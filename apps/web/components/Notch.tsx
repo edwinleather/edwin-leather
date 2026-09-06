@@ -85,7 +85,7 @@ export function Notch() {
         <div className="notch__panel-inner">
           <div ref={brandRef} className="notch__brand">
             <SmoothLink href="/" className="notch__brand-link" ariaLabel="Edwin Leathers home">
-              <span className="notch__brand-mark"><img className="brand__logo" src={siteConfig.brandLogo} alt="" /></span>
+              <span className="notch__brand-mark"><img className="brand__logo" src={siteConfig.brandLogo} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /></span>
               <span className="notch__brand-word">EDWIN<span className="notch__brand-sub">Leathers</span></span>
             </SmoothLink>
           </div>

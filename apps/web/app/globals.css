@@ -1506,7 +1506,7 @@ body.lb-open .site-header { display: none; }
 .google-signin-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(250, 246, 239, .65); border-radius: var(--radius-pill); }
 /* ---------- Imported pages (about/offer/contact/terms/thank-you/feedback + auth split) ---------- */
 .auth-page { min-height: calc(100svh - 102px); display: grid; grid-template-columns: minmax(420px, .95fr) 1.05fr; background: var(--paper); }
-.auth-visual { position: relative; min-height: 720px; overflow: hidden; color: var(--cream); }
+.auth-visual { position: relative; min-height: 720px; overflow: hidden; color: var(--cream); background: #2f1d16; }
 .auth-visual img { object-fit: cover; filter: saturate(.78) contrast(.96); }
 .auth-visual__veil { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(47,29,22,.7), rgba(47,29,22,.08) 65%), linear-gradient(90deg, rgba(47,29,22,.28), transparent); }
 .auth-visual__copy { position: absolute; left: clamp(28px, 5vw, 78px); right: clamp(28px, 5vw, 78px); bottom: 56px; }

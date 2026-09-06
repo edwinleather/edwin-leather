@@ -119,7 +119,7 @@ export function SiteHeader() {
           </nav>
 
           <SmoothLink href="/" className="brand" ariaLabel="Edwin Leathers home">
-            <img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} />
+            <img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
             <span className="brand__word">EDWIN <i>Leathers</i></span>
           </SmoothLink>
 
@@ -157,7 +157,7 @@ export function SiteHeader() {
         {menuOpen && (
           <motion.div className="mobile-menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="mobile-menu__top">
-              <div className="brand brand--light"><img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} /><span className="brand__word">EDWIN <i>Leathers</i></span></div>
+              <div className="brand brand--light"><img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span className="brand__word">EDWIN <i>Leathers</i></span></div>
               <button className="icon-button icon-button--light" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button>
             </div>
             <motion.form

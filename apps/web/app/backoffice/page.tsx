@@ -122,7 +122,7 @@ export default function BackofficePage() {
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
-        <div className="brand brand--light"><img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={30} height={30} /><span className="brand__word">EDWIN <i>ADMIN</i></span></div>
+        <div className="brand brand--light"><img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={30} height={30} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span className="brand__word">EDWIN <i>ADMIN</i></span></div>
         <nav>
           {nav.map((item) => (
             <button key={item.id} className={active === item.id ? "active" : ""} onClick={() => setActive(item.id)}>{item.label}</button>

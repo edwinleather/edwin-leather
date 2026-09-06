@@ -11,7 +11,7 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="container footer-grid">
         <div className="footer-brand">
-          <div className="brand brand--footer"><img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} /><span className="brand__word">EDWIN <i>Leathers</i></span></div>
+          <div className="brand brand--footer"><img className="brand__mark brand__logo" src={siteConfig.brandLogo} alt="" width={34} height={34} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span className="brand__word">EDWIN <i>Leathers</i></span></div>
           <p>{siteConfig.description}</p>
           <a href={siteConfig.instagram} target="_blank" rel="noreferrer">Instagram <ArrowUpRight size={14} /></a>
         </div>

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { databaseReady } from "../config/db.js";
 import { SiteSetting } from "../models/SiteSetting.js";
 import { getPageContent, PAGE_KEYS } from "../services/pages.js";
 
@@ -6,7 +7,7 @@ export const siteRouter = Router();
 
 siteRouter.get("/settings", async (_req, res, next) => {
   try {
-    const doc = await SiteSetting.findOne({ key: "site" }).lean();
+    const doc = databaseReady() ? await SiteSetting.findOne({ key: "site" }).lean() : null;
     const homepage = {
       marquee: { items: ["MADE TO AGE", "EDWIN LEATHERS", "SMALL BATCH", "FULL GRAIN"] },
       featured: { eyebrow: "Current selection", title: "Objects for the everyday.", linkLabel: "Shop all" },
@@ -67,6 +68,7 @@ siteRouter.get("/pages/:key", async (req, res, next) => {
     if (!PAGE_KEYS.includes(key as (typeof PAGE_KEYS)[number])) {
       return res.status(404).json({ ok: false, error: "Page not found" });
     }
+    if (!databaseReady()) return res.status(503).json({ ok: false, error: "Service temporarily unavailable." });
     const data = await getPageContent(key);
     return res.json({ ok: true, data });
   } catch (error) {
