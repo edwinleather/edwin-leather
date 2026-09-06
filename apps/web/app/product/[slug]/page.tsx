@@ -4,7 +4,6 @@ import { ProductPurchasePanel } from "@/components/ProductPurchasePanel";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductGallery } from "@/components/ProductGallery";
 import { ProductViewTracker } from "@/components/ProductViewTracker";
-import { Reveal } from "@/components/Reveal";
 import { ReviewForm } from "@/components/ReviewForm";
 import { getCatalog, getProductBySlug, getCategoryByName } from "@/lib/catalog";
 import { SpecTable } from "@/components/attributes/SpecTable";
@@ -180,8 +179,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       )}
 
       <section className="product-editorial container">
-        <Reveal><span className="eyebrow">Built into the object</span><h2>Character is the finish.</h2></Reveal>
-        <Reveal delay={0.08}><p>Small tonal shifts, crease lines, and the marks that arrive through use are the point. Your piece should become recognizably yours instead of staying frozen in showroom condition.</p></Reveal>
+        <span className="eyebrow">Built into the object</span><h2>Character is the finish.</h2>
+        <p>Small tonal shifts, crease lines, and the marks that arrive through use are the point. Your piece should become recognizably yours instead of staying frozen in showroom condition.</p>
       </section>
 
       <ReviewForm product={{ id: product.id, name: product.name }} />

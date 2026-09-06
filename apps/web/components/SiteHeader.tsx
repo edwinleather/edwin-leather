@@ -18,6 +18,14 @@ const baseNav: { label: string; href: string }[] = [
   { label: "Our story", href: "/story" }
 ];
 
+const extraLinks: { label: string; href: string }[] = [
+  { label: "About us", href: "/about" },
+  { label: "Contact", href: "/contact" },
+  { label: "Offers", href: "/discount" },
+  { label: "Shipping policy", href: "/shipping-policy" },
+  { label: "Returns & refunds", href: "/returns-policy" },
+];
+
 const STORAGE_KEY = "edwin-cat-visits";
 
 function getTopCategories(all: { name: string; slug: string }[], limit = 4) {
@@ -170,7 +178,7 @@ export function SiteHeader() {
               {menuLoading ? (
                 <Loader label="Opening menu" size="sm" />
               ) : (
-                [...baseNav, ...allCategories.map((item) => ({ label: item.name, href: `/category/${item.slug}` }))].map(({ label, href }, index) => (
+                [...baseNav, ...allCategories.map((item) => ({ label: item.name, href: `/category/${item.slug}` })), ...extraLinks].map(({ label, href }, index) => (
                   <motion.div key={label} variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0 } }}>
                     <SmoothLink href={href} onClick={() => setMenuOpen(false)}><span>0{index + 1}</span>{label}</SmoothLink>
                   </motion.div>

@@ -1760,6 +1760,7 @@ body.lb-open .site-header { display: none; }
   .wa-widget { right: 16px; bottom: 16px; }
   .wa-button { width: 52px; height: 52px; }
   body:has(.purchase-bar:not([hidden])) .wa-widget { bottom: 84px; }
+  body:has(.hero) .wa-widget { bottom: 80px; }
 }
 .spin { animation: spin .8s linear infinite; }
 

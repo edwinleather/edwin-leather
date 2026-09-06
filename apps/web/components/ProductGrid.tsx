@@ -8,9 +8,13 @@ export function ProductGrid({ products }: { products: Product[] }) {
     <div className="product-grid">
       <ProductListTracker products={products} listId="product-grid" listName="Product grid" />
       {products.map((product, index) => (
-        <Reveal key={product.id} delay={(index % 3) * 0.05}>
-          <ProductCard product={product} priority={index < 3} />
-        </Reveal>
+        index < 6 ? (
+          <ProductCard key={product.id} product={product} priority={index < 3} />
+        ) : (
+          <Reveal key={product.id} delay={((index - 6) % 3) * 0.05}>
+            <ProductCard product={product} priority={false} />
+          </Reveal>
+        )
       ))}
     </div>
   );
