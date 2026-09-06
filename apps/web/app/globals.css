@@ -1309,6 +1309,7 @@ body.lb-open .site-header { display: none; }
   .category-card-grid .category-card { scroll-snap-align: start; }
   .category-card { height: 580px; scroll-snap-align: start; }
   .product-detail { grid-template-columns: 1fr; gap: 0; padding-top: 15px; }
+  .product-gallery { position: static; }
   .pg { flex-direction: column-reverse; }
   .pg__thumbs { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
   .pg__thumb { width: 46px; height: 60px; }
