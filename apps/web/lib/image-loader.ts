@@ -7,7 +7,7 @@ type CloudinaryImageLoaderProps = {
 const MARKER = "/image/upload/";
 
 export default function cloudinaryLoader({ src, width }: CloudinaryImageLoaderProps): string {
-  if (!/^https:\/\/res\.cloudinary\.com\/z7o6zvqo\/image\/upload\//.test(src)) return src;
+  if (!/^https:\/\/res\.cloudinary\.com\/gpldwiup\/image\/upload\//.test(src)) return src;
 
   const idx = src.indexOf(MARKER);
   const rest = src.slice(idx + MARKER.length);

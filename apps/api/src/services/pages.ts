@@ -35,7 +35,7 @@ const STORY: PageContentData = {
   hero: {
     eyebrow: "The Edwin idea",
     heading: "Use leaves a mark.\nWe think it should.",
-    image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894222/edwin/assets/zmg9kyvttwckavil1ae0.webp"
+    image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/zmg9kyvttwckavil1ae0.webp"
   },
   blocks: [
     {
@@ -50,7 +50,7 @@ const STORY: PageContentData = {
       eyebrow: "Material",
       heading: "Start with the hide, not the trend.",
       body: "We favor full-grain leather with enough natural character to age visibly. The goal is not perfect uniformity. The goal is depth, durability, and a surface that changes with you.",
-      image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894038/edwin/assets/ypwmql3odt7k9pwpazc4.webp"
+      image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/ypwmql3odt7k9pwpazc4.webp"
     },
     {
       type: "image-text",
@@ -58,7 +58,7 @@ const STORY: PageContentData = {
       eyebrow: "Construction",
       heading: "Good objects are quiet about the work inside them.",
       body: "Reinforced stress points, sensible pocket geometry, solid hardware, and edges that are finished instead of hidden. The best details disappear into use.",
-      image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894254/edwin/assets/c5swo1cs60nv34bk7ppq.webp",
+      image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/c5swo1cs60nv34bk7ppq.webp",
       reverse: true
     },
     {
@@ -79,7 +79,7 @@ const ABOUT: PageContentData = {
     subheading: "Edwin Leathers is a small-batch leather label built around one idea: everyday objects become more personal when the material is allowed to age with you.",
     buttonLabel: "View the collection",
     buttonHref: "/shop",
-    image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894254/edwin/assets/c5swo1cs60nv34bk7ppq.webp"
+    image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/c5swo1cs60nv34bk7ppq.webp"
   },
   blocks: [
     {
@@ -99,7 +99,7 @@ const ABOUT: PageContentData = {
       type: "image-band",
       eyebrow: "The longer view",
       heading: "New is a moment.\nGood is a habit.",
-      image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894065/edwin/assets/hvt6qhohydohffwjtbm7.webp"
+      image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/hvt6qhohydohffwjtbm7.webp"
     }
   ]
 };

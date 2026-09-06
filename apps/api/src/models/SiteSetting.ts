@@ -40,7 +40,7 @@ const homepageSchema = new Schema(
     editorial: {
       type: new Schema(
         {
-          image: { type: String, default: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894065/edwin/assets/hvt6qhohydohffwjtbm7.webp" },
+          image: { type: String, default: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/hvt6qhohydohffwjtbm7.webp" },
           eyebrow: { type: String, default: "Material first" },
           title: { type: String, default: "The surface should remember you." },
           paragraph: {
@@ -82,9 +82,9 @@ const homepageSchema = new Schema(
           cards: {
             type: [categoryCardSchema],
             default: [
-              { title: "Bags", copy: "Carry a little better.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894146/edwin/assets/uiaqojlrt5zq2d8o8zmo.webp" },
-              { title: "Wallets", copy: "Small, useful, personal.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894275/edwin/assets/jmsky5qf33pm7v9izsel.webp" },
-              { title: "Belts", copy: "One piece. No shortcuts.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894758/edwin/assets/eqapt0yuxl1vs0sqw9j1.webp" }
+              { title: "Bags", copy: "Carry a little better.", image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/uiaqojlrt5zq2d8o8zmo.webp" },
+              { title: "Wallets", copy: "Small, useful, personal.", image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/jmsky5qf33pm7v9izsel.webp" },
+              { title: "Belts", copy: "One piece. No shortcuts.", image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/eqapt0yuxl1vs0sqw9j1.webp" }
             ]
           }
         },

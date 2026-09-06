@@ -30,7 +30,7 @@ export function FeaturedSection({ products }: { products: Product[] }) {
 }
 
 const DEFAULT_EDITORIAL = {
-  image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894065/edwin/assets/hvt6qhohydohffwjtbm7.webp",
+  image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/hvt6qhohydohffwjtbm7.webp",
   eyebrow: "Material first",
   title: "The surface should remember you.",
   paragraph:
@@ -74,9 +74,9 @@ const DEFAULT_CATEGORIES = {
   eyebrow: "Shop by ritual",
   title: "Where will it go with you?",
   cards: [
-    { title: "Bags", copy: "Carry a little better.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894146/edwin/assets/uiaqojlrt5zq2d8o8zmo.webp" },
-    { title: "Wallets", copy: "Small, useful, personal.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894275/edwin/assets/jmsky5qf33pm7v9izsel.webp" },
-    { title: "Belts", copy: "One piece. No shortcuts.", image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894758/edwin/assets/eqapt0yuxl1vs0sqw9j1.webp" }
+    { title: "Bags", copy: "Carry a little better.", image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/uiaqojlrt5zq2d8o8zmo.webp" },
+    { title: "Wallets", copy: "Small, useful, personal.", image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/jmsky5qf33pm7v9izsel.webp" },
+    { title: "Belts", copy: "One piece. No shortcuts.", image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/eqapt0yuxl1vs0sqw9j1.webp" }
   ]
 };
 

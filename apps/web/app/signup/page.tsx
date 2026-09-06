@@ -8,7 +8,7 @@ export default function SignupPage() {
   return (
     <div className="auth-page">
       <div className="auth-visual">
-        <Image src="https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894275/edwin/assets/jmsky5qf33pm7v9izsel.webp" alt="Leather wallet detail" fill priority sizes="(max-width: 900px) 100vw, 48vw" />
+        <Image src="https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/jmsky5qf33pm7v9izsel.webp" alt="Leather wallet detail" fill priority sizes="(max-width: 900px) 100vw, 48vw" />
         <div className="auth-visual__veil" />
         <div className="auth-visual__copy"><span className="eyebrow">Start an account</span><p>A simpler checkout, a clearer order history, and a place for the things you carry.</p></div>
       </div>

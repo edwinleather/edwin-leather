@@ -1,4 +1,4 @@
-const DEFAULT_LOGO_URL = "https://res.cloudinary.com/z7o6zvqo/image/upload/w_120,h_120,c_fill/v1788090580/edwin/assets/logo.jpg";
+const DEFAULT_LOGO_URL = "https://res.cloudinary.com/gpldwiup/image/upload/w_120,h_120,c_fill/edwin/assets/logo.jpg";
 
 export type BaseLayoutOptions = {
   logoUrl?: string;

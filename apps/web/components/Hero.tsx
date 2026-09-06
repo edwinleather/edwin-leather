@@ -79,7 +79,7 @@ export function Hero() {
 
   const slides: Slide[] = [
     {
-      image: settings?.heroImage?.trim() || "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894110/edwin/assets/wjorleikcvlc21h4tjys.webp",
+      image: settings?.heroImage?.trim() || "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/wjorleikcvlc21h4tjys.webp",
       alt: "Rich brown leather travel bag",
       badge: settings?.heroBadge || "New season · The Everyday Edit",
       eyebrow: settings?.heroEyebrow || "Leather goods, made to gather stories",
@@ -88,7 +88,7 @@ export function Hero() {
       subtitle: settings?.heroSubtitle || "Full-grain leather. Considered proportions. Hardware that earns its patina. Objects for the everyday, without the disposable part."
     },
     {
-      image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894115/edwin/assets/mgzyaetkznw6ft1f6tdi.webp",
+      image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/mgzyaetkznw6ft1f6tdi.webp",
       alt: "Brown leather bag detail",
       badge: "Hand-finished in India",
       eyebrow: "Small-batch, full-grain",
@@ -97,7 +97,7 @@ export function Hero() {
       subtitle: "Each piece is cut and stitched in small runs. Natural grain and honest hardware that develop a patina with use, not against it."
     },
     {
-      image: "https://res.cloudinary.com/z7o6zvqo/image/upload/v1786894275/edwin/assets/jmsky5qf33pm7v9izsel.webp",
+      image: "https://res.cloudinary.com/gpldwiup/image/upload/edwin/assets/jmsky5qf33pm7v9izsel.webp",
       alt: "Leather wallet detail",
       badge: "Free delivery over " + formatPrice(delivery.freeDeliveryThreshold),
       eyebrow: "The everyday edit",
