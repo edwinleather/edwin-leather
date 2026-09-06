@@ -26,13 +26,14 @@ import { EmailTemplatesManager } from "./EmailTemplatesManager";
 import { EmailSettingsManager } from "./EmailSettingsManager";
 import { DatabaseManager } from "./DatabaseManager";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
+import { PaymentModeManager } from "./PaymentModeManager";
 import { siteConfig } from "@/lib/site-config";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
 type SectionId =
   | "overview" | "products" | "categories" | "inventory" | "orders" | "customers"
-  | "coupons" | "promotions" | "returns" | "delivery" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs" | "email-logs" | "email-templates" | "email-settings" | "pages" | "database" | "analytics";
+  | "coupons" | "promotions" | "returns" | "delivery" | "payment-mode" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs" | "email-logs" | "email-templates" | "email-settings" | "pages" | "database" | "analytics";
 
 const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "overview", label: "Overview", feature: "overview" },
@@ -45,6 +46,7 @@ const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "promotions", label: "Promotions", feature: "coupons" },
   { id: "returns", label: "Returns & refunds", feature: "returns" },
   { id: "delivery", label: "Delivery", feature: "shipping" },
+  { id: "payment-mode", label: "Payment Mode", feature: "shipping" },
   { id: "pages", label: "Customize page", feature: "pages" },
   { id: "reviews", label: "Reviews", feature: "reviews" },
   { id: "feedback", label: "Feedback", feature: "returns" },
@@ -175,6 +177,7 @@ export default function BackofficePage() {
           </>
         )}
         {active === "delivery" && <DeliveryManager />}
+        {active === "payment-mode" && <PaymentModeManager role={gate.role} />}
         {active === "pages" && (
           <>
             <header className="admin-header"><div><span className="eyebrow">Storefront</span><h1>Customize page</h1></div></header>

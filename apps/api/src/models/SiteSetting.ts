@@ -125,7 +125,8 @@ const siteSettingSchema = new Schema(
     },
     estYear: { type: Number, default: 2026 },
     homepage: { type: homepageSchema, default: () => ({}) },
-    invoice: { type: invoiceSchema, default: () => ({}) }
+    invoice: { type: invoiceSchema, default: () => ({}) },
+    paymentMode: { type: String, enum: ["test", "live"], default: "test" }
   },
   { timestamps: true }
 );

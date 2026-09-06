@@ -9,21 +9,30 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { Order } from "../models/Order.js";
 import { commitStock } from "../services/inventory.js";
 import { sendOrderConfirmationEmail, sendPaymentReceivedEmail } from "../services/send-order-email.js";
+import { getPaymentKeys } from "../services/payment-config.js";
 
 export const paymentsRouter = Router();
 
-function razorpay() {
-  if (!isRazorpayConfigured(env.razorpayKeyId) || !isRazorpayConfigured(env.razorpayKeySecret)) {
-    throw new ApiError(503, "Razorpay credentials are not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
+async function razorpay() {
+  const keys = await getPaymentKeys();
+  if (!isRazorpayConfigured(keys.keyId) || !isRazorpayConfigured(keys.keySecret)) {
+    throw new ApiError(503, "Razorpay credentials are not configured. Add RAZORPAY_TEST_KEY_ID/SECRET and RAZORPAY_LIVE_KEY_ID/SECRET.");
   }
-  return new Razorpay({ key_id: env.razorpayKeyId, key_secret: env.razorpayKeySecret });
+  return { client: new Razorpay({ key_id: keys.keyId, key_secret: keys.keySecret }), keys };
 }
 
 // Public status check so the frontend can degrade gracefully when Razorpay
 // credentials are missing (e.g. in local dev or a fresh deploy).
-paymentsRouter.get("/status", (_req, res) => {
-  const configured = isRazorpayConfigured(env.razorpayKeyId) && isRazorpayConfigured(env.razorpayKeySecret);
-  return res.json({ ok: true, onlinePaymentsAvailable: configured });
+paymentsRouter.get("/status", async (_req, res) => {
+  const keys = await getPaymentKeys();
+  const configured = isRazorpayConfigured(keys.keyId) && isRazorpayConfigured(keys.keySecret);
+  return res.json({ ok: true, onlinePaymentsAvailable: configured, mode: keys.mode });
+});
+
+// Return current payment mode for the frontend (no keys exposed).
+paymentsRouter.get("/mode", async (_req, res) => {
+  const keys = await getPaymentKeys();
+  return res.json({ ok: true, mode: keys.mode });
 });
 
 const createOrderSchema = z.object({
@@ -47,7 +56,7 @@ paymentsRouter.post("/create-order", requireAuth, async (req: AuthenticatedReque
       : order.total;
     const amount = Math.round(chargeAmount * 100);
 
-    const client = razorpay();
+    const { client, keys } = await razorpay();
     const rzpOrder = await client.orders.create({
       amount,
       currency: order.currency || "INR",
@@ -59,7 +68,7 @@ paymentsRouter.post("/create-order", requireAuth, async (req: AuthenticatedReque
     order.timeline.push({ type: "pending_payment", message: "Razorpay order created", at: new Date(), actorId: order.customerId });
     await order.save();
 
-    return res.status(201).json({ ok: true, orderId: rzpOrder.id, amount, currency: order.currency || "INR", keyId: env.razorpayKeyId });
+    return res.status(201).json({ ok: true, orderId: rzpOrder.id, amount, currency: order.currency || "INR", keyId: keys.keyId, mode: keys.mode });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid payment order input", error.flatten()));
     return next(error);
@@ -77,8 +86,8 @@ paymentsRouter.post("/verify", requireAuth, async (req: AuthenticatedRequest, re
     const order = await Order.findOne({ "payment.gatewayOrderId": input.orderId, customerId: req.auth!.sub });
     if (!order) return next(new ApiError(404, "Order not found"));
 
-    const client = razorpay();
-    const calculated = createHmac("sha256", env.razorpayKeySecret).update(`${input.orderId}|${input.paymentId}`).digest("hex");
+    const { keys } = await razorpay();
+    const calculated = createHmac("sha256", keys.keySecret).update(`${input.orderId}|${input.paymentId}`).digest("hex");
     const supplied = Buffer.from(input.signature, "utf8");
     const expected = Buffer.from(calculated, "utf8");
     const valid = supplied.length === expected.length && timingSafeEqual(supplied, expected);
@@ -109,12 +118,13 @@ paymentsRouter.post("/verify", requireAuth, async (req: AuthenticatedRequest, re
 
 paymentsRouter.post("/webhook", async (req, res, next) => {
   try {
-    if (!isConfigured(env.razorpayWebhookSecret)) return next(new ApiError(503, "RAZORPAY_WEBHOOK_SECRET is not configured"));
+    const { keys } = await razorpay();
+    if (!isConfigured(keys.webhookSecret)) return next(new ApiError(503, "RAZORPAY_WEBHOOK_SECRET is not configured"));
     if (!Buffer.isBuffer(req.body)) return next(new ApiError(400, "Webhook body must be raw bytes"));
     const signature = req.header("x-razorpay-signature");
     if (!signature) return next(new ApiError(400, "Missing Razorpay signature"));
 
-    const expected = createHmac("sha256", env.razorpayWebhookSecret).update(req.body).digest("hex");
+    const expected = createHmac("sha256", keys.webhookSecret).update(req.body).digest("hex");
     const supplied = Buffer.from(signature, "utf8");
     const calculated = Buffer.from(expected, "utf8");
     if (supplied.length !== calculated.length || !timingSafeEqual(supplied, calculated)) return next(new ApiError(401, "Invalid Razorpay webhook signature"));

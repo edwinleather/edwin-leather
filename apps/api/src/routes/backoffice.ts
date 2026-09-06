@@ -10,6 +10,7 @@ import { TaxConfig } from "../models/TaxConfig.js";
 import { getDeliveryConfig, invalidateDeliveryConfigCache } from "../services/delivery.js";
 import { getTaxConfig, invalidateTaxConfigCache } from "../services/tax.js";
 import { getCodConfig, invalidateCodConfigCache } from "../services/cod.js";
+import { getPaymentKeys, invalidatePaymentConfigCache } from "../services/payment-config.js";
 import { CodConfig } from "../models/CodConfig.js";
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
@@ -272,6 +273,36 @@ backofficeRouter.put("/cod", requireBackofficeAdmin, requireBackofficeFeature("s
     invalidateCodConfigCache();
     const data = await getCodConfig();
     return res.json({ ok: true, data });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
+    return next(error);
+  }
+});
+
+// Payment mode (test/live)
+backofficeRouter.get("/payment-mode", requireBackofficeAdmin, async (_req, res, next) => {
+  try {
+    const keys = await getPaymentKeys();
+    // Return mode and last 4 chars of key ID for verification — never expose full keys
+    const keyPreview = keys.keyId ? `...${keys.keyId.slice(-4)}` : "not configured";
+    return res.json({ ok: true, data: { mode: keys.mode, keyPreview } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+backofficeRouter.put("/payment-mode", requireBackofficeAdmin, requireSuperadmin, async (req, res, next) => {
+  try {
+    const input = z.object({ mode: z.enum(["test", "live"]) }).parse(req.body);
+    await SiteSetting.updateOne(
+      { key: "site" },
+      { $set: { paymentMode: input.mode } },
+      { upsert: true }
+    );
+    invalidatePaymentConfigCache();
+    const keys = await getPaymentKeys();
+    const keyPreview = keys.keyId ? `...${keys.keyId.slice(-4)}` : "not configured";
+    return res.json({ ok: true, data: { mode: keys.mode, keyPreview } });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
     return next(error);

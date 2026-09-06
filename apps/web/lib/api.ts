@@ -116,6 +116,35 @@ export async function adminSaveCod(config: CodConfig): Promise<{ ok: boolean; er
   }
 }
 
+export type PaymentModeData = { mode: "test" | "live"; keyPreview: string };
+
+export async function adminGetPaymentMode(): Promise<PaymentModeData | null> {
+  try {
+    const response = await fetch(`${API_URL}/admin/payment-mode`, { credentials: "include" });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function adminSavePaymentMode(mode: "test" | "live"): Promise<{ ok: boolean; data?: PaymentModeData; error?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/admin/payment-mode`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ mode })
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || `Save failed. Please try again.` };
+    return { ok: true, data: body?.data };
+  } catch {
+    return { ok: false, error: "Could not reach the admin service." };
+  }
+}
+
 export type PlaceOrderPayload = {
   email: string;
   customerId?: string;
