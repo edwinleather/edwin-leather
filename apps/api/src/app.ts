@@ -40,8 +40,7 @@ app.disable("x-powered-by");
 app.use(helmet());
 app.use(
   cors({
-    origin: (req, callback) => {
-      const origin = req.headers.origin;
+    origin: (origin, callback) => {
       // Allow requests with no origin (curl, mobile apps, server-to-server)
       if (!origin) return callback(null, true);
       if (env.clientOrigins.includes(origin)) return callback(null, origin);
