@@ -40,13 +40,19 @@ paymentsRouter.post("/create-order", requireAuth, async (req: AuthenticatedReque
     const order = await Order.findOne({ _id: input.orderId, customerId: req.auth!.sub });
     if (!order) return next(new ApiError(404, "Order not found"));
 
-    const amount = Math.round(order.total * 100);
+    // For COD orders, charge only the deposit amount (e.g. 10%); full amount for online
+    const isCod = order.payment.method === "cod";
+    const chargeAmount = isCod && order.codDeposit?.depositAmount
+      ? order.codDeposit.depositAmount
+      : order.total;
+    const amount = Math.round(chargeAmount * 100);
+
     const client = razorpay();
     const rzpOrder = await client.orders.create({
       amount,
       currency: order.currency || "INR",
       receipt: input.receipt,
-      notes: { orderId: String(order._id) }
+      notes: { orderId: String(order._id), paymentType: isCod ? "cod_deposit" : "full" }
     });
 
     order.payment.gatewayOrderId = rzpOrder.id;
@@ -81,7 +87,14 @@ paymentsRouter.post("/verify", requireAuth, async (req: AuthenticatedRequest, re
     order.payment.status = "paid";
     order.payment.gatewayPaymentId = input.paymentId;
     if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
-    order.timeline.push({ type: "order_received", message: "Payment received - order received", at: new Date(), actorId: order.customerId });
+    // For COD orders with deposit, the deposit has been paid; balance is due on delivery
+    const isCod = order.payment.method === "cod";
+    if (isCod) {
+      order.payment.status = "cod_pending";
+      order.timeline.push({ type: "order_received", message: "COD deposit paid - order received, balance due on delivery", at: new Date(), actorId: order.customerId });
+    } else {
+      order.timeline.push({ type: "order_received", message: "Payment received - order received", at: new Date(), actorId: order.customerId });
+    }
     await order.save();
     // Send order confirmation + payment received emails after payment is verified
     sendOrderConfirmationEmail(order).catch(() => {});
@@ -116,7 +129,14 @@ paymentsRouter.post("/webhook", async (req, res, next) => {
         order.payment.status = "paid";
         order.payment.gatewayPaymentId = entity.id;
         if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
-        order.timeline.push({ type: "order_received", message: "Payment confirmed - order received", at: new Date() });
+        // For COD orders with deposit, the deposit has been paid; balance is due on delivery
+        const isCod = order.payment.method === "cod";
+        if (isCod) {
+          order.payment.status = "cod_pending";
+          order.timeline.push({ type: "order_received", message: "COD deposit confirmed - order received, balance due on delivery", at: new Date() });
+        } else {
+          order.timeline.push({ type: "order_received", message: "Payment confirmed - order received", at: new Date() });
+        }
         await order.save();
         // Send order confirmation + payment received emails after payment is confirmed
         sendOrderConfirmationEmail(order).catch(() => {});

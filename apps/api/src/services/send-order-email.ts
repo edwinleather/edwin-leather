@@ -32,6 +32,7 @@ type OrderDoc = Document & {
   payment: { method: string; status: string };
   shippingAddress?: { fullName?: string; line1?: string; line2?: string; city?: string; state?: string; postalCode?: string; phone?: string };
   shipping?: { courier?: string; trackingId?: string; trackingUrl?: string };
+  codDeposit?: { percent: number; depositAmount: number; balanceAmount: number };
   createdAt?: Date;
   emailsSent?: Map<string, Date>;
 };
@@ -187,6 +188,12 @@ export async function sendOrderConfirmationEmail(order: OrderDoc) {
     buildInvoiceHtml(order)
   ]);
 
+  // For COD with deposit, show deposit and balance info
+  const isCodDeposit = order.payment.method === "cod" && order.codDeposit?.depositAmount;
+  const paymentMethodLabel = isCodDeposit
+    ? `Cash on Delivery (${order.codDeposit!.percent}% deposit paid: ${formatInr(order.codDeposit!.depositAmount)}, balance: ${formatInr(order.codDeposit!.balanceAmount)} due on delivery)`
+    : order.payment.method === "cod" ? "Cash on Delivery" : "Online (Razorpay)";
+
   await buildAndSend({
     key: "order_confirmation",
     to: order.email,
@@ -197,7 +204,7 @@ export async function sendOrderConfirmationEmail(order: OrderDoc) {
     vars: {
       name: order.shippingAddress?.fullName || "Customer",
       orderNumber: order.orderNumber,
-      paymentMethod: order.payment.method === "cod" ? "Cash on Delivery" : "Online (Razorpay)",
+      paymentMethod: paymentMethodLabel,
       itemsHtml,
       invoiceHtml,
       subtotal: formatInr(order.subtotal),
@@ -213,6 +220,11 @@ export async function sendOrderConfirmationEmail(order: OrderDoc) {
 }
 
 export async function sendPaymentReceivedEmail(order: OrderDoc) {
+  // For COD with deposit, show the deposit amount paid
+  const isCodDeposit = order.payment.method === "cod" && order.codDeposit?.depositAmount;
+  const amountLabel = isCodDeposit ? formatInr(order.codDeposit!.depositAmount) : formatInr(order.total);
+  const methodLabel = isCodDeposit ? "Cash on Delivery (deposit)" : order.payment.method === "razorpay" ? "Razorpay" : "Cash on Delivery";
+
   await buildAndSend({
     key: "payment_received",
     to: order.email,
@@ -223,8 +235,8 @@ export async function sendPaymentReceivedEmail(order: OrderDoc) {
     vars: {
       name: order.shippingAddress?.fullName || "Customer",
       orderNumber: order.orderNumber,
-      amount: formatInr(order.total),
-      paymentMethod: order.payment.method === "razorpay" ? "Razorpay" : "Cash on Delivery",
+      amount: amountLabel,
+      paymentMethod: methodLabel,
       orderUrl: orderUrl(order.orderNumber)
     }
   });

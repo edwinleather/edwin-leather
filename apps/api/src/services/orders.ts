@@ -182,6 +182,28 @@ export async function createOrder(input: CreateOrderInput) {
 
   let order: InstanceType<typeof Order>;
   try {
+    // For COD with deposit: calculate deposit and balance amounts
+    let codDeposit = undefined;
+    let orderStatus: string;
+    let paymentStatus: string;
+    let timelineMessage: string;
+
+    if (input.paymentMethod === "cod") {
+      const codConfig = await getCodConfig();
+      const depositPercent = codConfig.depositPercent || 0;
+      const depositAmount = Math.round(total * depositPercent / 100);
+      const balanceAmount = total - depositAmount;
+      codDeposit = { percent: depositPercent, depositAmount, balanceAmount };
+      // COD order starts as pending_payment until deposit is paid online
+      orderStatus = "pending_payment";
+      paymentStatus = "pending";
+      timelineMessage = "Order placed, COD deposit payment pending";
+    } else {
+      orderStatus = "pending_payment";
+      paymentStatus = "pending";
+      timelineMessage = "Order placed, payment pending";
+    }
+
     order = new Order({
       orderNumber: await nextOrderNumber(),
       customerId: input.customerId,
@@ -196,15 +218,16 @@ export async function createOrder(input: CreateOrderInput) {
       coupon: discountAmount > 0 ? coupon : undefined,
       total,
       currency: "INR",
-      orderStatus: input.paymentMethod === "cod" ? "order_received" : "pending_payment",
+      orderStatus,
       payment: {
         method: input.paymentMethod,
-        status: input.paymentMethod === "cod" ? "cod_pending" : "pending"
+        status: paymentStatus
       },
-      shippingAddress: input.shippingAddress
+      shippingAddress: input.shippingAddress,
+      codDeposit
     });
 
-    pushTimeline(order, input.paymentMethod === "cod" ? "order_received" : "placed", input.paymentMethod === "cod" ? "Order received, payment due on delivery" : "Order placed, payment pending");
+    pushTimeline(order, "placed", timelineMessage);
     await order.save();
   } catch (err) {
     await releaseStock(lines);
@@ -254,6 +277,7 @@ export function orderResponse(order: InstanceType<typeof Order>) {
         }
       : undefined,
     timeline: order.timeline.map((entry: { type: string; message?: string; at: Date }) => ({ type: entry.type, message: entry.message, at: entry.at })),
-    createdAt: order.createdAt
+    createdAt: order.createdAt,
+    codDeposit: order.codDeposit?.depositAmount ? { percent: order.codDeposit.percent, depositAmount: order.codDeposit.depositAmount, balanceAmount: order.codDeposit.balanceAmount } : undefined
   };
 }

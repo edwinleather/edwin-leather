@@ -11,7 +11,6 @@ import { createOrder, orderResponse } from "../services/orders.js";
 import { resolveVariantById } from "../services/variants.js";
 import { validateCoupon } from "../services/coupons.js";
 import { computeDeliveryFee, getDeliveryConfig } from "../services/delivery.js";
-import { sendOrderConfirmationEmail } from "../services/send-order-email.js";
 
 export const ordersRouter = Router();
 
@@ -48,13 +47,12 @@ ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next)
       return next(new ApiError(403, "Please verify your email before placing an order.", { code: "EMAIL_NOT_VERIFIED" }));
     }
 
-    // Limit COD: max 3 pending COD orders per customer
+    // Limit COD: max 3 pending COD orders per customer (includes orders awaiting deposit payment)
     if (input.paymentMethod === "cod") {
       const pendingCodCount = await Order.countDocuments({
         customerId: req.auth!.sub,
         "payment.method": "cod",
-        "payment.status": "cod_pending",
-        orderStatus: { $in: ["order_received"] }
+        orderStatus: { $in: ["pending_payment", "order_received"] }
       });
       if (pendingCodCount >= 3) {
         return next(new ApiError(400, "You have too many pending Cash on Delivery orders. Please complete or cancel existing COD orders before placing a new one.", { code: "COD_LIMIT_REACHED" }));
@@ -69,12 +67,8 @@ ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next)
 
     const { order, removedItems } = await createOrder({ ...input, customerId: String(req.auth!.sub) });
 
-    // Send confirmation email immediately for COD; for online payments,
-    // the email is sent after payment is verified (in payments/verify or webhook).
-    if (input.paymentMethod === "cod") {
-      sendOrderConfirmationEmail(order).catch(() => {});
-    }
-
+    // No immediate email for COD: the confirmation email is sent after the
+    // deposit payment is verified (in payments/verify or webhook), same as online.
     return res.status(201).json({ ok: true, order: orderResponse(order), removedItems });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid order input", error.flatten()));

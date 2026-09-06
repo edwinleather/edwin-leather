@@ -41,7 +41,7 @@ export function CheckoutClient() {
   const availableItems = items.filter((item) => !item.isOutOfStock);
   const { authed, loading, user } = useAuth();
   const router = useRouter();
-  const { enabled: codGlobalEnabled } = useCodConfig();
+  const { enabled: codGlobalEnabled, depositPercent } = useCodConfig();
   const [method, setMethod] = useState<"razorpay" | "cod">("razorpay");
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<{ amount: number; freeShipping: boolean; valid: boolean; note: string } | null>(null);
@@ -279,10 +279,9 @@ export function CheckoutClient() {
     maybeSaveAddress(shippingAddress);
 
     if (method === "cod") {
-      setSubmitting(false);
-      setPlaced(result.order);
-      recordPurchase(result.order);
-      clearCart();
+      // For COD with deposit, place order then collect deposit via Razorpay
+      setPendingOrder(result.order);
+      await startRazorpay(result.order);
       return;
     }
 
@@ -373,7 +372,7 @@ if (placed) {
         <h2>Thank you, {placed.orderNumber}.</h2>
         <p>
           {placed.paymentMethod === "cod"
-            ? `Your order is confirmed. Payment of ${formatPrice(placed.total)} is due on delivery.`
+            ? `Your order is confirmed. A deposit of ${formatPrice(placed.codDeposit?.depositAmount ?? 0)} has been paid online. The remaining balance of ${formatPrice(placed.codDeposit?.balanceAmount ?? placed.total)} is due on delivery.`
             : `Your order is ${placed.orderStatus === "confirmed" ? "confirmed" : "awaiting payment"}. We emailed the receipt to the address you provided.`}
         </p>
         <div className="checkout-success__totals">
@@ -424,7 +423,7 @@ if (placed) {
             </button>
             {codEnabled ? (
               <button type="button" className={method === "cod" ? "active" : ""} onClick={() => setMethod("cod")}>
-                <Landmark size={19} /><div><strong>Cash on Delivery</strong><span>Payment collected on delivery</span></div><i />
+                <Landmark size={19} /><div><strong>Cash on Delivery</strong><span>{depositPercent > 0 ? `Pay ${depositPercent}% deposit now, rest on delivery` : "Payment collected on delivery"}</span></div><i />
               </button>
             ) : null}
           </div>
@@ -434,7 +433,7 @@ if (placed) {
         </div>
         {error && <div className="checkout-error">{error}</div>}
         <button className="button button--dark button--full checkout-submit" type="submit" disabled={availableItems.length === 0 || submitting}>
-          {submitting ? <><span className="btn-spinner" aria-hidden="true" /> Placing order…</> : `Place ${method === "cod" ? "COD" : "online"} order - ${formatPrice(total)}`}
+          {submitting ? <><span className="btn-spinner" aria-hidden="true" /> Placing order…</> : method === "cod" && depositPercent > 0 ? `Pay ${depositPercent}% deposit - ${formatPrice(total * depositPercent / 100)}` : `Place ${method === "cod" ? "COD" : "online"} order - ${formatPrice(total)}`}
         </button>
         <p className="checkout-note"><ShieldCheck size={15} /> Online payments are verified server-side. Your card details never touch this store.</p>
       </form>

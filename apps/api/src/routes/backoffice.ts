@@ -261,10 +261,12 @@ backofficeRouter.get("/cod", requireBackofficeAdmin, requireBackofficeFeature("s
 
 backofficeRouter.put("/cod", requireBackofficeAdmin, requireBackofficeFeature("shipping"), async (req, res, next) => {
   try {
-    const input = z.object({ enabled: z.boolean() }).parse(req.body);
+    const input = z.object({ enabled: z.boolean(), depositPercent: z.number().min(0).max(100).optional() }).parse(req.body);
+    const update: Record<string, unknown> = { enabled: input.enabled, updatedBy: (req as BackofficeRequest).admin!.id };
+    if (input.depositPercent !== undefined) update.depositPercent = input.depositPercent;
     await CodConfig.updateOne(
       { key: "default" },
-      { $set: { enabled: input.enabled, updatedBy: (req as BackofficeRequest).admin!.id } },
+      { $set: update },
       { upsert: true }
     );
     invalidateCodConfigCache();

@@ -151,6 +151,7 @@ export type OrderResponse = {
   tracking?: { awb?: string; trackingId?: string; courier?: string; deliveryPartnerName?: string; trackingUrl?: string };
   timeline?: { type: string; message?: string; at: string }[];
   createdAt?: string;
+  codDeposit?: { percent: number; depositAmount: number; balanceAmount: number };
 };
 
 export type PlaceOrderResult =

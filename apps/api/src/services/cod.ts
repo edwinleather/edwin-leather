@@ -2,12 +2,13 @@ import { CodConfig } from "../models/CodConfig.js";
 
 export type CodConfigData = {
   enabled: boolean;
+  depositPercent: number;
 };
 
 let cached: CodConfigData | null = null;
 
-function toData(doc: { enabled: boolean }): CodConfigData {
-  return { enabled: Boolean(doc.enabled) };
+function toData(doc: { enabled: boolean; depositPercent: number }): CodConfigData {
+  return { enabled: Boolean(doc.enabled), depositPercent: doc.depositPercent ?? 10 };
 }
 
 export async function getCodConfig(): Promise<CodConfigData> {
@@ -17,7 +18,7 @@ export async function getCodConfig(): Promise<CodConfigData> {
     await seedCodConfig();
     const created = await CodConfig.findOne({ key: "default" }).lean();
     if (created) cached = toData(created);
-    return cached ?? { enabled: true };
+    return cached ?? { enabled: true, depositPercent: 10 };
   }
   cached = toData(doc);
   return cached;
@@ -26,7 +27,7 @@ export async function getCodConfig(): Promise<CodConfigData> {
 export async function seedCodConfig() {
   const exists = await CodConfig.findOne({ key: "default" }).lean();
   if (exists) return;
-  await CodConfig.create({ key: "default", enabled: true });
+  await CodConfig.create({ key: "default", enabled: true, depositPercent: 10 });
 }
 
 export function invalidateCodConfigCache() {

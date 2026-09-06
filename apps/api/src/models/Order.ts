@@ -54,6 +54,11 @@ const orderSchema = new Schema(
       gatewayPaymentId: String,
       refundId: String
     },
+    codDeposit: {
+      percent: { type: Number, default: 0 },
+      depositAmount: { type: Number, default: 0 },
+      balanceAmount: { type: Number, default: 0 }
+    },
     shipping: {
       status: { type: String, enum: ["not_created", "ready_to_ship", "picked_up", "in_transit", "out_for_delivery", "delivered", "rto"], default: "not_created" },
       courier: String,
