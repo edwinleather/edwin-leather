@@ -38,7 +38,21 @@ export const app = express();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(helmet());
-app.use(cors({ origin: env.clientUrl, credentials: true, methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] }));
+app.use(
+  cors({
+    origin: (req, callback) => {
+      const origin = req.headers.origin;
+      // Allow requests with no origin (curl, mobile apps, server-to-server)
+      if (!origin) return callback(null, true);
+      if (env.clientOrigins.includes(origin)) return callback(null, origin);
+      // In development, also allow any localhost
+      if (env.nodeEnv !== "production" && /^https?:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, origin);
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
+  })
+);
 app.use(
   rateLimit({
     windowMs: 60_000,

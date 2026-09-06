@@ -9,6 +9,7 @@ export const env = {
   nodeEnv: value("NODE_ENV") || value("APP_ENV", "development"),
   demoMode: value("DEMO_MODE", "false") === "true",
   clientUrl: value("CLIENT_URL", "http://localhost:3000"),
+  clientOrigins: value("CLIENT_URL", "http://localhost:3000").split(",").map((s) => s.trim()).filter(Boolean),
   mongoUri: value("MONGODB_URI"),
   backofficeDbName: value("BACKOFFICE_DB_NAME", "edwin-backoffice"),
   jwtSecret: value("JWT_SECRET"),
