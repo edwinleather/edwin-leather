@@ -6,7 +6,9 @@ let connectPromise: Promise<mongoose.Connection> | null = null;
 
 export function backofficeDb(): mongoose.Connection {
   if (!conn) {
-    conn = mongoose.createConnection(env.mongoUri, {
+    // Strip the database name from the URI so the dbName option is respected.
+    const uriWithoutDb = env.mongoUri.replace(/\/[^/?]+(\?|$)/, "/$1");
+    conn = mongoose.createConnection(uriWithoutDb, {
       dbName: env.backofficeDbName,
       maxPoolSize: 5,
       bufferCommands: false
