@@ -18,7 +18,7 @@ async function resolveAdmin(req: Request, _res: Response, next: NextFunction) {
       if (!ar.auth?.sub) return next(new ApiError(401, "Authentication required"));
       if (!(await ensureBackoffice())) return next(new ApiError(503, "Database unavailable"));
       const admin = await getAdminUser(ar.auth.sub);
-      if (!admin || !admin.active) return next(new ApiError(403, "Insufficient permissions"));
+      if (!admin || admin.active === false) return next(new ApiError(403, "Insufficient permissions"));
       ar.admin = {
         id: String(admin._id),
         role: admin.role,
