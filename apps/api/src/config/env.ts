@@ -8,7 +8,7 @@ export const env = {
   port: Number(value("PORT", "4000")),
   nodeEnv: value("NODE_ENV") || value("APP_ENV", "development"),
   demoMode: value("DEMO_MODE", "false") === "true",
-  clientUrl: value("CLIENT_URL", "http://localhost:3000"),
+  clientUrl: value("SITE_URL") || value("CLIENT_URL", "http://localhost:3000").split(",")[0].trim(),
   clientOrigins: value("CLIENT_URL", "http://localhost:3000").split(",").map((s) => s.trim()).filter(Boolean),
   mongoUri: value("MONGODB_URI"),
   backofficeDbName: value("BACKOFFICE_DB_NAME", "edwin-backoffice"),
