@@ -26,7 +26,7 @@ export async function adminSaveDelivery(config: DeliveryConfig): Promise<{ ok: b
       body: JSON.stringify(config)
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok) return { ok: false, error: body?.error || `Save failed (${response.status})` };
+    if (!response.ok) return { ok: false, error: body?.error || `Save failed. Please try again.` };
     return { ok: true };
   } catch {
     return { ok: false, error: "Could not reach the admin service." };
@@ -69,7 +69,7 @@ export async function adminSaveTax(config: TaxConfig): Promise<{ ok: boolean; er
       body: JSON.stringify(config)
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok) return { ok: false, error: body?.error || `Save failed (${response.status})` };
+    if (!response.ok) return { ok: false, error: body?.error || `Save failed. Please try again.` };
     return { ok: true };
   } catch {
     return { ok: false, error: "Could not reach the admin service." };
@@ -109,7 +109,7 @@ export async function adminSaveCod(config: CodConfig): Promise<{ ok: boolean; er
       body: JSON.stringify(config)
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok) return { ok: false, error: body?.error || `Save failed (${response.status})` };
+    if (!response.ok) return { ok: false, error: body?.error || `Save failed. Please try again.` };
     return { ok: true };
   } catch {
     return { ok: false, error: "Could not reach the admin service." };
@@ -167,7 +167,7 @@ export async function placeOrder(payload: PlaceOrderPayload): Promise<PlaceOrder
     });
     const body = await response.json().catch(() => null);
     if (!response.ok) {
-      return { ok: false, error: body?.error || `Request failed (${response.status})`, status: response.status };
+      return { ok: false, error: body?.error || "Request failed. Please try again.", status: response.status };
     }
     if (!body?.order) return { ok: false, error: "Invalid response from checkout service." };
     return { ok: true, order: body.order };
@@ -218,7 +218,7 @@ export async function requestReturn(input: ReturnRequestInput): Promise<{ ok: bo
       body: JSON.stringify(input)
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok || !body?.ok) return { ok: false, error: body?.error || `Request failed (${response.status})` };
+    if (!response.ok || !body?.ok) return { ok: false, error: body?.error || "Request failed. Please try again." };
     return { ok: true, data: body.data };
   } catch {
     return { ok: false, error: "Could not reach the return service." };
@@ -355,7 +355,7 @@ export async function createRazorpayOrder(orderId: string, receipt: string): Pro
       body: JSON.stringify({ orderId, receipt })
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok) return { ok: false, error: body?.error || `Payment setup failed (${response.status})` };
+    if (!response.ok) return { ok: false, error: body?.error || "Payment setup failed. Please try again." };
     if (!body?.orderId || !body?.amount || !body?.currency || !body?.keyId) return { ok: false, error: "Invalid response from payment service." };
     return { ok: true, orderId: body.orderId, amount: body.amount, currency: body.currency, keyId: body.keyId };
   } catch {
@@ -467,7 +467,7 @@ export async function signUp(payload: { email: string; password: string; firstNa
       body: JSON.stringify(payload)
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok) return { ok: false, error: body?.error || `Sign-up failed (${response.status})`, code: body?.details?.code };
+    if (!response.ok) return { ok: false, error: body?.error || "Sign-up failed. Please try again.", code: body?.details?.code };
     return { ok: true, user: body?.user, message: body?.message };
   } catch {
     return { ok: false, error: "Could not reach the authentication service." };
@@ -483,7 +483,26 @@ export async function signIn(payload: { email: string; password: string }): Prom
       body: JSON.stringify(payload)
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok) return { ok: false, error: body?.error || `Sign-in failed (${response.status})`, code: body?.details?.code };
+    if (!response.ok) return { ok: false, error: body?.error || "Sign-in failed. Please try again.", code: body?.details?.code };
+    return { ok: true, user: body?.user };
+  } catch {
+    return { ok: false, error: "Could not reach the authentication service." };
+  }
+}
+
+// Exchange a Google ID token (from the Identity Services button) for the
+// httpOnly session cookie. Works for both sign-in and sign-up — the backend
+// creates the account on first Google sign-in.
+export async function completeGoogleAuth(credential: string): Promise<AuthResult> {
+  try {
+    const response = await fetch(`${API_URL}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ credential })
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || "Google sign-in failed. Please try again.", code: body?.details?.code };
     return { ok: true, user: body?.user };
   } catch {
     return { ok: false, error: "Could not reach the authentication service." };

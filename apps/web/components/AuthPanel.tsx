@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Phone, UserRound } from "lucide-react";
 import { signUp, signIn, forgotPassword, resendEmailVerification } from "@/lib/api";
 import { PlaceholdersInput } from "@/components/ui/PlaceholdersInput";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useAuth } from "@/components/useAuth";
 import { GENERIC_ERROR } from "@/lib/errors";
 
@@ -223,6 +224,14 @@ return (
         {mode === "login" && <button type="button" className="text-button" onClick={handleForgot}>Forgot your password?</button>}
       </form>
 
+      <div className="auth-divider"><span>or</span></div>
+
+      <GoogleSignInButton
+        text={mode === "login" ? "signin_with" : "signup_with"}
+        onSuccess={() => { void finishSession(); }}
+        onError={(message) => setError(messageOf(message))}
+      />
+
       <p className="auth-switch">
         {mode === "login" ? "New here?" : "Already have an account?"}{" "}
         <button type="button" className="text-button" onClick={() => switchMode(mode === "login" ? "signup" : "login")}>{mode === "login" ? "Create an account" : "Sign in"}</button>
@@ -238,7 +247,8 @@ function messageOf(error: unknown, code?: string): string {
   if (/user-not-found|no account found/i.test(message)) return "No account found for that email.";
   if (/weak-password/i.test(message)) return "Password must be at least 8 characters.";
   if (/too-many-requests/i.test(message)) return "We've sent quite a few emails recently. Please wait about a minute before trying again.";
-  if (message) console.error("[auth]", error);
+  if (/cancel/i.test(message)) return "Sign-in was cancelled.";
+  if (message) console.debug("[auth]", error);
   if (/network-request-failed|socket|fetch failed|timed? ?out|abort|connection/i.test(message)) {
     return "Network error, check your connection.";
   }

@@ -4,6 +4,7 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { z } from "zod";
 import { ensureDatabase } from "../config/db.js";
 import { env, isConfigured } from "../config/env.js";
+import { googleReady, verifyGoogleIdToken } from "../config/google.js";
 import { hashPassword, verifyPassword } from "../config/passwords.js";
 import { User } from "../models/User.js";
 import { SiteSetting } from "../models/SiteSetting.js";
@@ -43,6 +44,10 @@ const resetSchema = z.object({
 
 const emailSchema = z.object({
   email: z.string().email()
+});
+
+const googleSchema = z.object({
+  credential: z.string().min(10)
 });
 
 const VERIFICATION_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
@@ -236,6 +241,57 @@ authRouter.post("/login", async (req, res, next) => {
     return next(error);
   }
 });
+// POST /api/v1/auth/google — verify a Google ID token (from the Identity
+// Services button), find or create the matching database user, and start a
+// session. Google has already verified the email, so no verification email is
+// needed and the account is trusted immediately.
+authRouter.post("/google", async (req, res, next) => {
+  try {
+    if (!(await ensureDatabase())) return next(new ApiError(503, "MongoDB is required for authentication. Configure MONGODB_URI first."));
+    if (!googleReady()) return next(new ApiError(503, "Google sign-in is not configured. Add GOOGLE_CLIENT_ID to the API environment."));
+    const { credential } = googleSchema.parse(req.body);
+
+    const claims = await verifyGoogleIdToken(credential);
+    if (!claims?.sub || !claims.email) {
+      return next(new ApiError(401, "Google sign-in could not be verified. Please try again."));
+    }
+    if (!claims.email_verified) {
+      return next(new ApiError(403, "Your Google account email is not verified.", { code: "EMAIL_NOT_VERIFIED" }));
+    }
+
+    const email = claims.email.toLowerCase().trim();
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = new User({
+        email,
+        googleId: claims.sub,
+        provider: "google",
+        role: "customer",
+        firstName: claims.given_name ?? claims.name?.split(" ")[0],
+        lastName: claims.family_name,
+        emailVerifiedAt: new Date()
+      });
+      await user.save();
+    } else {
+      // Existing account (password or legacy Google/Firebase): link the Google
+      // identity so future sign-ins match, and trust Google's email check.
+      if (!user.googleId) user.googleId = claims.sub;
+      if (!user.passwordHash) user.provider = "google";
+      user.emailVerifiedAt = user.emailVerifiedAt ?? new Date();
+      if (claims.given_name && !user.firstName) user.firstName = claims.given_name;
+      if (claims.family_name && !user.lastName) user.lastName = claims.family_name;
+      await user.save();
+    }
+
+    issueSession(res, { sub: String(user._id), role: user.role, email: user.email });
+    return res.json({ ok: true, user: publicUser(user) });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid Google sign-in input", error.flatten()));
+    return next(error);
+  }
+});
+
 // POST /api/v1/auth/verify-email — confirm the one-time token from the email link.
 authRouter.post("/verify-email", async (req, res, next) => {
   try {

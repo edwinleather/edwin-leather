@@ -27,7 +27,8 @@ export const env = {
   errorReportMinIntervalMs: Number(value("ERROR_REPORT_MIN_INTERVAL_MS", "60000")),
   gmailUser: value("GMAIL_USER"),
   gmailAppPassword: value("GMAIL_APP_PASSWORD"),
-  emailFrom: value("EMAIL_FROM", "Edwin Leathers <Support.edwinleather@gmail.com>")
+  emailFrom: value("EMAIL_FROM", "Edwin Leathers <Support.edwinleather@gmail.com>"),
+  googleClientId: value("GOOGLE_CLIENT_ID")
 };
 
 // A value counts as configured only if it is a real secret: non-empty, long
