@@ -163,11 +163,11 @@ async function main() {
     }
 
     console.log("\nSeeding products...");
-    await db.collection("products").insertMany(seedProducts.map(p => ({ ...p, createdAt: new Date(), updatedAt: new Date() })));
+    await db.collection("products").insertMany(seedProducts.map(p => ({ ...p, active: true, createdAt: new Date(), updatedAt: new Date() })));
     console.log(`  Inserted ${seedProducts.length} products`);
 
     console.log("Seeding categories...");
-    await db.collection("categories").insertMany(seedCategories.map(c => ({ ...c, createdAt: new Date(), updatedAt: new Date() })));
+    await db.collection("categories").insertMany(seedCategories.map(c => ({ ...c, active: true, createdAt: new Date(), updatedAt: new Date() })));
     console.log(`  Inserted ${seedCategories.length} categories`);
 
     console.log("Seeding coupons...");

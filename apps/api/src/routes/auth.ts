@@ -63,7 +63,7 @@ function issueSession(res: import("express").Response, payload: { sub: string; r
   res.cookie(env.cookieName, token, {
     httpOnly: true,
     secure: env.nodeEnv === "production",
-    sameSite: "lax",
+    sameSite: env.nodeEnv === "production" ? "none" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/"
   });
@@ -382,6 +382,6 @@ authRouter.post("/reset-password", async (req, res, next) => {
 });
 
 authRouter.post("/logout", (_req, res) => {
-  res.clearCookie(env.cookieName, { path: "/" });
+  res.clearCookie(env.cookieName, { path: "/", sameSite: env.nodeEnv === "production" ? "none" : "lax", secure: env.nodeEnv === "production" });
   res.json({ ok: true });
 });
