@@ -6,7 +6,7 @@ export function siteUrl(): string {
   if (raw) {
     try {
       new URL(raw);
-      return raw.replace(/\/+$/, "");
+      return raw.replace(/\/+$/, "").trim();
     } catch {
       // invalid URL - fall through to localhost fallback
     }

@@ -8,17 +8,17 @@ import { siteConfig } from "@/lib/site-config";
 import { siteUrl } from "@/lib/site-url";
 
 const SITE_URL = siteUrl();
-const SITE_TITLE = "Edwin Leathers - Leather Bags, Wallets & Belts in India";
+const SITE_TITLE = "Edwin Leathers — Handcrafted Leather Bags, Wallets & Belts in India";
 
 export const metadata: Metadata = {
   title: {
     default: SITE_TITLE,
-    template: "%s - Edwin Leathers"
+    template: "%s | Edwin Leathers"
   },
   description: siteConfig.description,
   metadataBase: new URL(SITE_URL),
   applicationName: siteConfig.name,
-  keywords: ["leather goods", "leather bags", "ladies leather bags", "leather handbags", "leather wallets", "leather belts", "men's formal shoes", "leather shoes", "leather boots", "handcrafted leather", "India", siteConfig.name],
+  keywords: siteConfig.keywords,
   authors: [{ name: siteConfig.name }],
   creator: siteConfig.name,
   openGraph: {
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     locale: "en_IN"
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: SITE_TITLE,
     description: siteConfig.description
   },
@@ -38,6 +38,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 }
+  },
+  alternates: {
+    canonical: SITE_URL
   },
   icons: {
     icon: [
@@ -49,11 +52,47 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Edwin Leathers",
+    url: SITE_URL,
+    logo: `${SITE_URL}/logo.jpeg`,
+    description: siteConfig.description,
+    sameAs: [],
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Agra",
+      addressRegion: "UP",
+      addressCountry: "IN"
+    },
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+      email: "Support.edwinleather@gmail.com",
+      telephone: "+91-9897863824"
+    }
+  };
+
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Edwin Leathers",
+    url: SITE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${SITE_URL}/shop?q={search_term_string}`,
+      "query-input": "required name=search_term_string"
+    }
+  };
+
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
       </head>
       <body>
         <script

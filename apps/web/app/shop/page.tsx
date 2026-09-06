@@ -10,9 +10,15 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const params = await searchParams;
   const isSearch = Boolean(params.q?.trim());
   return {
-    title: isSearch ? `Search: ${params.q?.trim()}` : "Shop",
-    description: "Browse bags, wallets, belts, travel pieces and small leather goods from Edwin Leathers.",
+    title: isSearch ? `Search: ${params.q?.trim()}` : "Shop Leather Bags, Wallets & Belts Online",
+    description: "Shop handcrafted leather bags, wallets, belts, travel bags and accessories from Edwin Leathers. Full-grain leather, free delivery across India on orders over ₹2,499.",
+    keywords: ["shop leather bags online", "buy leather wallet India", "leather belts for men", "handcrafted leather goods", "leather accessories online India", "Edwin Leathers shop"],
     alternates: { canonical: "/shop" },
+    openGraph: {
+      title: "Shop Leather Bags, Wallets & Belts | Edwin Leathers",
+      description: "Handcrafted leather bags, wallets, belts & accessories. Full-grain leather, designed to age beautifully. Free delivery across India.",
+      type: "website"
+    },
     robots: isSearch ? { index: false, follow: true } : undefined
   };
 }

@@ -5,7 +5,8 @@ export const siteConfig = {
   favicon: "https://res.cloudinary.com/gpldwiup/image/upload/w_64,h_64,c_fill,r_max/edwin/assets/logo.jpg",
   domain: "https://edwinleather.com",
   description:
-    "Quietly refined leather goods, designed to age beautifully and made for everyday rituals. Free delivery across India on orders over ₹2,499.",
+    "Edwin Leathers — Handcrafted leather bags, wallets, belts & accessories made in India. Full-grain leather, designed to age beautifully. Free delivery on orders over ₹2,499.",
+  shortDescription: "Handcrafted leather goods made in India. Bags, wallets, belts & accessories.",
   announcement: "Free delivery across India on orders over ₹2,499",
   shippingThreshold: 2499,
   supportEmail: "Support.edwinleather@gmail.com",
@@ -14,5 +15,22 @@ export const siteConfig = {
   storeName: "EDWIN Leather Store",
   mapsUrl: "https://www.google.com/maps/place/EDWIN+Leather+Store/data=!4m2!3m1!1s0x0:0x97eec2678cf14b96",
   currency: "INR",
-  locale: "en-IN"
+  locale: "en-IN",
+  keywords: [
+    "leather bags India",
+    "leather wallet for men",
+    "genuine leather bags",
+    "handcrafted leather goods",
+    "leather belts for men",
+    "leather accessories India",
+    "handmade leather bags",
+    "full grain leather",
+    "premium leather goods",
+    "leather tote bag",
+    "leather laptop bag",
+    "travel leather bag",
+    "leather card holder",
+    "leather key holder",
+    "Edwin Leathers"
+  ]
 };
