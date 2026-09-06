@@ -112,7 +112,7 @@ export async function reserveStock(lines: StockLine[], referenceId?: string) {
       continue;
     }
 
-    const product = await Product.findOne({ _id: line.productId, ...legacyMatch(line), "variants.active": true }, { "variants.$": 1 }).lean();
+    const product = await Product.findOne({ _id: line.productId, ...legacyMatch(line), "variants.active": { $ne: false } }, { "variants.$": 1 }).lean();
     const variant = product?.variants?.[0] as { _id?: unknown; inventoryAvailable?: number; allowBackorder?: boolean } | undefined;
     if (!variant) {
       failures.push({ sku: line.sku, available: 0, requested: line.quantity });
@@ -127,7 +127,7 @@ export async function reserveStock(lines: StockLine[], referenceId?: string) {
       {
         _id: line.productId,
         ...legacyMatch(line),
-        "variants.active": true,
+        "variants.active": { $ne: false },
         ...(variant.allowBackorder ? {} : { "variants.inventoryAvailable": { $gte: line.quantity } })
       },
       { $inc: { "variants.$.inventoryAvailable": -line.quantity, "variants.$.inventoryReserved": line.quantity } }

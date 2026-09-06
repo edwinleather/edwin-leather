@@ -152,7 +152,7 @@ backofficeRouter.get("/stats", requireBackofficeAdmin, async (_req, res, next) =
       User.countDocuments({ emailVerifiedAt: { $ne: null } }),
       Product.aggregate([
         { $unwind: "$variants" },
-        { $match: { "variants.active": true, "variants.inventoryAvailable": { $lte: 3 } } },
+        { $match: { "variants.active": { $ne: false }, "variants.inventoryAvailable": { $lte: 3 } } },
         { $count: "count" }
       ]),
       Inventory.countDocuments({ $expr: { $lte: ["$available", "$lowStockThreshold"] }, allowBackorder: false }),
