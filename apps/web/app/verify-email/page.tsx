@@ -28,6 +28,7 @@ export default function VerifyEmailPage() {
         if (result.ok) {
           await refresh().catch(() => {});
           setState("done");
+          setTimeout(() => router.push("/account"), 1500);
         } else {
           setState("error");
           setMessage(result.error || "This verification link is invalid or has expired. Sign in to request a new one.");
@@ -53,7 +54,7 @@ export default function VerifyEmailPage() {
           </div>
           <div className="auth-note" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {state === "checking" && <><Loader2 size={16} className="spin" /> <span>Verifying your email address…</span></>}
-            {state === "done" && <><CircleCheck size={18} /> <span>Your email is verified. {message || "You can now sign in and place orders."}</span></>}
+            {state === "done" && <><CircleCheck size={18} /> <span>Your email is verified. Redirecting to your account…</span></>}
             {state === "error" && <><TriangleAlert size={18} /> <span>{message}</span></>}
           </div>
           <p className="auth-switch">

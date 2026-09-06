@@ -309,6 +309,7 @@ authRouter.post("/verify-email", async (req, res, next) => {
     user.emailVerificationExpiresAt = undefined;
     await user.save();
 
+    issueSession(res, { sub: String(user._id), role: user.role, email: user.email });
     return res.json({ ok: true, user: publicUser(user) });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid verification input", error.flatten()));
