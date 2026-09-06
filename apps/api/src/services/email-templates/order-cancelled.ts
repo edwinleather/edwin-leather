@@ -1,4 +1,4 @@
-import { baseLayout, ctaButton } from "./base-layout.js";
+import { baseLayout, ctaButton, errorBox } from "./base-layout.js";
 
 export function orderCancelled(params: {
   name: string;
@@ -6,21 +6,22 @@ export function orderCancelled(params: {
   reason?: string;
   orderUrl: string;
 }): string {
-  const reasonBlock = params.reason
-    ? `<p style="color:#8b7355;font-size:13px;margin:4px 0 0;"><strong>Reason:</strong> ${params.reason}</p>`
-    : "";
+  const reasonContent = params.reason
+    ? `Order #${params.orderNumber} has been cancelled.<br/><strong>Reason:</strong> ${params.reason}`
+    : `Order #${params.orderNumber} has been cancelled.`;
 
   const content = `
-    <h2 style="color:#3c2415;margin:0 0 8px;font-size:20px;">Order Cancelled</h2>
-    <p style="color:#8b7355;margin:0 0 24px;font-size:14px;">Hi ${params.name}, your order has been cancelled.</p>
-
-    <div style="background:#fde8e8;padding:16px;border-radius:6px;margin-bottom:24px;border-left:4px solid #d32f2f;">
-      <p style="margin:0;color:#c62828;font-size:14px;font-weight:bold;">Cancelled</p>
-      <p style="margin:4px 0 0;color:#3c2415;font-size:13px;"><strong>Order:</strong> #${params.orderNumber}</p>
-      ${reasonBlock}
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg, #d32f2f, #c62828);border-radius:50%;margin:0 auto 16px;display:inline-block;line-height:56px;">
+        <span style="font-size:24px;color:#fff;">&#10005;</span>
+      </div>
+      <h2 style="color:#3c2415;margin:0 0 8px;font-size:22px;font-weight:600;">Order Cancelled</h2>
+      <p style="color:#8b7355;margin:0;font-size:14px;">Hi ${params.name}, your order has been cancelled.</p>
     </div>
 
-    <p style="color:#8b7355;font-size:14px;">If a payment was made, a refund will be processed within 5-7 business days.</p>
+    ${errorBox("Cancelled", reasonContent)}
+
+    <p style="color:#6b5a48;font-size:14px;text-align:center;line-height:1.6;">If a payment was made, a refund will be processed within <strong>5-7 business days</strong>.</p>
 
     ${ctaButton(params.orderUrl, "View Order")}
   `;

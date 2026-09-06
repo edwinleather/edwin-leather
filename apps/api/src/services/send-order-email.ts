@@ -206,7 +206,8 @@ export async function sendOrderConfirmationEmail(order: OrderDoc) {
       discount: order.discountAmount > 0 ? `-${formatInr(order.discountAmount)}` : "",
       total: formatInr(order.total),
       address: formatAddress(order.shippingAddress),
-      orderUrl: orderUrl(order.orderNumber)
+      orderUrl: orderUrl(order.orderNumber),
+      email: order.email
     }
   });
 }

@@ -1,4 +1,4 @@
-import { baseLayout, itemsTable, summaryTable, ctaButton } from "./base-layout.js";
+import { baseLayout, itemsTable, summaryTable, ctaButton, infoBox } from "./base-layout.js";
 
 export function orderConfirmation(params: {
   name: string;
@@ -14,12 +14,27 @@ export function orderConfirmation(params: {
   paymentMethod: string;
 }): string {
   const content = `
-    <h2 style="color:#3c2415;margin:0 0 8px;font-size:20px;">Order Confirmed!</h2>
-    <p style="color:#8b7355;margin:0 0 24px;font-size:14px;">Hi ${params.name}, we've received your order.</p>
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg, #d4a843, #c4983a);border-radius:50%;margin:0 auto 16px;display:inline-block;line-height:56px;">
+        <span style="font-size:24px;color:#fff;">&#10003;</span>
+      </div>
+      <h2 style="color:#3c2415;margin:0 0 8px;font-size:22px;font-weight:600;">Order Confirmed</h2>
+      <p style="color:#8b7355;margin:0;font-size:14px;">Thank you for shopping with us, ${params.name}.</p>
+    </div>
 
-    <div style="background:#f5f0eb;padding:16px;border-radius:6px;margin-bottom:24px;">
-      <p style="margin:0;color:#3c2415;font-size:14px;"><strong>Order #${params.orderNumber}</strong></p>
-      <p style="margin:4px 0 0;color:#8b7355;font-size:13px;">Payment: ${params.paymentMethod === "cod" ? "Cash on Delivery" : "Online (Razorpay)"}</p>
+    <div style="background:#faf8f5;border:1px solid #f0e8dd;border-radius:10px;padding:20px;margin-bottom:24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td>
+            <p style="margin:0;color:#8b7355;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Order Number</p>
+            <p style="margin:4px 0 0;color:#3c2415;font-size:16px;font-weight:600;">#${params.orderNumber}</p>
+          </td>
+          <td style="text-align:right;">
+            <p style="margin:0;color:#8b7355;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Payment</p>
+            <p style="margin:4px 0 0;color:#3c2415;font-size:13px;font-weight:500;">${params.paymentMethod === "cod" ? "Cash on Delivery" : "Online (Razorpay)"}</p>
+          </td>
+        </tr>
+      </table>
     </div>
 
     ${itemsTable(params.items)}
@@ -31,12 +46,9 @@ export function orderConfirmation(params: {
       { label: "Total", value: `\u20B9${params.total.toLocaleString("en-IN")}`, bold: true }
     ])}
 
-    <div style="background:#f5f0eb;padding:16px;border-radius:6px;margin-top:16px;">
-      <p style="margin:0 0 4px;color:#3c2415;font-size:13px;font-weight:bold;">Shipping Address</p>
-      <p style="margin:0;color:#8b7355;font-size:13px;">${params.address}</p>
-    </div>
+    ${infoBox("Shipping Address", params.address)}
 
-    ${ctaButton(params.orderUrl, "View Order")}
+    ${ctaButton(params.orderUrl, "View Order Details")}
   `;
   return baseLayout(content);
 }
