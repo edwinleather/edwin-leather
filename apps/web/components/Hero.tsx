@@ -205,7 +205,6 @@ export function Hero() {
         <div className="hero__meta">
           <span>Est. {settings?.estYear || 2026}</span><i /><span>Hand-finished in India</span><i /><span>Free delivery over {formatPrice(delivery.freeDeliveryThreshold)}</span>
         </div>
-        <a href="#featured" className="hero__scroll" aria-label="Scroll to products"><ArrowDown size={17} /></a>
       </motion.div>
     </section>
   );

@@ -31,6 +31,8 @@ const userSchema = new Schema(
     role: { type: String, enum: ["customer", "admin", "superadmin"], default: "customer", index: true },
     addresses: [addressSchema],
     emailVerifiedAt: Date,
+    emailVerificationTokenHash: String,
+    emailVerificationExpiresAt: Date,
     passwordResetTokenHash: String,
     passwordResetExpiresAt: Date
   },

@@ -3,14 +3,13 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Phone, UserRound } from "lucide-react";
-import { completeFirebaseAuth } from "@/lib/api";
-import { createAccountWithEmail, signInWithPassword, sendPasswordReset, currentIdToken, resendEmailVerification, firebaseConfigured } from "@/lib/firebase";
-import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { signUp, signIn, forgotPassword, resendEmailVerification } from "@/lib/api";
 import { PlaceholdersInput } from "@/components/ui/PlaceholdersInput";
 import { useAuth } from "@/components/useAuth";
-import { GENERIC_ERROR, logAndGeneric } from "@/lib/errors";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 type Mode = "login" | "signup";
+type ResetPurpose = "verify" | "forgot";
 
 export function AuthPanel({ initialMode = "login" }: { initialMode?: Mode }) {
   return (
@@ -33,6 +32,7 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [view, setView] = useState<"form" | "reset">("form");
+  const [purpose, setPurpose] = useState<ResetPurpose>("verify");
   const [showPassword, setShowPassword] = useState(false);
 
   const [email, setEmail] = useState("");
@@ -50,13 +50,12 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
   function switchMode(next: Mode) {
     setMode(next);
     setView("form");
+    setPurpose("verify");
     setError(null);
     setNote(null);
   }
 
-  async function finishSession(idToken: string, extra?: { firstName?: string; lastName?: string; phone?: string }) {
-    const result = await completeFirebaseAuth(idToken, extra);
-    if (!result.ok) throw new Error(result.error);
+  async function finishSession() {
     await refresh();
     router.push(returnTo);
   }
@@ -65,29 +64,18 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
     event.preventDefault();
     setError(null);
 
-    if (!firebaseConfigured()) {
-      console.error("[auth] Firebase is not configured (NEXT_PUBLIC_FIREBASE_* missing).");
-      setError(GENERIC_ERROR);
-      return;
-    }
-
     if (mode === "signup") {
       if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
       if (password !== confirmPassword) { setError("Passwords do not match."); return; }
       setBusy(true);
       try {
-        await createAccountWithEmail(email, password);
-        try {
-          localStorage.setItem("el-pending-profile", JSON.stringify({ firstName, lastName: lastName || undefined, phone }));
-        } catch { /* ignore */ }
+        const result = await signUp({ email: email.trim(), password, firstName, lastName: lastName || undefined, phone });
+        if (!result.ok) return setError(messageOf(result.error, result.code));
+        setPurpose("verify");
         setView("reset");
         setNote("We've created your account and sent a verification link to your email. Open it to activate your account.");
       } catch (cause) {
-        if (/already-in-use/i.test(String(cause instanceof Error ? cause.message : cause))) {
-          setError("An account with that email already exists. Try signing in instead.");
-        } else {
-          setError(messageOf(cause));
-        }
+        setError(messageOf(cause));
       } finally {
         setBusy(false);
       }
@@ -96,42 +84,36 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
 
     setBusy(true);
     try {
-      const user = await signInWithPassword(email, password);
-      if (!user.emailVerified) {
-        setView("reset");
-        setNote("Please verify your email before signing in. We've sent a link to your inbox - open it to activate your account.");
+      const result = await signIn({ email: email.trim(), password });
+      if (!result.ok) {
+        if (result.code === "EMAIL_NOT_VERIFIED") {
+          await resendEmailVerification(email.trim()).catch(() => {});
+          setPurpose("verify");
+          setView("reset");
+          setNote("Please verify your email before signing in. We've sent a fresh link to your inbox - open it to activate your account.");
+        } else {
+          setError(messageOf(result.error, result.code));
+        }
         return;
       }
-      let extra: { firstName?: string; lastName?: string; phone?: string } | undefined;
-      try {
-        const pending = localStorage.getItem("el-pending-profile");
-        if (pending) {
-          extra = JSON.parse(pending);
-          localStorage.removeItem("el-pending-profile");
-        }
-      } catch { /* ignore */ }
-      const idToken = await currentIdToken();
-      try {
-        await finishSession(idToken, extra);
-      } catch (cause) {
-        setError(logAndGeneric(cause, "auth:session"));
-      }
+      await finishSession();
     } catch (cause) {
       setError(messageOf(cause));
     } finally {
       setBusy(false);
     }
   }
-
-  async function handleForgot(event: React.FormEvent) {
+async function handleForgot(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    if (!firebaseConfigured()) { console.error("[auth] Firebase is not configured."); setError(GENERIC_ERROR); return; }
     setBusy(true);
     try {
-      await sendPasswordReset(email);
+      const result = await forgotPassword(email.trim());
+      setPurpose("forgot");
       setView("reset");
-      setNote("If an account exists for that email, a password reset link is on its way. Open it to set a new password.");
+      setNote(result.ok
+        ? "If an account exists for that email, a password reset link is on its way. Open it to set a new password."
+        : (result.message || "We couldn't send a reset link right now. Please try again."));
     } catch (cause) {
       setError(messageOf(cause));
     } finally {
@@ -145,14 +127,16 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
     setError(null);
     setResending(true);
     try {
-      await resendEmailVerification();
-      setNote("We've re-sent the verification link. Check your inbox (and spam folder) and open it to activate your account.");
+      const result = purpose === "forgot"
+        ? await forgotPassword(email.trim())
+        : await resendEmailVerification(email.trim());
+      setNote(result.ok
+        ? (purpose === "forgot"
+          ? "We've re-sent the password reset link. Check your inbox (and spam folder)."
+          : "We've re-sent the verification link. Check your inbox (and spam folder) and open it to activate your account.")
+        : (result.message || "We couldn't resend the link. Try again in a minute."));
     } catch (cause) {
-      if (/no current user|not signed in/i.test(String(cause instanceof Error ? cause.message : cause))) {
-        setError("Session expired. Sign in again to re-send the link.");
-      } else {
-        setError(messageOf(cause));
-      }
+      setError(messageOf(cause));
     } finally {
       setResending(false);
     }
@@ -169,14 +153,13 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
         {error && <p className="auth-error">{error}</p>}
         {note && <p className="auth-note">{note}</p>}
         <button className="button button--dark button--full" type="button" onClick={handleResend} disabled={resending}>
-          {resending ? <><span className="btn-spinner" aria-hidden="true" /> Resending…</> : "Resend verification link"}
+          {resending ? <><span className="btn-spinner" aria-hidden="true" /> Resending…</> : (purpose === "forgot" ? "Resend reset link" : "Resend verification link")}
         </button>
         <p className="auth-switch"><button type="button" className="text-button" onClick={goBackToForm}>Back to sign in</button></p>
       </div>
     );
   }
-
-  return (
+return (
     <div className="auth-card">
       <div className="auth-tabs" role="tablist" aria-label="Account access">
         <button type="button" className={mode === "login" ? "active" : ""} onClick={() => switchMode("login")}>Login</button>
@@ -240,14 +223,6 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
         {mode === "login" && <button type="button" className="text-button" onClick={handleForgot}>Forgot your password?</button>}
       </form>
 
-      <div className="auth-divider"><span>or</span></div>
-
-      <GoogleSignInButton
-        label={mode === "login" ? "Continue with Google" : "Sign up with Google"}
-        onSuccess={async () => { await refresh(); router.push(returnTo); }}
-        onError={(message) => setError(message)}
-      />
-
       <p className="auth-switch">
         {mode === "login" ? "New here?" : "Already have an account?"}{" "}
         <button type="button" className="text-button" onClick={() => switchMode(mode === "login" ? "signup" : "login")}>{mode === "login" ? "Create an account" : "Sign in"}</button>
@@ -255,21 +230,19 @@ function AuthPanelInner({ initialMode }: { initialMode: Mode }) {
     </div>
   );
 }
-
-function messageOf(error: unknown): string {
-  const message = error instanceof Error ? error.message : "";
-  if (/email-already-in-use/i.test(message)) return "An account with that email already exists. Try signing in instead.";
-  if (/wrong-password|invalid-credential|invalid-login/i.test(message)) return "Invalid email or password.";
-  if (/user-not-found/i.test(message)) return "No account found for that email.";
-  if (/weak-password/i.test(message)) return "Password must be at least 6 characters.";
+function messageOf(error: unknown, code?: string): string {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  if (code === "EMAIL_NOT_VERIFIED") return "Please verify your email before signing in.";
+  if (/email-already-in-use|already exists/i.test(message)) return "An account with that email already exists. Try signing in instead.";
+  if (/invalid email or password|wrong-password|invalid-credential|invalid-login/i.test(message)) return "Invalid email or password.";
+  if (/user-not-found|no account found/i.test(message)) return "No account found for that email.";
+  if (/weak-password/i.test(message)) return "Password must be at least 8 characters.";
   if (/too-many-requests/i.test(message)) return "We've sent quite a few emails recently. Please wait about a minute before trying again.";
-  // Everything below is technical — log the real detail to the console and
-  // only surface a generic message in the UI.
   if (message) console.error("[auth]", error);
   if (/network-request-failed|socket|fetch failed|timed? ?out|abort|connection/i.test(message)) {
     return "Network error, check your connection.";
   }
-  if (/configuration-not-found|not configured|api[_-]?key/i.test(message)) {
+  if (/not configured|unavailable/i.test(message)) {
     return "Something went wrong on our side. Please try again.";
   }
   return GENERIC_ERROR;

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ensureDatabase } from "../config/db.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { ApiError } from "../middleware/error.js";
+import { hashPassword, verifyPassword } from "../config/passwords.js";
 import { Order } from "../models/Order.js";
 import { User } from "../models/User.js";
 import { orderResponse } from "../services/orders.js";
@@ -140,6 +141,23 @@ accountRouter.patch("/me", async (req: AuthenticatedRequest, res, next) => {
     return res.json({ ok: true, user });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid profile input", error.flatten()));
+    return next(error);
+  }
+});
+
+accountRouter.post("/change-password", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
+    const input = z.object({ currentPassword: z.string().min(1).max(128), newPassword: z.string().min(8).max(128) }).parse(req.body);
+    const user = await User.findById(req.auth!.sub);
+    if (!user) return next(new ApiError(404, "Account not found"));
+    if (!user.passwordHash) return next(new ApiError(400, "This account has no password set. Set one by requesting a password reset."));
+    if (!verifyPassword(input.currentPassword, user.passwordHash)) return next(new ApiError(400, "Your current password is incorrect."));
+    user.passwordHash = hashPassword(input.newPassword);
+    await user.save();
+    return res.json({ ok: true, message: "Password updated." });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid password input", error.flatten()));
     return next(error);
   }
 });

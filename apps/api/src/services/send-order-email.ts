@@ -2,7 +2,7 @@ import type { Document } from "mongoose";
 import { sendEmail } from "./email.js";
 import { renderTemplate } from "./email-templates/render.js";
 import { getTemplate } from "./email-templates/template-loader.js";
-import { baseLayout, itemsTableWithImages, invoiceSection } from "./email-templates/base-layout.js";
+import { baseLayout, itemsTableWithImages, invoiceSection, type BaseLayoutOptions } from "./email-templates/base-layout.js";
 import type { EmailTemplateKey } from "./email-templates/template-defaults.js";
 import { Product } from "../models/Product.js";
 import { SiteSetting } from "../models/SiteSetting.js";
@@ -62,6 +62,28 @@ async function markSent(order: OrderDoc, emailType: string) {
 
 function formatInr(amount: number): string {
   return `\u20B9${amount.toLocaleString("en-IN")}`;
+}
+
+let layoutOptionsCache: { options: BaseLayoutOptions; expires: number } | null = null;
+const LAYOUT_CACHE_TTL = 5 * 60 * 1000;
+
+async function getLayoutOptions(): Promise<BaseLayoutOptions> {
+  const now = Date.now();
+  if (layoutOptionsCache && now < layoutOptionsCache.expires) return layoutOptionsCache.options;
+
+  try {
+    const doc = await SiteSetting.findOne({ key: "site" }).lean();
+    const inv = (doc as Record<string, unknown>)?.invoice as Record<string, string> | undefined;
+    const options: BaseLayoutOptions = {};
+    if (inv?.email) options.email = inv.email;
+    if (inv?.phone) options.phone = inv.phone;
+    const addrParts = [inv?.address, inv?.city, inv?.state, inv?.postalCode].filter(Boolean);
+    if (addrParts.length > 0) options.address = addrParts.join(", ");
+    layoutOptionsCache = { options, expires: now + LAYOUT_CACHE_TTL };
+    return options;
+  } catch {
+    return {};
+  }
 }
 
 async function buildItemsHtmlWithImages(lines: OrderLine[]): Promise<string> {
@@ -139,13 +161,14 @@ async function buildAndSend(params: {
   dedupKey: string;
 }) {
   if (params.order && isDuplicate(params.order, params.dedupKey)) {
-    console.log(`[email] Skipping duplicate ${params.dedupKey} for #${params.order.orderNumber}`);
+    if (process.env.NODE_ENV !== "production") console.debug(`[email] Skipping duplicate ${params.dedupKey} for #${params.order.orderNumber}`);
     return;
   }
 
   const raw = await getTemplate(params.key);
   const inner = renderTemplate(raw, params.vars);
-  const html = baseLayout(inner);
+  const layoutOpts = await getLayoutOptions();
+  const html = baseLayout(inner, layoutOpts);
 
   const sent = await sendEmail({
     to: params.to,

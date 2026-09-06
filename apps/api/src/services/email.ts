@@ -8,6 +8,7 @@ import {
   recordCircuitSuccess,
   logEmail
 } from "./email-security.js";
+import { getEmailConfig } from "./email-config.js";
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -92,10 +93,21 @@ export async function sendEmail(params: {
 
   const plainText = htmlToPlainText(html);
 
+  // CC recipients are configured in the backoffice (Email notifications). Only
+  // template types that are enabled there receive a CC copy.
+  let cc: string[] | undefined;
+  try {
+    const config = await getEmailConfig();
+    if (config.ccTypes.includes(template)) cc = config.ccEmails;
+  } catch {
+    cc = undefined;
+  }
+
   try {
     await transport.sendMail({
       from: env.emailFrom,
       to: cleanTo,
+      ...(cc && cc.length > 0 ? { cc: cc.join(", ") } : {}),
       subject,
       html,
       text: plainText,

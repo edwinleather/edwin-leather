@@ -14,6 +14,7 @@ declare module "nodemailer" {
   interface SendMailOptions {
     from?: string;
     to?: string;
+    cc?: string | string[];
     subject?: string;
     html?: string;
     text?: string;

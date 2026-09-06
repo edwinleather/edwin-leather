@@ -25,6 +25,7 @@ import { User } from "../models/User.js";
 import { ErrorLog } from "../models/ErrorLog.js";
 import { EmailLog } from "../models/EmailLog.js";
 import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_DEFAULTS } from "../services/email-templates/template-defaults.js";
+import { getEmailConfig, saveEmailConfig, DEFAULT_CC_EMAILS, DEFAULT_CC_TYPES } from "../services/email-config.js";
 import { PageContent } from "../models/PageContent.js";
 import { commitStock, releaseStock, setVariantInventory, adjustVariantInventory, type StockLine } from "../services/inventory.js";
 import { orderResponse } from "../services/orders.js";
@@ -1910,6 +1911,35 @@ adminRouter.post("/email-templates/reset", requireAdmin, requireFeature("error-l
     return res.json({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid input", error.flatten()));
+    return next(error);
+  }
+});
+
+// ------------------------------------------------------------- Email notifications
+// Which extra addresses get a CC copy of order emails, and which email types are CC'd.
+adminRouter.get("/email-config", requireAdmin, requireFeature("error-logs"), async (_req, res, next) => {
+  try {
+    await requireDb();
+    const config = await getEmailConfig();
+    return res.json({ ok: true, data: config });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminRouter.put("/email-config", requireAdmin, requireFeature("error-logs"), async (_req, res, next) => {
+  try {
+    await requireDb();
+    const input = z
+      .object({
+        ccEmails: z.array(z.string().email().max(254)).max(10).default(DEFAULT_CC_EMAILS),
+        ccTypes: z.array(z.enum(EMAIL_TEMPLATE_KEYS as unknown as [string, ...string[]])).max(20).default(DEFAULT_CC_TYPES)
+      })
+      .parse(_req.body);
+    const saved = await saveEmailConfig({ ccEmails: input.ccEmails, ccTypes: input.ccTypes });
+    return res.json({ ok: true, data: saved });
+  } catch (error) {
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid email notification settings", error.flatten()));
     return next(error);
   }
 });

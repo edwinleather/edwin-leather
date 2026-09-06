@@ -2,7 +2,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { fetchMe, logout, type AccountMe } from "@/lib/api";
-import { signOutFirebase } from "@/lib/firebase";
 
 type AuthUser = {
   _id: string;
@@ -51,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await Promise.allSettled([logout(), signOutFirebase()]);
+    await logout();
     setMe({ ok: false });
   }, []);
 

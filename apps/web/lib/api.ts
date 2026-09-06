@@ -254,15 +254,17 @@ export async function updateProfile(payload: { firstName?: string; lastName?: st
 
 export async function changePassword(payload: { currentPassword: string; newPassword: string }): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { changePassword: firebaseChangePassword } = await import("@/lib/firebase");
-    await firebaseChangePassword(payload.currentPassword, payload.newPassword);
+    const response = await fetch(`${API_URL}/account/change-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || "Could not change your password." };
     return { ok: true };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not change your password.";
-    if (/wrong-password|invalid-credential|invalid/i.test(message)) {
-      return { ok: false, error: "Your current password is incorrect." };
-    }
-    return { ok: false, error: "Could not change your password." };
+  } catch {
+    return { ok: false, error: "Could not reach the account service." };
   }
 }
 
@@ -451,20 +453,102 @@ export type AuthResult =
   | { ok: true; user: AuthUser; message?: string }
   | { ok: false; error: string; code?: string };
 
-// Exchange a Firebase ID token for the httpOnly session cookie.
-export async function completeFirebaseAuth(idToken: string, extra?: { firstName?: string; lastName?: string; phone?: string }): Promise<AuthResult> {
+// ────────────────────────────────────────────────────────────────────────────
+// Database authentication (signup / login / verification / password reset).
+// Every email is sent through the store's Gmail account by the API.
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function signUp(payload: { email: string; password: string; firstName: string; lastName?: string; phone?: string }): Promise<AuthResult> {
   try {
-    const response = await fetch(`${API_URL}/auth/firebase`, {
+    const response = await fetch(`${API_URL}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ idToken, ...extra })
+      body: JSON.stringify(payload)
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok) {
-      return { ok: false, error: body?.error || `Request failed (${response.status})`, code: body?.details?.code };
-    }
+    if (!response.ok) return { ok: false, error: body?.error || `Sign-up failed (${response.status})`, code: body?.details?.code };
     return { ok: true, user: body?.user, message: body?.message };
+  } catch {
+    return { ok: false, error: "Could not reach the authentication service." };
+  }
+}
+
+export async function signIn(payload: { email: string; password: string }): Promise<AuthResult> {
+  try {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || `Sign-in failed (${response.status})`, code: body?.details?.code };
+    return { ok: true, user: body?.user };
+  } catch {
+    return { ok: false, error: "Could not reach the authentication service." };
+  }
+}
+
+export async function resendEmailVerification(email: string): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/auth/resend-verification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ email })
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, message: body?.error };
+    return { ok: true, message: body?.message };
+  } catch {
+    return { ok: false, message: "Could not reach the authentication service." };
+  }
+}
+
+export async function verifyEmail(token: string): Promise<AuthResult> {
+  try {
+    const response = await fetch(`${API_URL}/auth/verify-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ token })
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || "Verification failed.", code: body?.details?.code };
+    return { ok: true, user: body?.user, message: body?.message };
+  } catch {
+    return { ok: false, error: "Could not reach the authentication service." };
+  }
+}
+
+export async function forgotPassword(email: string): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ email })
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, message: body?.error };
+    return { ok: true, message: body?.message };
+  } catch {
+    return { ok: false, message: "Could not reach the authentication service." };
+  }
+}
+
+export async function resetPassword(token: string, password: string): Promise<{ ok: boolean; error?: string; code?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ token, password })
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.error || "Password reset failed.", code: body?.details?.code };
+    return { ok: true };
   } catch {
     return { ok: false, error: "Could not reach the authentication service." };
   }

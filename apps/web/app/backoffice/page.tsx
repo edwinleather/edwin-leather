@@ -23,6 +23,7 @@ import { FeedbackManager } from "./FeedbackManager";
 import { ErrorLogsManager } from "./ErrorLogsManager";
 import { EmailLogsManager } from "./EmailLogsManager";
 import { EmailTemplatesManager } from "./EmailTemplatesManager";
+import { EmailSettingsManager } from "./EmailSettingsManager";
 import { DatabaseManager } from "./DatabaseManager";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { siteConfig } from "@/lib/site-config";
@@ -31,7 +32,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
 
 type SectionId =
   | "overview" | "products" | "categories" | "inventory" | "orders" | "customers"
-  | "coupons" | "promotions" | "returns" | "delivery" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs" | "email-logs" | "email-templates" | "pages" | "database" | "analytics";
+  | "coupons" | "promotions" | "returns" | "delivery" | "reviews" | "feedback" | "admins" | "roles" | "assets" | "error-logs" | "email-logs" | "email-templates" | "email-settings" | "pages" | "database" | "analytics";
 
 const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "overview", label: "Overview", feature: "overview" },
@@ -53,6 +54,7 @@ const NAV: { id: SectionId; label: string; feature: string }[] = [
   { id: "error-logs", label: "Error Logs", feature: "error-logs" },
   { id: "email-logs", label: "Email Logs", feature: "error-logs" },
   { id: "email-templates", label: "Email Templates", feature: "error-logs" },
+  { id: "email-settings", label: "Email Notifications", feature: "error-logs" },
   { id: "database", label: "Database", feature: "superadmin" },
   { id: "analytics", label: "Analytics", feature: "products" }
 ];
@@ -191,6 +193,12 @@ export default function BackofficePage() {
         {active === "error-logs" && <ErrorLogsManager />}
         {active === "email-logs" && <EmailLogsManager />}
         {active === "email-templates" && <EmailTemplatesManager />}
+        {active === "email-settings" && (
+          <>
+            <header className="admin-header"><div><span className="eyebrow">Email notifications</span><h1>CC recipients &amp; settings</h1></div></header>
+            <EmailSettingsManager />
+          </>
+        )}
         {active === "database" && (
           <>
             <header className="admin-header"><div><span className="eyebrow">Superadmin</span><h1>Database backup &amp; restore</h1></div></header>

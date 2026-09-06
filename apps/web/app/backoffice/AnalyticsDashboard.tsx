@@ -21,15 +21,18 @@ function formatPrice(n: number) {
 
 export function AnalyticsDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
 
   useEffect(() => {
+    setError(null);
     fetch(`${API}/admin/analytics/dashboard?days=${days}`, { credentials: "include" })
       .then((r) => r.json())
       .then((body) => setData(body?.data ?? null))
-      .catch(() => {});
+      .catch(() => setError("Could not load analytics data. Please try again."));
   }, [days]);
 
+  if (error) return <div className="admin-panel"><div className="muted" style={{ color: "#c62828" }}>{error}</div></div>;
   if (!data) return <div className="admin-panel"><div className="muted">Loading analytics...</div></div>;
 
   return (

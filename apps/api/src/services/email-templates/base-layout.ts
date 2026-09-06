@@ -1,6 +1,19 @@
-const LOGO_URL = "https://res.cloudinary.com/z7o6zvqo/image/upload/w_120,h_120,c_fill/v1788090580/edwin/assets/logo.jpg";
+const DEFAULT_LOGO_URL = "https://res.cloudinary.com/z7o6zvqo/image/upload/w_120,h_120,c_fill/v1788090580/edwin/assets/logo.jpg";
 
-export function baseLayout(content: string): string {
+export type BaseLayoutOptions = {
+  logoUrl?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+};
+
+const layoutCache: { options: BaseLayoutOptions | null; html: string } = { options: null, html: "" };
+
+export function baseLayout(content: string, options?: BaseLayoutOptions): string {
+  const logoUrl = options?.logoUrl || DEFAULT_LOGO_URL;
+  const email = options?.email || "Support.edwinleather@gmail.com";
+  const phone = options?.phone || "+91 98978 63824";
+  const address = options?.address || "E1/183, near Aroma cuisine landmark zonal park, Taj Nagri Phase 2, Tajganj, Agra, UP 282001";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,7 +29,7 @@ export function baseLayout(content: string): string {
           <!-- Header -->
           <tr>
             <td style="background-color:#3c2415;padding:16px 32px;text-align:center;">
-              <img src="${LOGO_URL}" alt="Edwin Leathers" width="40" height="40" style="border-radius:50%;margin-bottom:8px;" />
+              <img src="${logoUrl}" alt="Edwin Leathers" width="40" height="40" style="border-radius:50%;margin-bottom:8px;" />
               <h1 style="color:#d4a843;margin:0;font-size:18px;letter-spacing:2px;">EDWIN LEATHERS</h1>
               <p style="color:#c4a882;margin:2px 0 0;font-size:10px;letter-spacing:1px;">HANDCRAFTED LEATHER GOODS</p>
             </td>
@@ -30,8 +43,8 @@ export function baseLayout(content: string): string {
           <!-- Footer -->
           <tr>
             <td style="background-color:#f5f0eb;padding:16px 32px;text-align:center;border-top:1px solid #e8ddd0;">
-              <p style="color:#8b7355;margin:0 0 4px;font-size:11px;">EDWIN Leather Store · <a href="mailto:Support.edwinleather@gmail.com" style="color:#3c2415;">Support.edwinleather@gmail.com</a> · +91 98978 63824</p>
-              <p style="color:#8b7355;margin:0 0 8px;font-size:11px;">E1/183, near Aroma cuisine landmark zonal park, Taj Nagri Phase 2, Tajganj, Agra, UP 282001</p>
+              <p style="color:#8b7355;margin:0 0 4px;font-size:11px;">EDWIN Leather Store · <a href="mailto:${email}" style="color:#3c2415;">${email}</a> · ${phone}</p>
+              <p style="color:#8b7355;margin:0 0 8px;font-size:11px;">${address}</p>
               <p style="color:#a89880;margin:0;font-size:10px;">This is a transactional email regarding your order. Reply "unsubscribe" to opt out.</p>
             </td>
           </tr>
