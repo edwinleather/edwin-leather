@@ -90,7 +90,10 @@ export async function createOrder(input: CreateOrderInput) {
       removedItems.push({ variantId: item.variantId, name: product.name, reason: "variant_not_found" });
       continue;
     }
-    if (!resolved.active) throw new ApiError(409, `${product.name} - this option is no longer available`);
+    if (!resolved.active) {
+      removedItems.push({ variantId: resolved.variantId, name: product.name, variantLabel: resolved.label, reason: "inactive" });
+      continue;
+    }
     // Exclude out-of-stock variants (unless on backorder) instead of failing
     // the whole order, so the remaining items can still be purchased.
     if (resolved.stock <= 0 && !resolved.allowBackorder) {
