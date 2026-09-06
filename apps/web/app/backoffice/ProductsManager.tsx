@@ -52,7 +52,7 @@ function comboKey(attrs: { attributeId: string; value: string }[]): string {
   return attrs
     .slice()
     .sort((a, b) => a.attributeId.localeCompare(b.attributeId))
-    .map((a) => `${a.attributeId}__${a.value}`)
+    .map((a) => `${a.attributeId}__${JSON.stringify(a.value)}`)
     .join("|");
 }
 

@@ -372,8 +372,8 @@ adminRouter.patch("/products/:productId", requireAdmin, requireFeature("products
     }
     const updated = await Product.findByIdAndUpdate(req.params.productId, update, { returnDocument: "after", runValidators: true });
     if (!updated) return next(new ApiError(404, "Product not found"));
-    if (input.variantDimensions || input.productVariants) {
-      await reconcileProductVariants(String(updated._id), input.variantDimensions ?? [], input.productVariants ?? []);
+    if (input.variantDimensions && input.variantDimensions.length > 0) {
+      await reconcileProductVariants(String(updated._id), input.variantDimensions, input.productVariants ?? []);
     }
     return res.json({ ok: true, data: updated });
   } catch (error) {
