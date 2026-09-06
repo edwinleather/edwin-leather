@@ -16,3 +16,5 @@ vercel.env
 netlify.env
 logs/
 .env*
+
+screenshots/
