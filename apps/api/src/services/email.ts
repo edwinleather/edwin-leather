@@ -14,7 +14,7 @@ let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter | null {
   if (transporter) return transporter;
-  if (!isConfigured(env.gmailAppPassword) || !env.gmailUser) return null;
+  if (!env.gmailAppPassword || !env.gmailUser) return null;
 
   transporter = nodemailer.createTransport({
     service: "gmail",
