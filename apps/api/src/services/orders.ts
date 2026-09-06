@@ -141,30 +141,44 @@ export async function createOrder(input: CreateOrderInput) {
 
   if (orderLines.length === 0) throw new ApiError(400, "One or more cart items could not be found");
 
-  const subtotal = orderLines.reduce((sum, line) => sum + line.lineTotal, 0);
-  const promotionDiscount = orderLines.reduce((sum, line) => sum + (line.lineDiscount ?? 0) * line.quantity, 0);
-  const deliveryConfig = await getDeliveryConfig();
-  const shippingAmount = computeDeliveryFee(deliveryConfig, subtotal, input.shippingAddress.state);
-  const taxConfig = await getTaxConfig();
-  const gstAmount = computeGst(taxConfig, subtotal);
+  // Reserve stock early to minimize the race window between stock check and
+  // reservation. If anything fails after this point (coupon, DB write, etc.),
+  // the catch block below releases the held stock.
+  await reserveStock(lines);
 
+  let subtotal: number;
+  let promotionDiscount: number;
+  let shippingAmount: number;
+  let gstAmount: number;
   let discountAmount = 0;
   let coupon: { couponId?: string; code?: string; discountType?: string } = {};
+  let taxRate = 0;
 
-  if (input.couponCode) {
-    const result = await validateCoupon(
-      input.couponCode,
-      orderLines.map((line, index) => ({ productId: line.productId, category: lineCategories[index], quantity: line.quantity, unitPrice: line.unitPrice })),
-      input.email,
-      shippingAmount
-    );
-    discountAmount = result.discountAmount;
-    coupon = { couponId: result.couponId, code: result.code, discountType: result.discountType };
+  try {
+    subtotal = orderLines.reduce((sum, line) => sum + line.lineTotal, 0);
+    promotionDiscount = orderLines.reduce((sum, line) => sum + (line.lineDiscount ?? 0) * line.quantity, 0);
+    const deliveryConfig = await getDeliveryConfig();
+    shippingAmount = computeDeliveryFee(deliveryConfig, subtotal, input.shippingAddress.state);
+    const taxConfig = await getTaxConfig();
+    gstAmount = computeGst(taxConfig, subtotal);
+    taxRate = taxConfig.gstRate;
+
+    if (input.couponCode) {
+      const result = await validateCoupon(
+        input.couponCode,
+        orderLines.map((line, index) => ({ productId: line.productId, category: lineCategories[index], quantity: line.quantity, unitPrice: line.unitPrice })),
+        input.email,
+        shippingAmount
+      );
+      discountAmount = result.discountAmount;
+      coupon = { couponId: result.couponId, code: result.code, discountType: result.discountType };
+    }
+  } catch (err) {
+    await releaseStock(lines);
+    throw err;
   }
 
   const total = Math.max(0, subtotal + gstAmount + shippingAmount - discountAmount);
-
-  await reserveStock(lines);
 
   let order: InstanceType<typeof Order>;
   try {
@@ -176,7 +190,7 @@ export async function createOrder(input: CreateOrderInput) {
       subtotal,
       shippingAmount,
       gstAmount,
-      gstRate: taxConfig.gstRate,
+      gstRate: taxRate,
       discountAmount,
       promotionDiscount,
       coupon: discountAmount > 0 ? coupon : undefined,
