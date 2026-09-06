@@ -1,6 +1,13 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 
 const MONGODB_URI = "mongodb+srv://supportedwinleather_db_user:rYY6rAJt1JsbKhti@cluster0.puv29j6.mongodb.net/edwin-leathers?retryWrites=true&w=majority&appName=Cluster0";
+
+function withVariantIds(products) {
+  return products.map(p => ({
+    ...p,
+    variants: p.variants.map(v => ({ ...v, _id: new ObjectId() }))
+  }));
+}
 
 const seedProducts = [
   {
@@ -163,7 +170,7 @@ async function main() {
     }
 
     console.log("\nSeeding products...");
-    await db.collection("products").insertMany(seedProducts.map(p => ({ ...p, active: true, createdAt: new Date(), updatedAt: new Date() })));
+    await db.collection("products").insertMany(withVariantIds(seedProducts).map(p => ({ ...p, active: true, createdAt: new Date(), updatedAt: new Date() })));
     console.log(`  Inserted ${seedProducts.length} products`);
 
     console.log("Seeding categories...");

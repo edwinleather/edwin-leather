@@ -21,17 +21,21 @@ export function errorHandler(error: unknown, req: Request, res: Response, _next:
   const status = error instanceof ApiError ? error.statusCode : 500;
   const details = error instanceof ApiError ? error.details : undefined;
 
-  logError(
-    {
-      method: req.method,
-      path: req.originalUrl,
-      status,
-      source: "api"
-    },
-    error
-  );
+  const isClientError = status >= 400 && status < 500;
 
-  captureError(error, { method: req.method, path: req.originalUrl, status });
+  if (!isClientError) {
+    logError(
+      {
+        method: req.method,
+        path: req.originalUrl,
+        status,
+        source: "api"
+      },
+      error
+    );
+
+    captureError(error, { method: req.method, path: req.originalUrl, status });
+  }
 
   if (error instanceof ApiError) {
     return res.status(status).json({ ok: false, error: error.message, details });
