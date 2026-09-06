@@ -5,7 +5,14 @@ const MONGODB_URI = "mongodb+srv://supportedwinleather_db_user:rYY6rAJt1JsbKhti@
 function withVariantIds(products) {
   return products.map(p => ({
     ...p,
-    variants: p.variants.map(v => ({ ...v, _id: new ObjectId() }))
+    variants: p.variants.map(v => ({
+      ...v,
+      _id: new ObjectId(),
+      inventoryTotal: v.inventory ?? 0,
+      inventoryAvailable: v.inventory ?? 0,
+      inventoryReserved: 0,
+      inventoryStoreAllocated: 0
+    }))
   }));
 }
 
