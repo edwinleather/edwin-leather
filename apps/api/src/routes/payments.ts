@@ -8,7 +8,7 @@ import { ApiError } from "../middleware/error.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { Order } from "../models/Order.js";
 import { commitStock } from "../services/inventory.js";
-import { sendPaymentReceivedEmail } from "../services/send-order-email.js";
+import { sendOrderConfirmationEmail, sendPaymentReceivedEmail } from "../services/send-order-email.js";
 
 export const paymentsRouter = Router();
 
@@ -83,6 +83,8 @@ paymentsRouter.post("/verify", requireAuth, async (req: AuthenticatedRequest, re
     if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
     order.timeline.push({ type: "order_received", message: "Payment received - order received", at: new Date(), actorId: order.customerId });
     await order.save();
+    // Send order confirmation + payment received emails after payment is verified
+    sendOrderConfirmationEmail(order).catch(() => {});
     sendPaymentReceivedEmail(order).catch(() => {});
 
     return res.json({ ok: true, status: order.orderStatus });
@@ -116,6 +118,8 @@ paymentsRouter.post("/webhook", async (req, res, next) => {
         if (order.orderStatus === "pending_payment") order.orderStatus = "order_received";
         order.timeline.push({ type: "order_received", message: "Payment confirmed - order received", at: new Date() });
         await order.save();
+        // Send order confirmation + payment received emails after payment is confirmed
+        sendOrderConfirmationEmail(order).catch(() => {});
         sendPaymentReceivedEmail(order).catch(() => {});
         await commitStock(
           order.lines.map((line: { productId: { toString(): string }; variantId: { toString(): string }; sku: string; quantity: number }) => ({

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { ensureDatabase } from "../config/db.js";
+import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
 import { ProductVariant } from "../models/ProductVariant.js";
 import { User } from "../models/User.js";
@@ -47,6 +48,19 @@ ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next)
       return next(new ApiError(403, "Please verify your email before placing an order.", { code: "EMAIL_NOT_VERIFIED" }));
     }
 
+    // Limit COD: max 3 pending COD orders per customer
+    if (input.paymentMethod === "cod") {
+      const pendingCodCount = await Order.countDocuments({
+        customerId: req.auth!.sub,
+        "payment.method": "cod",
+        "payment.status": "cod_pending",
+        orderStatus: { $in: ["order_received"] }
+      });
+      if (pendingCodCount >= 3) {
+        return next(new ApiError(400, "You have too many pending Cash on Delivery orders. Please complete or cancel existing COD orders before placing a new one.", { code: "COD_LIMIT_REACHED" }));
+      }
+    }
+
     const uniqueIds = [...new Set(input.items.map((item) => item.productId))];
     const found = await Product.countDocuments({ _id: { $in: uniqueIds }, active: true });
     if (found < uniqueIds.length) {
@@ -54,7 +68,13 @@ ordersRouter.post("/", requireAuth, async (req: AuthenticatedRequest, res, next)
     }
 
     const { order, removedItems } = await createOrder({ ...input, customerId: String(req.auth!.sub) });
-    sendOrderConfirmationEmail(order).catch(() => {});
+
+    // Send confirmation email immediately for COD; for online payments,
+    // the email is sent after payment is verified (in payments/verify or webhook).
+    if (input.paymentMethod === "cod") {
+      sendOrderConfirmationEmail(order).catch(() => {});
+    }
+
     return res.status(201).json({ ok: true, order: orderResponse(order), removedItems });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid order input", error.flatten()));
