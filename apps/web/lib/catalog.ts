@@ -218,7 +218,10 @@ async function fetchJson<T>(path: string): Promise<T | null> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch(`${API_URL}${path}`, { signal: controller.signal, cache: "no-store" });
+    const response = await fetch(`${API_URL}${path}`, {
+      signal: controller.signal,
+      next: { revalidate: 60 }
+    });
     clearTimeout(timeout);
     if (!response.ok) return null;
     return (await response.json()) as T;

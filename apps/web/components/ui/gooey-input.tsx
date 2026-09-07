@@ -246,8 +246,8 @@ export function GooeyInput({
               className={cn(
                 "h-full min-w-0 flex-1 bg-transparent text-sm text-background outline-none border border-transparent",
                 isExpanded
-                  ? "placeholder:text-background/50 dark:placeholder:text-background/45"
-                  : "placeholder:text-background/80 dark:placeholder:text-background/70",
+                  ? "placeholder:text-background/50"
+                  : "placeholder:text-background/80",
                 classNames?.input,
               )}
             />

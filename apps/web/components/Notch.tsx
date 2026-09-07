@@ -7,7 +7,7 @@ import { Home, Package, ShoppingBag, Store } from "lucide-react";
 import { SmoothLink } from "./SmoothLink";
 import { useCart } from "./CartProvider";
 import { siteConfig } from "@/lib/site-config";
-import { ThemeToggle } from "./ThemeToggle";
+
 import { ProfileMenu } from "./ProfileMenu";
 import { GooeyInput } from "./ui/gooey-input";
 import { useSearchNavigation } from "@/lib/useCategories";
@@ -124,7 +124,6 @@ export function Notch() {
         transition={spring}
       >
         <div ref={rightRef} className="notch__panel-inner">
-          <ThemeToggle className="notch__theme" />
           <div className="notch__profile"><ProfileMenu /></div>
         </div>
       </motion.div>

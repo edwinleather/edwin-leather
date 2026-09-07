@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./useAuth";
 import { useCart, useCartDrawer } from "./CartProvider";
 import { SmoothLink } from "./SmoothLink";
-import { ThemeToggle } from "./ThemeToggle";
+
 import { Loader } from "./Loader";
 import { siteConfig } from "@/lib/site-config";
 import { useCategories, useSearchNavigation } from "@/lib/useCategories";
@@ -124,7 +124,6 @@ export function SiteHeader() {
           </SmoothLink>
 
           <div className="header-actions">
-            {!searchOpen && <ThemeToggle />}
             <GooeyInput
               placeholder="Search by name, category or SKU…"
               className="header-search__gooey desktop-only"
