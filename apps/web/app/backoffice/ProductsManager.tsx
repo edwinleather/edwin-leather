@@ -388,7 +388,11 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
 
   async function handlePickedFiles(files: File[]) {
     setError(null);
-    for (const file of files) {
+    const remaining = 4 - images.length;
+    if (remaining <= 0) { setError("Maximum 4 images allowed. Remove one before adding more."); return; }
+    const toProcess = Array.from(files).slice(0, remaining);
+    if (toProcess.length < files.length) setError(`Only ${remaining} more image(s) allowed. ${files.length - toProcess.length} file(s) ignored.`);
+    for (const file of toProcess) {
       if (!file.type.startsWith("image/")) { setError("Please choose image files only."); continue; }
       if (file.size > 10 * 1024 * 1024) { setError("Each image must be under 10MB."); continue; }
       const dataUri = await readAsDataUri(file);
@@ -405,12 +409,14 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
   }
 
   async function removeImage(publicId: string) {
-    await fetch(`${API}/admin/media/delete`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ publicId })
-    }).catch(() => {});
+    if (publicId) {
+      await fetch(`${API}/admin/media/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ publicId })
+      }).catch(() => {});
+    }
     setImages((list) => list.filter((i) => i.publicId !== publicId));
   }
 
@@ -485,6 +491,7 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
           return { key, label: meta?.label ?? key, value };
         }),
       variants: validVariants.map((v) => ({
+        ...(v._id ? { _id: v._id } : {}),
         label: v.label.trim(),
         sku: v.sku.trim(),
         color: v.color.trim(),
@@ -721,7 +728,6 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
         <div style={{ display: "flex", gap: 16 }}>
           <label className="toggle-label"><input type="checkbox" checked={form.featured} onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))} /> Featured</label>
           <label className="toggle-label"><input type="checkbox" checked={form.codAvailable} onChange={(e) => setForm((f) => ({ ...f, codAvailable: e.target.checked }))} /> COD available</label>
-          <label className="toggle-label"><input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} /> Active</label>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button type="button" className="button button--ghost" onClick={onClose}><X size={15} /> Cancel</button>

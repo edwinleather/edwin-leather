@@ -193,7 +193,7 @@ const categorySchema = z.object({
   description: z.string().optional(),
   seoTitle: z.string().max(70).optional(),
   seoDescription: z.string().max(160).optional(),
-  imageUrl: z.string().url().optional(),
+  imageUrl: z.string().url().optional().or(z.literal("")).nullable(),
   displayOrder: z.number().int().min(0).default(0),
   active: z.boolean().default(true),
   fields: z
@@ -372,8 +372,12 @@ adminRouter.patch("/products/:productId", requireAdmin, requireFeature("products
     }
     const updated = await Product.findByIdAndUpdate(req.params.productId, update, { returnDocument: "after", runValidators: true });
     if (!updated) return next(new ApiError(404, "Product not found"));
-    if (input.variantDimensions && input.variantDimensions.length > 0) {
-      await reconcileProductVariants(String(updated._id), input.variantDimensions, input.productVariants ?? []);
+    if (input.variantDimensions) {
+      if (input.variantDimensions.length > 0) {
+        await reconcileProductVariants(String(updated._id), input.variantDimensions, input.productVariants ?? []);
+      } else {
+        await ProductVariant.deleteMany({ productId: updated._id });
+      }
     }
     return res.json({ ok: true, data: updated });
   } catch (error) {

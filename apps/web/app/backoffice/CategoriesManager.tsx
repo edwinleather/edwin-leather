@@ -172,7 +172,7 @@ export function CategoriesManager() {
       description: form.description.trim() || undefined,
       seoTitle: form.seoTitle?.trim() || undefined,
       seoDescription: form.seoDescription?.trim() || undefined,
-      imageUrl: form.imageUrl.trim() || undefined,
+      imageUrl: form.imageUrl.trim() || null,
       displayOrder: Number(form.displayOrder) || 0,
       active: form.active,
       attributes: form.attributes.map((a) => ({
