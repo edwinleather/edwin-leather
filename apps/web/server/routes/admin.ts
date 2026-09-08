@@ -1114,7 +1114,7 @@ adminRouter.patch("/coupons/:couponId", requireAdmin, requireFeature("coupons"),
     await requireDb();
     const raw = couponSchema.partial().parse(req.body);
     const input = raw.code ? { ...raw, code: raw.code.toUpperCase().trim() } : raw;
-    const coupon = await Coupon.findByIdAndUpdate(req.params.couponId, input, { returnDocument: "after", runValidators: true });
+    const coupon = await Coupon.findByIdAndUpdate(req.params.couponId, { $set: input }, { returnDocument: "after" });
     if (!coupon) return next(new ApiError(404, "Coupon not found"));
     return res.json({ ok: true, data: coupon });
   } catch (error) {
