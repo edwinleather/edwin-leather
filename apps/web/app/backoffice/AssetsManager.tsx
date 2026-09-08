@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Copy, ImagePlus, Loader2, Pencil, RefreshCw, Search, Trash2, X } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 const CATEGORIES = ["all", "asset", "page", "product", "review"] as const;
 const CATEGORY_LABELS: Record<string, string> = { all: "All", asset: "Assets", page: "Page", product: "Products", review: "Reviews" };

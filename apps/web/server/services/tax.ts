@@ -1,4 +1,4 @@
-import { TaxConfig } from "../models/TaxConfig.js";
+import { TaxConfig } from "../models/TaxConfig";
 
 const DEFAULT_RATE = 0;
 const DEFAULT_FREE_ABOVE = 0;

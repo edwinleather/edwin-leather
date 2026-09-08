@@ -2,14 +2,14 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import Razorpay from "razorpay";
-import { env, isConfigured, isRazorpayConfigured } from "../config/env.js";
-import { ensureDatabase } from "../config/db.js";
-import { ApiError } from "../middleware/error.js";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { Order } from "../models/Order.js";
-import { commitStock } from "../services/inventory.js";
-import { sendOrderConfirmationEmail, sendPaymentReceivedEmail } from "../services/send-order-email.js";
-import { getPaymentKeys } from "../services/payment-config.js";
+import { env, isConfigured, isRazorpayConfigured } from "../config/env";
+import { ensureDatabase } from "../config/db";
+import { ApiError } from "../middleware/error";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { Order } from "../models/Order";
+import { commitStock } from "../services/inventory";
+import { sendOrderConfirmationEmail, sendPaymentReceivedEmail } from "../services/send-order-email";
+import { getPaymentKeys } from "../services/payment-config";
 
 export const paymentsRouter = Router();
 

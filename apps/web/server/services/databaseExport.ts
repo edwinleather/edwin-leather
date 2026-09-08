@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import { EJSON } from "bson";
-import { env } from "../config/env.js";
-import { backofficeDb, ensureBackoffice } from "../config/backofficeDb.js";
-import { ensureDatabase } from "../config/db.js";
-import { ApiError } from "../middleware/error.js";
+import { env } from "../config/env";
+import { backofficeDb, ensureBackoffice } from "../config/backofficeDb";
+import { ensureDatabase } from "../config/db";
+import { ApiError } from "../middleware/error";
 
 type DbHandle = { name: string; db: () => mongoose.mongo.Db | null };
 

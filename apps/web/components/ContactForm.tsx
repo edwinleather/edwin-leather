@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 export function ContactForm() {
   const [sent, setSent] = useState(false);

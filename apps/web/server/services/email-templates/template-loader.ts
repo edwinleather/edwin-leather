@@ -1,5 +1,5 @@
-import { SiteSetting } from "../../models/SiteSetting.js";
-import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_DEFAULTS, type EmailTemplateKey } from "./template-defaults.js";
+import { SiteSetting } from "../../models/SiteSetting";
+import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_DEFAULTS, type EmailTemplateKey } from "./template-defaults";
 
 let cache: Record<string, string> | null = null;
 let cacheExpiry = 0;

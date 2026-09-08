@@ -1,4 +1,4 @@
-import { baseLayout, ctaButton } from "./base-layout.js";
+import { baseLayout, ctaButton } from "./base-layout";
 
 export function paymentReceived(params: {
   name: string;

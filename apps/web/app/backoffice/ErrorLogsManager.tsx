@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Loader2, RefreshCw, Search, TriangleAlert } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type ErrorLog = {
   _id: string;

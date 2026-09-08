@@ -1,11 +1,11 @@
-import { Attribute } from "../models/Attribute.js";
-import { Category } from "../models/Category.js";
-import { Coupon } from "../models/Coupon.js";
-import { Product } from "../models/Product.js";
-import { EmailConfig } from "../models/EmailConfig.js";
-import { RolePermission, ADMIN_ROLES } from "../models/backoffice.js";
-import { DEFAULT_FEATURES } from "../services/backoffice.js";
-import { seedCategories, seedCoupons, seedProducts } from "../data/seed.js";
+import { Attribute } from "../models/Attribute";
+import { Category } from "../models/Category";
+import { Coupon } from "../models/Coupon";
+import { Product } from "../models/Product";
+import { EmailConfig } from "../models/EmailConfig";
+import { RolePermission, ADMIN_ROLES } from "../models/backoffice";
+import { DEFAULT_FEATURES } from "../services/backoffice";
+import { seedCategories, seedCoupons, seedProducts } from "../data/seed";
 
 export async function seedDatabase() {
   try {

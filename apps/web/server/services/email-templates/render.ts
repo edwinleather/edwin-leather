@@ -1,4 +1,4 @@
-import { sanitizeInput } from "../email.js";
+import { sanitizeInput } from "../email";
 
 export function renderTemplate(template: string, vars: Record<string, string | number | undefined>): string {
   let result = template;

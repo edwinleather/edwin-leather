@@ -1,8 +1,8 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { env } from "../config/env.js";
-import { databaseReady } from "../config/db.js";
-import { ErrorLog } from "../models/ErrorLog.js";
+import { env } from "../config/env";
+import { databaseReady } from "../config/db";
+import { ErrorLog } from "../models/ErrorLog";
 
 // Central error log. Errors are persisted to MongoDB Atlas (the always-on,
 // shared store used by both localhost and the deployed Netlify function) and,

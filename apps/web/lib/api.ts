@@ -1,4 +1,13 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+function getApiBase(): string {
+  // Client-side: always use relative path (same origin)
+  if (typeof window !== "undefined") return "/api/v1";
+  // Server-side build/runtime: use absolute URL for fetch
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api/v1`;
+  if (process.env.NEXT_PUBLIC_SITE_URL) return `${process.env.NEXT_PUBLIC_SITE_URL}/api/v1`;
+  return "http://localhost:4000/api/v1";
+}
+
+export const API_URL = getApiBase();
 
 export type DeliveryConfig = {
   defaultFee: number;

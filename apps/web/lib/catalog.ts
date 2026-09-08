@@ -216,9 +216,12 @@ function mapProduct(api: ApiProduct): Product {
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:4000";
+    const url = path.startsWith("http") ? path : `${API_URL}${path}`;
+    const absoluteUrl = url.startsWith("/") ? `${baseUrl}${url}` : url;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch(`${API_URL}${path}`, {
+    const response = await fetch(absoluteUrl, {
       signal: controller.signal,
       next: { revalidate: 60 }
     });
@@ -254,15 +257,27 @@ function buildCatalogPath(filters?: CatalogFilters): string {
   return qs ? `/products?${qs}` : "/products";
 }
 
+let catalogCache: { data: Product[]; ts: number; key: string } | null = null;
+const CATALOG_CACHE_TTL = 60_000;
+
 export async function getCatalog(filters?: CatalogFilters): Promise<Product[]> {
-  const body = await fetchJson<{ data?: ApiProduct[] }>(buildCatalogPath(filters));
+  const key = buildCatalogPath(filters);
+  if (catalogCache && catalogCache.key === key && Date.now() - catalogCache.ts < CATALOG_CACHE_TTL) return catalogCache.data;
+  const body = await fetchJson<{ data?: ApiProduct[] }>(key);
   if (!body?.data?.length) return [];
-  return body.data.map(mapProduct);
+  const data = body.data.map(mapProduct);
+  catalogCache = { data, ts: Date.now(), key };
+  return data;
 }
 
+let productCache: { data: Product; ts: number } | null = null;
+
 export async function getProductBySlug(slug: string): Promise<Product | null> {
+  if (productCache && productCache.data.slug === slug && Date.now() - productCache.ts < CATALOG_CACHE_TTL) return productCache.data;
   const body = await fetchJson<{ data?: ApiProduct }>(`/products/${slug}`);
-  return body?.data?._id ? mapProduct(body.data) : null;
+  const product = body?.data?._id ? mapProduct(body.data) : null;
+  if (product) productCache = { data: product, ts: Date.now() };
+  return product;
 }
 
 export async function getCategories(): Promise<string[]> {
@@ -270,9 +285,15 @@ export async function getCategories(): Promise<string[]> {
   return body?.data?.length ? ["All", ...body.data.map((item) => item.name)] : ["All"];
 }
 
+let categoryListCache: { data: CategoryInfo[]; ts: number } | null = null;
+const CATEGORY_CACHE_TTL = 60_000;
+
 export async function getCategoryList(): Promise<CategoryInfo[]> {
+  if (categoryListCache && Date.now() - categoryListCache.ts < CATEGORY_CACHE_TTL) return categoryListCache.data;
   const body = await fetchJson<{ data?: CategoryInfo[] }>("/categories");
-  return body?.data?.length ? body.data : [];
+  const data = body?.data?.length ? body.data : [];
+  if (data.length) categoryListCache = { data, ts: Date.now() };
+  return data;
 }
 
 export async function getCategoryBySlug(slug: string): Promise<CategoryInfo | null> {

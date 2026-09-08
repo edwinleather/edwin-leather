@@ -68,7 +68,7 @@ export default function AccountPage() {
       return;
     }
     Promise.all([
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1"}/account/orders`, { credentials: "include" }).then((r) => r.json()).catch(() => ({ orders: [] })),
+      fetch(`${"/api/v1"}/account/orders`, { credentials: "include" }).then((r) => r.json()).catch(() => ({ orders: [] })),
       getAddresses()
     ]).then(([o, a]) => {
       setOrders(o.orders ?? []);

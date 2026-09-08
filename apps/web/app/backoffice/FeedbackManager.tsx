@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Search, Trash2, Star } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type Feedback = {
   _id: string;

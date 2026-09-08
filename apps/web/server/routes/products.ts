@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Types } from "mongoose";
-import { ensureDatabase } from "../config/db.js";
-import { Product } from "../models/Product.js";
-import { ProductVariant } from "../models/ProductVariant.js";
-import { Attribute } from "../models/Attribute.js";
-import { Category } from "../models/Category.js";
-import AnalyticEvent from "../models/AnalyticEvent.js";
-import { ApiError } from "../middleware/error.js";
-import { getActivePromotions, applyPromotion } from "../services/pricing.js";
+import { ensureDatabase } from "../config/db";
+import { Product } from "../models/Product";
+import { ProductVariant } from "../models/ProductVariant";
+import { Attribute } from "../models/Attribute";
+import { Category } from "../models/Category";
+import AnalyticEvent from "../models/AnalyticEvent";
+import { ApiError } from "../middleware/error";
+import { getActivePromotions, applyPromotion } from "../services/pricing";
 
 export const productsRouter = Router();
 

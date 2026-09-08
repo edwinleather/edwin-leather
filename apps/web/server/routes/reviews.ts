@@ -1,14 +1,14 @@
 import { Router, type Request } from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { env } from "../config/env.js";
-import { ApiError } from "../middleware/error.js";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { Review } from "../models/Review.js";
-import { Product } from "../models/Product.js";
-import { Order } from "../models/Order.js";
-import { User } from "../models/User.js";
-import { uploadImage } from "../services/cloudinary.js";
+import { env } from "../config/env";
+import { ApiError } from "../middleware/error";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { Review } from "../models/Review";
+import { Product } from "../models/Product";
+import { Order } from "../models/Order";
+import { User } from "../models/User";
+import { uploadImage } from "../services/cloudinary";
 
 export const reviewsRouter = Router();
 

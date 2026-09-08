@@ -1,46 +1,46 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Types } from "mongoose";
-import { ensureDatabase } from "../config/db.js";
-import AnalyticEvent from "../models/AnalyticEvent.js";
-import type { AuthenticatedRequest } from "../middleware/auth.js";
-import { ApiError } from "../middleware/error.js";
-import { requireBackofficeAdmin, requireBackofficeFeature, requireBackofficeRole } from "../middleware/backoffice.js";
-import { Attribute } from "../models/Attribute.js";
-import { Category } from "../models/Category.js";
-import { Coupon } from "../models/Coupon.js";
-import { Promotion } from "../models/Promotion.js";
-import { Asset } from "../models/Asset.js";
-import { Order } from "../models/Order.js";
-import { Product } from "../models/Product.js";
-import { ProductVariant } from "../models/ProductVariant.js";
-import { Inventory } from "../models/Inventory.js";
-import { InventoryLog } from "../models/InventoryLog.js";
-import { Return } from "../models/Return.js";
-import { Review } from "../models/Review.js";
-import { Feedback } from "../models/Feedback.js";
-import { SiteSetting } from "../models/SiteSetting.js";
-import { DeliveryPartner } from "../models/DeliveryPartner.js";
-import { User } from "../models/User.js";
-import { ErrorLog } from "../models/ErrorLog.js";
-import { EmailLog } from "../models/EmailLog.js";
-import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_DEFAULTS } from "../services/email-templates/template-defaults.js";
-import { getEmailConfig, saveEmailConfig, DEFAULT_CC_EMAILS, DEFAULT_CC_TYPES } from "../services/email-config.js";
-import { PageContent } from "../models/PageContent.js";
-import { commitStock, releaseStock, setVariantInventory, adjustVariantInventory, type StockLine } from "../services/inventory.js";
-import { orderResponse } from "../services/orders.js";
-import { getTaxConfig } from "../services/tax.js";
-import { cloudName, deleteAsset, isCloudinaryConfigured, uploadImage } from "../services/cloudinary.js";
-import { attributeKey, FIELD_TYPES, findOrCreateAttribute, getAttributeById, searchAttributes, deleteAttribute, normalizeProductAttributes } from "../services/attributes.js";
-import { validateProductAttributes } from "../services/attributeValidation.js";
-import { reconcileProductVariants, productVariantLabel } from "../services/variants.js";
+import { ensureDatabase } from "../config/db";
+import AnalyticEvent from "../models/AnalyticEvent";
+import type { AuthenticatedRequest } from "../middleware/auth";
+import { ApiError } from "../middleware/error";
+import { requireBackofficeAdmin, requireBackofficeFeature, requireBackofficeRole } from "../middleware/backoffice";
+import { Attribute } from "../models/Attribute";
+import { Category } from "../models/Category";
+import { Coupon } from "../models/Coupon";
+import { Promotion } from "../models/Promotion";
+import { Asset } from "../models/Asset";
+import { Order } from "../models/Order";
+import { Product } from "../models/Product";
+import { ProductVariant } from "../models/ProductVariant";
+import { Inventory } from "../models/Inventory";
+import { InventoryLog } from "../models/InventoryLog";
+import { Return } from "../models/Return";
+import { Review } from "../models/Review";
+import { Feedback } from "../models/Feedback";
+import { SiteSetting } from "../models/SiteSetting";
+import { DeliveryPartner } from "../models/DeliveryPartner";
+import { User } from "../models/User";
+import { ErrorLog } from "../models/ErrorLog";
+import { EmailLog } from "../models/EmailLog";
+import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_DEFAULTS } from "../services/email-templates/template-defaults";
+import { getEmailConfig, saveEmailConfig, DEFAULT_CC_EMAILS, DEFAULT_CC_TYPES } from "../services/email-config";
+import { PageContent } from "../models/PageContent";
+import { commitStock, releaseStock, setVariantInventory, adjustVariantInventory, type StockLine } from "../services/inventory";
+import { orderResponse } from "../services/orders";
+import { getTaxConfig } from "../services/tax";
+import { cloudName, deleteAsset, isCloudinaryConfigured, uploadImage } from "../services/cloudinary";
+import { attributeKey, FIELD_TYPES, findOrCreateAttribute, getAttributeById, searchAttributes, deleteAttribute, normalizeProductAttributes } from "../services/attributes";
+import { validateProductAttributes } from "../services/attributeValidation";
+import { reconcileProductVariants, productVariantLabel } from "../services/variants";
 import {
   sendOrderPackedEmail,
   sendOrderShippedEmail,
   sendOrderDeliveredEmail,
   sendOrderCancelledEmail,
   sendReturnRequestedEmail
-} from "../services/send-order-email.js";
+} from "../services/send-order-email";
 
 export const adminRouter = Router();
 

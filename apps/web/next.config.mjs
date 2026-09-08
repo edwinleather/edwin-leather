@@ -11,7 +11,8 @@ const nextConfig = {
     ],
     qualities: [75, 82, 88]
   },
-  poweredByHeader: false
+  poweredByHeader: false,
+  serverExternalPackages: ["mongoose", "jsonwebtoken", "nodemailer", "razorpay", "cookie-parser", "cors", "helmet", "express-rate-limit"]
 };
 
 export default nextConfig;

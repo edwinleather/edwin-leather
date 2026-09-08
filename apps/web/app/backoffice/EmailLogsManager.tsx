@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Mail, RefreshCw, Search, TriangleAlert } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type EmailLogEntry = {
   _id: string;

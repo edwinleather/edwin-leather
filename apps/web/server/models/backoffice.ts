@@ -1,5 +1,5 @@
 import { Schema } from "mongoose";
-import { backofficeDb } from "../config/backofficeDb.js";
+import { backofficeDb } from "../config/backofficeDb";
 
 export const ADMIN_ROLES = ["employee", "admin", "superadmin"] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];

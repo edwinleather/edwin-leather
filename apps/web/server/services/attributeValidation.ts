@@ -1,5 +1,5 @@
-import { Attribute } from "../models/Attribute.js";
-import type { AttributeType } from "./attributes.js";
+import { Attribute } from "../models/Attribute";
+import type { AttributeType } from "./attributes";
 
 // A category's attached attribute reference (attributeId may be a populated
 // object or a raw ObjectId/string).

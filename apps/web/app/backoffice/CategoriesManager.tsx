@@ -5,7 +5,7 @@ import { Plus, Save, Search, X } from "lucide-react";
 import { ImageHint } from "./ImageHint";
 import { ATTRIBUTE_TYPE_LABELS, type Attribute, type CategoryAttributeRef, type FieldType, type FieldSection } from "@/lib/field-defs";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type Category = {
   _id?: string;

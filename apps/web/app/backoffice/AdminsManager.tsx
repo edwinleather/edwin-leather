@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Search, UserPlus } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 const ROLES = ["employee", "admin", "superadmin"] as const;
 type Role = (typeof ROLES)[number];

@@ -1,4 +1,4 @@
-import { baseLayout } from "./base-layout.js";
+import { baseLayout } from "./base-layout";
 
 export function feedbackReceived(params: {
   name: string;

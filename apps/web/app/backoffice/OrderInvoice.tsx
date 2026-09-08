@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Printer, X } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type InvoiceLine = {
   name: string;

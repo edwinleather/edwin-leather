@@ -1,4 +1,4 @@
-import { baseLayout, ctaButton, warningBox } from "./base-layout.js";
+import { baseLayout, ctaButton, warningBox } from "./base-layout";
 
 export function returnRequested(params: {
   name: string;

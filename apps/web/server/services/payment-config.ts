@@ -1,5 +1,5 @@
-import { SiteSetting } from "../models/SiteSetting.js";
-import { env } from "../config/env.js";
+import { SiteSetting } from "../models/SiteSetting";
+import { env } from "../config/env";
 
 export type PaymentMode = "test" | "live";
 

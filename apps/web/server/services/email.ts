@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { env, isConfigured } from "../config/env.js";
+import { env, isConfigured } from "../config/env";
 import {
   canSendGlobally,
   canSendToRecipient,
@@ -7,8 +7,8 @@ import {
   recordCircuitFailure,
   recordCircuitSuccess,
   logEmail
-} from "./email-security.js";
-import { getEmailConfig } from "./email-config.js";
+} from "./email-security";
+import { getEmailConfig } from "./email-config";
 
 let transporter: nodemailer.Transporter | null = null;
 

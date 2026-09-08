@@ -1,4 +1,4 @@
-import { PageContent } from "../models/PageContent.js";
+import { PageContent } from "../models/PageContent";
 
 export const PAGE_KEYS = ["story", "about", "shipping", "returns", "terms", "privacy"] as const;
 export type PageKey = (typeof PAGE_KEYS)[number];

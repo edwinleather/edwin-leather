@@ -9,7 +9,7 @@ import { CodSettingsManager } from "./CodSettingsManager";
 import { OrderInvoice } from "./OrderInvoice";
 import { formatPrice } from "@/lib/format";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type DeliveryPartner = { _id: string; name: string; trackingUrl: string; active: boolean };
 type Order = {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 export type StatItem = { value: number; mark?: string; label: string };
 export type CategoryCard = { title: string; copy: string; image: string };

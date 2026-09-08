@@ -7,7 +7,7 @@ import { type Attribute, type CategoryAttributeRef } from "@/lib/field-defs";
 import { AttributeFields } from "@/components/attributes/AttributeFields";
 import { ImageResizer } from "./ImageResizer";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 const TARGET_W = 1200;
 const TARGET_H = 1500;
 

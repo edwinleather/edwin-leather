@@ -9,8 +9,6 @@ import { formatPrice } from "@/lib/format";
 import { SmoothLink } from "./SmoothLink";
 import { SmartImage } from "./SmartImage";
 import { useCart } from "./CartProvider";
-import { CardSpotlight } from "./ui/CardSpotlight";
-import { CometCard } from "./ui/CometCard";
 
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const { addItem } = useCart();
@@ -29,10 +27,8 @@ export function ProductCard({ product, priority = false }: { product: Product; p
 
   return (
     <article className="product-card">
-      <CardSpotlight>
       <div className="product-card__media">
         <SmoothLink href={`/product/${product.slug}`} ariaLabel={`View ${product.name}`} onClick={onSelect}>
-          <CometCard>
           <SmartImage
             src={product.images[0]}
             alt={product.imageAlts?.[0] || product.name}
@@ -50,7 +46,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
               className="product-card__image product-card__image--alt"
             />
           )}
-          </CometCard>
         </SmoothLink>
         {product.badge && <span className="product-badge">{product.badge}</span>}
         {soldOut && <span className="product-badge product-badge--soldout">Sold out</span>}
@@ -68,7 +63,6 @@ export function ProductCard({ product, priority = false }: { product: Product; p
           <strong>{formatPrice(resolveProductPrice(product))}</strong>
         </div>
       </div>
-      </CardSpotlight>
     </article>
   );
 }

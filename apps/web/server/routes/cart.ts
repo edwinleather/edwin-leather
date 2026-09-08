@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import { ensureDatabase } from "../config/db.js";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { ApiError } from "../middleware/error.js";
-import { Cart } from "../models/Cart.js";
-import { Product } from "../models/Product.js";
-import { ProductVariant } from "../models/ProductVariant.js";
+import { ensureDatabase } from "../config/db";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { ApiError } from "../middleware/error";
+import { Cart } from "../models/Cart";
+import { Product } from "../models/Product";
+import { ProductVariant } from "../models/ProductVariant";
 import { Types } from "mongoose";
 
 export const cartRouter = Router();

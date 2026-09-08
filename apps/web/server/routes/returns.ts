@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { z } from "zod";
-import { ensureDatabase } from "../config/db.js";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { ApiError } from "../middleware/error.js";
-import { Order } from "../models/Order.js";
-import { Return } from "../models/Return.js";
+import { ensureDatabase } from "../config/db";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { ApiError } from "../middleware/error";
+import { Order } from "../models/Order";
+import { Return } from "../models/Return";
 
 export const returnsRouter = Router();
 

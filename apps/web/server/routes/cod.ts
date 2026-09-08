@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { databaseReady } from "../config/db.js";
-import { getCodConfig } from "../services/cod.js";
+import { databaseReady } from "../config/db";
+import { getCodConfig } from "../services/cod";
 
 export const codRouter = Router();
 

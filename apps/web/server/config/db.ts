@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { env, isConfigured } from "./env.js";
+import { env, isConfigured } from "./env";
 
 export let lastDbError: string | null = null;
 

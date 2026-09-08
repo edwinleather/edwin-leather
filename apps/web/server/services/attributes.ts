@@ -1,5 +1,5 @@
-import { Attribute } from "../models/Attribute.js";
-import { Category } from "../models/Category.js";
+import { Attribute } from "../models/Attribute";
+import { Category } from "../models/Category";
 
 export const FIELD_TYPES = ["text", "multi", "textarea", "select", "yesno", "number"] as const;
 export type AttributeType = (typeof FIELD_TYPES)[number];

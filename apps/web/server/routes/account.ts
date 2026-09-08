@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
-import { ensureDatabase } from "../config/db.js";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { ApiError } from "../middleware/error.js";
-import { hashPassword, verifyPassword } from "../config/passwords.js";
-import { Order } from "../models/Order.js";
-import { User } from "../models/User.js";
-import { orderResponse } from "../services/orders.js";
+import { ensureDatabase } from "../config/db";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { ApiError } from "../middleware/error";
+import { hashPassword, verifyPassword } from "../config/passwords";
+import { Order } from "../models/Order";
+import { User } from "../models/User";
+import { orderResponse } from "../services/orders";
 
 export const accountRouter = Router();
 

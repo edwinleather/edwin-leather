@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { databaseReady } from "../config/db.js";
-import { getDeliveryConfig } from "../services/delivery.js";
+import { databaseReady } from "../config/db";
+import { getDeliveryConfig } from "../services/delivery";
 
 export const deliveryRouter = Router();
 

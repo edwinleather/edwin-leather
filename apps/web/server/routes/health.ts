@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { databaseReady, lastDbError } from "../config/db.js";
-import { env } from "../config/env.js";
+import { databaseReady, lastDbError } from "../config/db";
+import { env } from "../config/env";
 
 export const healthRouter = Router();
 

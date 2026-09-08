@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Database, Download, Loader2, Upload } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type DumpMeta = { format: string; version: number; exportedAt: string; databases: Record<string, Record<string, unknown[]>> };
 

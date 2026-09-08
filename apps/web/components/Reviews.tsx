@@ -49,7 +49,7 @@ export function Reviews() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_URL}/reviews`, { cache: "no-store", credentials: "include" })
+    fetch(`${API_URL}/reviews`, { credentials: "include" })
       .then((r) => r.json())
       .then((body) => {
         if (body?.ok) setData(body.data);

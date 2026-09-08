@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { ensureDatabase } from "../config/db.js";
-import { ApiError } from "../middleware/error.js";
-import { Category } from "../models/Category.js";
+import { ensureDatabase } from "../config/db";
+import { ApiError } from "../middleware/error";
+import { Category } from "../models/Category";
 
 export const categoriesRouter = Router();
 

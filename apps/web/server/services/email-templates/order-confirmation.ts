@@ -1,4 +1,4 @@
-import { baseLayout, itemsTable, summaryTable, ctaButton, infoBox } from "./base-layout.js";
+import { baseLayout, itemsTable, summaryTable, ctaButton, infoBox } from "./base-layout";
 
 export function orderConfirmation(params: {
   name: string;

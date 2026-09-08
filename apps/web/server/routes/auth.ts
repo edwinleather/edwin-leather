@@ -2,15 +2,15 @@ import { createHash, randomBytes } from "node:crypto";
 import { Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { z } from "zod";
-import { ensureDatabase } from "../config/db.js";
-import { env, isConfigured } from "../config/env.js";
-import { googleReady, verifyGoogleIdToken } from "../config/google.js";
-import { hashPassword, verifyPassword } from "../config/passwords.js";
-import { User } from "../models/User.js";
-import { SiteSetting } from "../models/SiteSetting.js";
-import { ApiError } from "../middleware/error.js";
-import { sendEmail } from "../services/email.js";
-import { baseLayout, ctaButton, type BaseLayoutOptions } from "../services/email-templates/base-layout.js";
+import { ensureDatabase } from "../config/db";
+import { env, isConfigured } from "../config/env";
+import { googleReady, verifyGoogleIdToken } from "../config/google";
+import { hashPassword, verifyPassword } from "../config/passwords";
+import { User } from "../models/User";
+import { SiteSetting } from "../models/SiteSetting";
+import { ApiError } from "../middleware/error";
+import { sendEmail } from "../services/email";
+import { baseLayout, ctaButton, type BaseLayoutOptions } from "../services/email-templates/base-layout";
 
 export const authRouter = Router();
 
@@ -63,7 +63,7 @@ function issueSession(res: import("express").Response, payload: { sub: string; r
   res.cookie(env.cookieName, token, {
     httpOnly: true,
     secure: env.nodeEnv === "production",
-    sameSite: env.nodeEnv === "production" ? "none" : "lax",
+    sameSite: "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/"
   });
@@ -383,6 +383,6 @@ authRouter.post("/reset-password", async (req, res, next) => {
 });
 
 authRouter.post("/logout", (_req, res) => {
-  res.clearCookie(env.cookieName, { path: "/", sameSite: env.nodeEnv === "production" ? "none" : "lax", secure: env.nodeEnv === "production" });
+  res.clearCookie(env.cookieName, { path: "/", sameSite: "lax", secure: env.nodeEnv === "production" });
   res.json({ ok: true });
 });

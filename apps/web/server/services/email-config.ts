@@ -1,5 +1,5 @@
-import { EmailConfig } from "../models/EmailConfig.js";
-import { EMAIL_TEMPLATE_KEYS } from "./email-templates/template-defaults.js";
+import { EmailConfig } from "../models/EmailConfig";
+import { EMAIL_TEMPLATE_KEYS } from "./email-templates/template-defaults";
 
 export const DEFAULT_CC_TYPES = [
   "order_confirmation",

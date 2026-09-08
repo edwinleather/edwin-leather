@@ -5,7 +5,7 @@ import { GripVertical, ImagePlus, Loader2, Minus, Plus, Save, Trash2, X } from "
 import { ImageHint } from "./ImageHint";
 import type { PageBlock, PageContentData, PageKey } from "@/lib/pages";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 const PAGE_LABELS: Record<PageKey, string> = {
   story: "Our Story",

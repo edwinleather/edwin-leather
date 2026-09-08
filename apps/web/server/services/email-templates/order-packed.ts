@@ -1,4 +1,4 @@
-import { baseLayout, ctaButton, infoBox } from "./base-layout.js";
+import { baseLayout, ctaButton, infoBox } from "./base-layout";
 
 export function orderPacked(params: {
   name: string;

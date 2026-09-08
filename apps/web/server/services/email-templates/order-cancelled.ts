@@ -1,4 +1,4 @@
-import { baseLayout, ctaButton, errorBox } from "./base-layout.js";
+import { baseLayout, ctaButton, errorBox } from "./base-layout";
 
 export function orderCancelled(params: {
   name: string;

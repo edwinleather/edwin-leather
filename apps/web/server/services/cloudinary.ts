@@ -1,6 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
-import { env } from "../config/env.js";
-import { ApiError } from "../middleware/error.js";
+import { env } from "../config/env";
+import { ApiError } from "../middleware/error";
 
 const configured = Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret);
 

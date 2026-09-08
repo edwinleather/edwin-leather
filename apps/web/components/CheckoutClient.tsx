@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import confetti from "canvas-confetti";
+// canvas-confetti is dynamically imported only when an order succeeds
 import { Check, CreditCard, Landmark, ShieldCheck, Tag, Truck, XCircle } from "lucide-react";
 import { useCart } from "./CartProvider";
 import { useAuth } from "./useAuth";
@@ -93,13 +93,16 @@ export function CheckoutClient() {
     if (placed && !placedRef.current) {
       placedRef.current = true;
       window.scrollTo({ top: 0, behavior: "smooth" });
-      const end = Date.now() + 1400;
-      const frame = () => {
-        confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ["#2b241e", "#d4a24c", "#f5e6d3"] });
-        confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#2b241e", "#d4a24c", "#f5e6d3"] });
-        if (Date.now() < end) requestAnimationFrame(frame);
-      };
-      frame();
+      import("canvas-confetti").then((mod) => {
+        const confetti = mod.default;
+        const end = Date.now() + 1400;
+        const frame = () => {
+          confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ["#2b241e", "#d4a24c", "#f5e6d3"] });
+          confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#2b241e", "#d4a24c", "#f5e6d3"] });
+          if (Date.now() < end) requestAnimationFrame(frame);
+        };
+        frame();
+      });
     }
     return () => { placedRef.current = false; };
   }, [placed]);

@@ -1,4 +1,4 @@
-import { AdminUser, RolePermission, BACKOFFICE_FEATURES, type AdminRole } from "../models/backoffice.js";
+import { AdminUser, RolePermission, BACKOFFICE_FEATURES, type AdminRole } from "../models/backoffice";
 import type mongoose from "mongoose";
 
 export const DEFAULT_FEATURES: Record<AdminRole, string[]> = {

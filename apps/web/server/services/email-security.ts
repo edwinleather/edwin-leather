@@ -1,4 +1,4 @@
-import { EmailLog } from "../models/EmailLog.js";
+import { EmailLog } from "../models/EmailLog";
 
 const DAILY_LIMIT = 450;
 const PER_RECIPIENT_LIMIT = 5;

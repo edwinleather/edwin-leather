@@ -1,16 +1,16 @@
-import { Order } from "../models/Order.js";
-import { Product } from "../models/Product.js";
-import { ProductVariant } from "../models/ProductVariant.js";
-import { SiteSetting } from "../models/SiteSetting.js";
+import { Order } from "../models/Order";
+import { Product } from "../models/Product";
+import { ProductVariant } from "../models/ProductVariant";
+import { SiteSetting } from "../models/SiteSetting";
 import { Types } from "mongoose";
-import { ApiError } from "../middleware/error.js";
-import { reserveStock, releaseStock, type StockLine } from "./inventory.js";
-import { resolveVariantById } from "./variants.js";
-import { recordCouponUsage, validateCoupon } from "./coupons.js";
-import { computeDeliveryFee, getDeliveryConfig } from "./delivery.js";
-import { computeGst, getTaxConfig } from "./tax.js";
-import { getCodConfig } from "./cod.js";
-import { getActivePromotions, resolvePromotedPrice } from "./pricing.js";
+import { ApiError } from "../middleware/error";
+import { reserveStock, releaseStock, type StockLine } from "./inventory";
+import { resolveVariantById } from "./variants";
+import { recordCouponUsage, validateCoupon } from "./coupons";
+import { computeDeliveryFee, getDeliveryConfig } from "./delivery";
+import { computeGst, getTaxConfig } from "./tax";
+import { getCodConfig } from "./cod";
+import { getActivePromotions, resolvePromotedPrice } from "./pricing";
 
 export type OrderLineInput = { productId: string; variantId: string; quantity: number };
 

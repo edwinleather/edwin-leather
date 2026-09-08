@@ -2,7 +2,7 @@
 // `salePrice` (product-level or variant-level) overrides the base price, and an
 // optional `compareAtPrice` (MRP) is shown crossed-out when it is higher than
 // the final price so shoppers can see the discount.
-import { Promotion } from "../models/Promotion.js";
+import { Promotion } from "../models/Promotion";
 
 export type ResolvedPrice = {
   basePrice: number;

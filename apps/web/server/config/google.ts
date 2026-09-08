@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { env } from "./env.js";
+import { env } from "./env";
 
 // Google Identity Services issues standard RS256 ID tokens (JWTs). We verify
 // them directly with Node's built-in crypto against Google's public JWKS, so

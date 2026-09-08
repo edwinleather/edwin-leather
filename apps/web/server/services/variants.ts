@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import { ProductVariant } from "../models/ProductVariant.js";
-import { resolvePrice } from "./pricing.js";
+import { ProductVariant } from "../models/ProductVariant";
+import { resolvePrice } from "./pricing";
 
 export type VariantDimensionInput = { attributeId: string; values: string[] };
 export type VariantAttributeValue = { attributeId: string; value: string | string[] };

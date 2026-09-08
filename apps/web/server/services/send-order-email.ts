@@ -1,11 +1,11 @@
 import type { Document } from "mongoose";
-import { sendEmail } from "./email.js";
-import { renderTemplate } from "./email-templates/render.js";
-import { getTemplate } from "./email-templates/template-loader.js";
-import { baseLayout, itemsTableWithImages, invoiceSection, type BaseLayoutOptions } from "./email-templates/base-layout.js";
-import type { EmailTemplateKey } from "./email-templates/template-defaults.js";
-import { Product } from "../models/Product.js";
-import { SiteSetting } from "../models/SiteSetting.js";
+import { sendEmail } from "./email";
+import { renderTemplate } from "./email-templates/render";
+import { getTemplate } from "./email-templates/template-loader";
+import { baseLayout, itemsTableWithImages, invoiceSection, type BaseLayoutOptions } from "./email-templates/base-layout";
+import type { EmailTemplateKey } from "./email-templates/template-defaults";
+import { Product } from "../models/Product";
+import { SiteSetting } from "../models/SiteSetting";
 
 type OrderLine = {
   productId: { toString(): string };

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ImagePlus, Loader2, Save, Search, Star, Trash2, X } from "lucide-react";
 import { ImageHint } from "./ImageHint";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type ReviewImage = { url: string; publicId?: string; alt?: string };
 type Review = {

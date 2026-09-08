@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { databaseReady } from "../config/db.js";
-import { SiteSetting } from "../models/SiteSetting.js";
-import { getPageContent, PAGE_KEYS } from "../services/pages.js";
+import { databaseReady } from "../config/db";
+import { SiteSetting } from "../models/SiteSetting";
+import { getPageContent, PAGE_KEYS } from "../services/pages";
 
 export const siteRouter = Router();
 

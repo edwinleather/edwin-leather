@@ -1,4 +1,4 @@
-import { baseLayout, ctaButton, successBox } from "./base-layout.js";
+import { baseLayout, ctaButton, successBox } from "./base-layout";
 
 export function orderDelivered(params: {
   name: string;

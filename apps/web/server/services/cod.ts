@@ -1,4 +1,4 @@
-import { CodConfig } from "../models/CodConfig.js";
+import { CodConfig } from "../models/CodConfig";
 
 export type CodConfigData = {
   enabled: boolean;

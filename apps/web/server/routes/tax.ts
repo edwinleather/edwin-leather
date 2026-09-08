@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { databaseReady } from "../config/db.js";
-import { getTaxConfig } from "../services/tax.js";
+import { databaseReady } from "../config/db";
+import { getTaxConfig } from "../services/tax";
 
 export const taxRouter = Router();
 

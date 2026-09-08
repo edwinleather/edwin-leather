@@ -1,14 +1,14 @@
 import { Router, type Request as ExpressRequest } from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { ensureDatabase } from "../config/db.js";
-import { env } from "../config/env.js";
-import { ApiError } from "../middleware/error.js";
-import { Feedback } from "../models/Feedback.js";
-import { sendEmail, sanitizeInput } from "../services/email.js";
-import { renderTemplate } from "../services/email-templates/render.js";
-import { getTemplate } from "../services/email-templates/template-loader.js";
-import { baseLayout } from "../services/email-templates/base-layout.js";
+import { ensureDatabase } from "../config/db";
+import { env } from "../config/env";
+import { ApiError } from "../middleware/error";
+import { Feedback } from "../models/Feedback";
+import { sendEmail, sanitizeInput } from "../services/email";
+import { renderTemplate } from "../services/email-templates/render";
+import { getTemplate } from "../services/email-templates/template-loader";
+import { baseLayout } from "../services/email-templates/base-layout";
 
 export const feedbackRouter = Router();
 

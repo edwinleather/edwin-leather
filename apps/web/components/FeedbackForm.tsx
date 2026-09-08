@@ -19,7 +19,7 @@ export function FeedbackForm() {
     setError(null);
     setBusy(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1"}/feedback`, {
+      const response = await fetch(`${"/api/v1"}/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

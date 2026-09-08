@@ -1,8 +1,8 @@
-import { Product } from "../models/Product.js";
-import { ProductVariant } from "../models/ProductVariant.js";
-import { Inventory } from "../models/Inventory.js";
-import { InventoryLog } from "../models/InventoryLog.js";
-import { ApiError } from "../middleware/error.js";
+import { Product } from "../models/Product";
+import { ProductVariant } from "../models/ProductVariant";
+import { Inventory } from "../models/Inventory";
+import { InventoryLog } from "../models/InventoryLog";
+import { ApiError } from "../middleware/error";
 
 export type StockLine = { productId: string; variantId: string; sku: string; quantity: number };
 

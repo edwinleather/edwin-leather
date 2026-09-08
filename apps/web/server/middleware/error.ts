@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import { logError } from "../services/errorLog.js";
-import { captureError } from "../services/sentry.js";
+import { logError } from "../services/errorLog";
+import { captureError } from "../services/sentry";
 
 export class ApiError extends Error {
   statusCode: number;

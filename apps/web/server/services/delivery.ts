@@ -1,4 +1,4 @@
-import { DeliveryConfig } from "../models/DeliveryConfig.js";
+import { DeliveryConfig } from "../models/DeliveryConfig";
 
 export const INDIAN_STATES = [
   "Andhra Pradesh",

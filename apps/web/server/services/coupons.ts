@@ -1,7 +1,7 @@
 import type { Types } from "mongoose";
-import { Coupon } from "../models/Coupon.js";
-import { Order } from "../models/Order.js";
-import { ApiError } from "../middleware/error.js";
+import { Coupon } from "../models/Coupon";
+import { Order } from "../models/Order";
+import { ApiError } from "../middleware/error";
 
 export type CouponLine = { productId: string | Types.ObjectId; category: string; quantity: number; unitPrice: number };
 

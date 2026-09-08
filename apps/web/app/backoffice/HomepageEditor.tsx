@@ -7,7 +7,7 @@ import { useDeliveryConfig } from "@/lib/delivery";
 import type { HomepageSettings } from "@/lib/site-settings";
 import { ImageHint } from "./ImageHint";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type Settings = {
   announcement: string;

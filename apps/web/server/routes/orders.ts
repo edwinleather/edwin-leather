@@ -1,16 +1,16 @@
 import { Router } from "express";
 import { z } from "zod";
-import { ensureDatabase } from "../config/db.js";
-import { Order } from "../models/Order.js";
-import { Product } from "../models/Product.js";
-import { ProductVariant } from "../models/ProductVariant.js";
-import { User } from "../models/User.js";
-import { ApiError } from "../middleware/error.js";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { createOrder, orderResponse } from "../services/orders.js";
-import { resolveVariantById } from "../services/variants.js";
-import { validateCoupon } from "../services/coupons.js";
-import { computeDeliveryFee, getDeliveryConfig } from "../services/delivery.js";
+import { ensureDatabase } from "../config/db";
+import { Order } from "../models/Order";
+import { Product } from "../models/Product";
+import { ProductVariant } from "../models/ProductVariant";
+import { User } from "../models/User";
+import { ApiError } from "../middleware/error";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { createOrder, orderResponse } from "../services/orders";
+import { resolveVariantById } from "../services/variants";
+import { validateCoupon } from "../services/coupons";
+import { computeDeliveryFee, getDeliveryConfig } from "../services/delivery";
 
 export const ordersRouter = Router();
 

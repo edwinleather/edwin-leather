@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Code, Eye, Loader2, RefreshCw, RotateCcw, Save, TriangleAlert } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type TemplateKey = "order_confirmation" | "payment_received" | "order_packed" | "order_shipped" | "order_delivered" | "order_cancelled" | "feedback_received" | "return_requested";
 

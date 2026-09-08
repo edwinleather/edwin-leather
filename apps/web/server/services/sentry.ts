@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { env, isConfigured } from "../config/env.js";
+import { env, isConfigured } from "../config/env";
 
 // Sentry is a cloud-hosted error tracker that is independent of MongoDB, so
 // errors are captured to Sentry's dashboard even when the database is down.

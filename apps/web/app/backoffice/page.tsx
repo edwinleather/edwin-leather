@@ -29,7 +29,7 @@ import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { PaymentModeManager } from "./PaymentModeManager";
 import { siteConfig } from "@/lib/site-config";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type SectionId =
   | "overview" | "products" | "categories" | "inventory" | "orders" | "customers"

@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { env, isConfigured } from "../config/env.js";
-import { ApiError } from "./error.js";
+import { env, isConfigured } from "../config/env";
+import { ApiError } from "./error";
 
 type SessionPayload = { sub: string; role: "customer" | "admin" | "superadmin"; email: string };
 

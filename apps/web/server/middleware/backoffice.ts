@@ -1,9 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
-import { requireAuth, type AuthenticatedRequest } from "./auth.js";
-import { ApiError } from "./error.js";
-import { ensureBackoffice } from "../config/backofficeDb.js";
-import { getAllowedFeatures, getAdminUser } from "../services/backoffice.js";
-import type { AdminRole } from "../models/backoffice.js";
+import { requireAuth, type AuthenticatedRequest } from "./auth";
+import { ApiError } from "./error";
+import { ensureBackoffice } from "../config/backofficeDb";
+import { getAllowedFeatures, getAdminUser } from "../services/backoffice";
+import type { AdminRole } from "../models/backoffice";
 
 export type BackofficeRequest = AuthenticatedRequest & {
   admin?: { id: string; role: AdminRole; permissions?: string[] };

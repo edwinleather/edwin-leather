@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Save, Search, X } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type Promotion = {
   _id: string;

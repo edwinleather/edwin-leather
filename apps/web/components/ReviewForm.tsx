@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ImagePlus, Loader2, Star, X } from "lucide-react";
 import { logAndGeneric } from "@/lib/errors";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "/.netlify/functions/api/v1";
+const API = "/api/v1";
 
 type PublicReview = { id: string; authorName: string; location?: string; rating: number; title: string; body: string; images?: { url: string }[]; verifiedPurchase: boolean; createdAt: string };
 type ReviewImage = { url: string; publicId: string };
