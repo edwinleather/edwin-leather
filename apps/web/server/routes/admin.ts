@@ -164,7 +164,7 @@ const productSchema = z.object({
     .default([])
 });
 
-const couponSchema = z.object({
+const couponBaseSchema = z.object({
   code: z.string().min(1).max(30),
   discountType: z.enum(["percentage", "fixed", "free_shipping"]),
   value: z.number().min(0),
@@ -177,7 +177,9 @@ const couponSchema = z.object({
   applicableProductIds: z.array(z.string()).default([]),
   applicableCategories: z.array(z.string()).default([]),
   active: z.boolean().default(true)
-}).refine(
+});
+
+const couponSchema = couponBaseSchema.refine(
   (data) => {
     if (data.startsAt && data.expiresAt) {
       return new Date(data.expiresAt) > new Date(data.startsAt);
@@ -1112,7 +1114,7 @@ adminRouter.post("/coupons", requireAdmin, requireFeature("coupons"), async (req
 adminRouter.patch("/coupons/:couponId", requireAdmin, requireFeature("coupons"), async (req, res, next) => {
   try {
     await requireDb();
-    const raw = couponSchema.partial().parse(req.body);
+    const raw = couponBaseSchema.partial().parse(req.body);
     const input = raw.code ? { ...raw, code: raw.code.toUpperCase().trim() } : raw;
     const coupon = await Coupon.findOneAndUpdate({ _id: req.params.couponId }, { $set: input }, { returnDocument: "after", new: true });
     if (!coupon) return next(new ApiError(404, "Coupon not found"));
