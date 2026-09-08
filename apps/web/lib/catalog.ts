@@ -216,10 +216,6 @@ function mapProduct(api: ApiProduct): Product {
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
-    // During static page generation on Vercel, the API catch-all route isn't
-    // running yet. These pages are ƒ (dynamic) so they fetch fresh data at
-    // runtime — returning null here just skips pre-rendering.
-    if (!process.env.NEXT_RUNTIME && process.env.VERCEL) return null;
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
     const baseUrl = siteUrl || "http://localhost:4000";
     const url = path.startsWith("http") ? path : `${API_URL}${path}`;
@@ -233,8 +229,7 @@ async function fetchJson<T>(path: string): Promise<T | null> {
     clearTimeout(timeout);
     if (!response.ok) return null;
     return (await response.json()) as T;
-  } catch (err) {
-    console.error("Catalog fetch error:", err);
+  } catch {
     return null;
   }
 }
