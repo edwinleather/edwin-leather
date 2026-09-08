@@ -1114,12 +1114,12 @@ adminRouter.patch("/coupons/:couponId", requireAdmin, requireFeature("coupons"),
     await requireDb();
     const raw = couponSchema.partial().parse(req.body);
     const input = raw.code ? { ...raw, code: raw.code.toUpperCase().trim() } : raw;
-    const coupon = await Coupon.findByIdAndUpdate(req.params.couponId, input, { returnDocument: "after" });
+    const coupon = await Coupon.findOneAndUpdate({ _id: req.params.couponId }, { $set: input }, { returnDocument: "after", new: true });
     if (!coupon) return next(new ApiError(404, "Coupon not found"));
     return res.json({ ok: true, data: coupon });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid coupon input", error.flatten()));
-    return next(error);
+    return next(new ApiError(500, error instanceof Error ? error.message : "Coupon update failed"));
   }
 });
 
