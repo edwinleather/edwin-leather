@@ -1,0 +1,42 @@
+import mongoose from "mongoose";
+
+const { Schema, model, models } = mongoose;
+
+const addressSchema = new Schema(
+  {
+    label: String,
+    fullName: String,
+    line1: String,
+    line2: String,
+    city: String,
+    state: String,
+    postalCode: String,
+    country: { type: String, default: "IN" },
+    phone: String,
+    isDefault: { type: Boolean, default: false }
+  },
+  { _id: true }
+);
+
+const userSchema = new Schema(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+    passwordHash: { type: String, required: false },
+    firstName: String,
+    lastName: String,
+    phone: { type: String, trim: true },
+    provider: { type: String, enum: ["local", "google", "firebase"], default: "local" },
+    googleId: { type: String, index: true },
+    firebaseUid: { type: String, index: true },
+    role: { type: String, enum: ["customer", "admin", "superadmin"], default: "customer", index: true },
+    addresses: [addressSchema],
+    emailVerifiedAt: Date,
+    emailVerificationTokenHash: String,
+    emailVerificationExpiresAt: Date,
+    passwordResetTokenHash: String,
+    passwordResetExpiresAt: Date
+  },
+  { timestamps: true }
+);
+
+export const User = models.User || model("User", userSchema);
