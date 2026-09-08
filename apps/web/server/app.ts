@@ -44,6 +44,12 @@ app.use(
       // Allow requests with no origin (curl, mobile apps, server-to-server)
       if (!origin) return callback(null, true);
       if (env.clientOrigins.includes(origin)) return callback(null, origin);
+      // Allow www and non-www variants of any configured origin
+      const stripped = origin.replace(/^https?:\/\/(www\.)?/, "");
+      for (const allowed of env.clientOrigins) {
+        const allowedStripped = allowed.replace(/^https?:\/\/(www\.)?/, "");
+        if (stripped === allowedStripped) return callback(null, origin);
+      }
       // In development, also allow any localhost
       if (env.nodeEnv !== "production" && /^https?:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, origin);
       callback(new Error(`Origin ${origin} not allowed by CORS`));
