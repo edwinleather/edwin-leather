@@ -216,11 +216,12 @@ function mapProduct(api: ApiProduct): Product {
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
-    const vercelUrl = (process.env.VERCEL_URL || "").trim();
+    // During static page generation on Vercel, the API catch-all route isn't
+    // running yet. These pages are ƒ (dynamic) so they fetch fresh data at
+    // runtime — returning null here just skips pre-rendering.
+    if (!process.env.NEXT_RUNTIME && process.env.VERCEL) return null;
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
-    // During build on Vercel, VERCEL_URL is set and points to the deployment
-    // URL (bypasses deployment protection). At runtime, use the canonical domain.
-    const baseUrl = vercelUrl ? `https://${vercelUrl}` : (siteUrl || "http://localhost:4000");
+    const baseUrl = siteUrl || "http://localhost:4000";
     const url = path.startsWith("http") ? path : `${API_URL}${path}`;
     const absoluteUrl = url.startsWith("/") ? `${baseUrl}${url}` : url;
     const controller = new AbortController();
