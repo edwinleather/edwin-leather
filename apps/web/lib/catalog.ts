@@ -216,9 +216,11 @@ function mapProduct(api: ApiProduct): Product {
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
-    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
     const vercelUrl = (process.env.VERCEL_URL || "").trim();
-    const baseUrl = siteUrl || (vercelUrl ? `https://${vercelUrl}` : "http://localhost:4000");
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
+    // During build on Vercel, VERCEL_URL is set and points to the deployment
+    // URL (bypasses deployment protection). At runtime, use the canonical domain.
+    const baseUrl = vercelUrl ? `https://${vercelUrl}` : (siteUrl || "http://localhost:4000");
     const url = path.startsWith("http") ? path : `${API_URL}${path}`;
     const absoluteUrl = url.startsWith("/") ? `${baseUrl}${url}` : url;
     const controller = new AbortController();
