@@ -6,7 +6,15 @@ import { Reviews } from "@/components/Reviews";
 import { getCatalog } from "@/lib/catalog";
 
 export const metadata: Metadata = {
-  alternates: { canonical: "/" }
+  title: "Edwin Leathers — Handcrafted Leather Bags, Wallets & Belts in India",
+  description: "Shop handcrafted leather bags, wallets, belts & accessories made in India. Full-grain leather, designed to age beautifully. Free delivery on orders over ₹2,499.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "Edwin Leathers — Handcrafted Leather Bags, Wallets & Belts in India",
+    description: "Shop handcrafted leather bags, wallets, belts & accessories made in India. Full-grain leather, designed to age beautifully. Free delivery on orders over ₹2,499.",
+    type: "website",
+    url: "/"
+  }
 };
 
 export default async function HomePage() {

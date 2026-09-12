@@ -2,7 +2,17 @@ import type { Metadata } from "next";
 import { MessageCircleMore, PackageCheck, Sparkles } from "lucide-react";
 import { FeedbackForm } from "@/components/FeedbackForm";
 
-export const metadata: Metadata = { title: "Feedback", description: "Share feedback about your Edwin Leathers product or shopping experience.", alternates: { canonical: "/feedback" } };
+export const metadata: Metadata = {
+  title: "Feedback",
+  description: "Share feedback about your Edwin Leathers product or shopping experience.",
+  alternates: { canonical: "/feedback" },
+  openGraph: {
+    title: "Feedback | Edwin Leathers",
+    description: "Share feedback about your Edwin Leathers product or shopping experience.",
+    type: "website",
+    url: "/feedback"
+  }
+};
 
 export default function FeedbackPage() {
   return (

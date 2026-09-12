@@ -40,7 +40,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
           {product.images[1] && (
             <SmartImage
               src={product.images[1]}
-              alt=""
+              alt={product.imageAlts?.[1] || `${product.name} alternate view`}
               crossfade={false}
               sizes="(max-width: 700px) 82vw, (max-width: 1100px) 44vw, 31vw"
               className="product-card__image product-card__image--alt"

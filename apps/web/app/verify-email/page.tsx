@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Script from "next/script";
 import { CircleCheck, Loader2, TriangleAlert } from "lucide-react";
 import { verifyEmail } from "@/lib/api";
 import { useAuth } from "@/components/useAuth";
@@ -45,27 +46,32 @@ export default function VerifyEmailPage() {
   }, [token, refresh]);
 
   return (
-    <div className="auth-page">
-      <div className="auth-panel-wrap">
-        <div className="auth-card">
-          <div className="auth-card__heading">
-            <span className="eyebrow">Email verification</span>
-            <h1>{state === "error" ? "That link didn't work." : state === "done" ? "You're all set." : "Verifying your email…"}</h1>
+    <>
+      <Script id="verify-email-noindex" strategy="beforeInteractive">
+        {`document.querySelector('meta[name="robots"]')?.setAttribute('content', 'noindex, nofollow');`}
+      </Script>
+      <div className="auth-page">
+        <div className="auth-panel-wrap">
+          <div className="auth-card">
+            <div className="auth-card__heading">
+              <span className="eyebrow">Email verification</span>
+              <h1>{state === "error" ? "That link didn't work." : state === "done" ? "You're all set." : "Verifying your email…"}</h1>
+            </div>
+            <div className="auth-note" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {state === "checking" && <><Loader2 size={16} className="spin" /> <span>Verifying your email address…</span></>}
+              {state === "done" && <><CircleCheck size={18} /> <span>Your email is verified. Redirecting to your account…</span></>}
+              {state === "error" && <><TriangleAlert size={18} /> <span>{message}</span></>}
+            </div>
+            <p className="auth-switch">
+              {state === "error" || state === "done" ? (
+                <button type="button" className="text-button" onClick={() => router.push("/login")}>Go to sign in</button>
+              ) : (
+                <button type="button" className="text-button" onClick={() => router.push("/")}>Back to shop</button>
+              )}
+            </p>
           </div>
-          <div className="auth-note" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {state === "checking" && <><Loader2 size={16} className="spin" /> <span>Verifying your email address…</span></>}
-            {state === "done" && <><CircleCheck size={18} /> <span>Your email is verified. Redirecting to your account…</span></>}
-            {state === "error" && <><TriangleAlert size={18} /> <span>{message}</span></>}
-          </div>
-          <p className="auth-switch">
-            {state === "error" || state === "done" ? (
-              <button type="button" className="text-button" onClick={() => router.push("/login")}>Go to sign in</button>
-            ) : (
-              <button type="button" className="text-button" onClick={() => router.push("/")}>Back to shop</button>
-            )}
-          </p>
         </div>
       </div>
-    </div>
+    </>
   );
 }

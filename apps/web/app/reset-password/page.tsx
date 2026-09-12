@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Script from "next/script";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, TriangleAlert } from "lucide-react";
 import { resetPassword } from "@/lib/api";
 import { PlaceholdersInput } from "@/components/ui/PlaceholdersInput";
@@ -9,13 +10,18 @@ import { GENERIC_ERROR } from "@/lib/errors";
 
 export default function ResetPasswordPage() {
   return (
-    <div className="auth-page">
-      <div className="auth-panel-wrap">
-        <Suspense fallback={null}>
-          <ResetPasswordCard />
-        </Suspense>
+    <>
+      <Script id="reset-password-noindex" strategy="beforeInteractive">
+        {`document.querySelector('meta[name="robots"]')?.setAttribute('content', 'noindex, nofollow');`}
+      </Script>
+      <div className="auth-page">
+        <div className="auth-panel-wrap">
+          <Suspense fallback={null}>
+            <ResetPasswordCard />
+          </Suspense>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

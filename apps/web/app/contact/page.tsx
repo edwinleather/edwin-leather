@@ -4,7 +4,17 @@ import { ContactForm } from "@/components/ContactForm";
 import { siteConfig } from "@/lib/site-config";
 import { whatsappLink } from "@/lib/whatsapp";
 
-export const metadata: Metadata = { title: "Contact Us", description: "Contact Edwin Leathers about products, orders, care and collaborations.", alternates: { canonical: "/contact" } };
+export const metadata: Metadata = {
+  title: "Contact Us",
+  description: "Contact Edwin Leathers about products, orders, care and collaborations.",
+  alternates: { canonical: "/contact" },
+  openGraph: {
+    title: "Contact Us | Edwin Leathers",
+    description: "Contact Edwin Leathers about products, orders, care and collaborations.",
+    type: "website",
+    url: "/contact"
+  }
+};
 
 export default function ContactPage() {
   return (

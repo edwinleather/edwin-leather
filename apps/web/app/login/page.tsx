@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { AuthPanel } from "@/components/AuthPanel";
 
-export const metadata: Metadata = { title: "Login", alternates: { canonical: "/login" } };
+export const metadata: Metadata = { title: "Login", alternates: { canonical: "/login" }, robots: { index: false, follow: false } };
 
 export default function LoginPage() {
   return (

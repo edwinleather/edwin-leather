@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { ProductGrid } from "@/components/ProductGrid";
@@ -24,7 +25,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title: category.seoTitle || `${category.name} - Edwin Leathers`,
       description: category.seoDescription || category.description,
       url: `${SITE}/category/${category.slug}`,
-      images: category.imageUrl ? [{ url: category.imageUrl }] : undefined
+      images: category.imageUrl ? [{ url: category.imageUrl, alt: category.name }] : undefined
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: category.seoTitle || `${category.name} - Edwin Leathers`,
+      description: category.seoDescription || category.description,
+      images: category.imageUrl ? [category.imageUrl] : undefined
     }
   };
 }
@@ -92,8 +99,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
                 <a key={item.slug} href={`/category/${item.slug}`} className="category-card">
                   {item.imageUrl && (
                     <span className="category-card__media">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.imageUrl} alt={item.name} loading="lazy" />
+                      <Image src={item.imageUrl} alt={item.name} fill sizes="(max-width: 700px) 82vw, (max-width: 1100px) 44vw, 31vw" loading="lazy" />
                     </span>
                   )}
                   <span className="category-card__shade" />

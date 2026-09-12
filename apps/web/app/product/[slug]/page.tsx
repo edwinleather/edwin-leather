@@ -91,7 +91,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title: product.seoTitle || `${product.name} | ${product.category}`,
       description,
       url: `${SITE}/product/${product.slug}`,
-      images: product.images?.[0] ? [{ url: product.images[0] }] : undefined
+      type: "website",
+      images: product.images?.[0] ? [{ url: product.images[0], alt: product.imageAlts?.[0] || product.name }] : undefined
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: product.seoTitle || `${product.name} | ${product.category}`,
+      description,
+      images: product.images?.[0] ? [product.images[0]] : undefined
     }
   };
 }
