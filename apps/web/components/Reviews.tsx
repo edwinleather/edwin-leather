@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Star, BadgeCheck } from "lucide-react";
 import { Reveal } from "./Reveal";
-import { Loader } from "./Loader";
+
 import { API_URL } from "@/lib/api";
 
 type ReviewImage = { url: string; publicId?: string; alt?: string };
@@ -46,8 +46,6 @@ function formatDate(iso?: string) {
 export function Reviews() {
   const [data, setData] = useState<Summary | null>(null);
   const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     fetch(`${API_URL}/reviews`, { credentials: "include" })
       .then((r) => r.json())
@@ -55,8 +53,7 @@ export function Reviews() {
         if (body?.ok) setData(body.data);
         else { console.error("[reviews] failed to load summary"); setError(true); }
       })
-      .catch((cause) => { console.error("[reviews] load error:", cause); setError(true); })
-      .finally(() => setLoading(false));
+      .catch((cause) => { console.error("[reviews] load error:", cause); setError(true); });
   }, []);
 
   const total = data?.total ?? 0;
@@ -75,8 +72,6 @@ export function Reviews() {
 
         {error ? (
           <p className="muted">Reviews are on the way - check back soon.</p>
-        ) : loading ? (
-          <div className="reviews__loading"><Loader size="sm" label="Loading reviews" /></div>
         ) : (
           <Reveal delay={0.08}>
             <div className="reviews__overview">
@@ -121,7 +116,7 @@ export function Reviews() {
                 <p className="review__body">{review.body}</p>
                 {review.images?.length > 0 && (
                   <div className="review__photos">
-                    {review.images.map((img, i) => <img key={i} src={img.url} alt={img.alt || review.title || "Review photo"} loading="lazy" />)}
+                    {review.images.map((img, i) => <img key={i} src={img.url} alt={img.alt || review.title || "Review photo"} loading="lazy" width={74} height={74} />)}
                   </div>
                 )}
                 <span className="review__date">{formatDate(review.createdAt)}</span>
