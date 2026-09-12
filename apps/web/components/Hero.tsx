@@ -160,7 +160,7 @@ export function Hero() {
 
       <motion.div className="hero__content container-wide" style={{ rotateX, rotateY, transformPerspective: 1200 }}>
         <motion.div style={{ opacity: copyOpacity, y: copyY }} className="hero__copy-wrap">
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             <motion.div
               key={index}
               className="hero__copy"
