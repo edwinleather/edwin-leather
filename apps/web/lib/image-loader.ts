@@ -11,7 +11,8 @@ export default function cloudinaryLoader({ src, width }: CloudinaryImageLoaderPr
 
   const idx = src.indexOf(MARKER);
   const rest = src.slice(idx + MARKER.length);
-  const transforms = `q_auto,f_auto,w_${width}`;
+  const cappedWidth = Math.min(width, 1280);
+  const transforms = `q_auto,f_auto,w_${cappedWidth}`;
 
   return src.slice(0, idx + MARKER.length) + transforms + "/" + rest;
 }

@@ -30,9 +30,9 @@ type Summary = {
 
 function Stars({ value, size = 14 }: { value: number; size?: number }) {
   return (
-    <span className="reviews__stars" aria-label={`${value} out of 5`}>
+    <span className="reviews__stars" role="img" aria-label={`${value} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Star key={n} size={size} fill={n <= Math.round(value) ? "currentColor" : "none"} color="var(--star, #d4a24c)" />
+        <Star key={n} size={size} fill={n <= Math.round(value) ? "currentColor" : "none"} color="var(--star, #d4a24c)" aria-hidden="true" />
       ))}
     </span>
   );

@@ -4,6 +4,7 @@ import { Analytics } from "@/components/Analytics";
 import { AuthProvider } from "@/components/AuthProvider";
 import { CartProvider } from "@/components/CartProvider";
 import { SiteChrome } from "@/components/SiteChrome";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { siteConfig } from "@/lib/site-config";
 import { siteUrl } from "@/lib/site-url";
 
@@ -27,20 +28,32 @@ export const metadata: Metadata = {
     title: SITE_TITLE,
     description: siteConfig.description,
     url: SITE_URL,
-    locale: "en_IN"
+    locale: "en_IN",
+    images: [
+      {
+        url: `${SITE_URL}/og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: "Edwin Leathers — Handcrafted Leather Goods"
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE,
-    description: siteConfig.description
+    description: siteConfig.description,
+    images: [`${SITE_URL}/og-image.png`]
   },
   robots: {
     index: true,
     follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 }
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 }
   },
   alternates: {
-    canonical: SITE_URL
+    canonical: SITE_URL,
+    languages: {
+      "en-in": SITE_URL
+    }
   },
   icons: {
     icon: [
@@ -59,9 +72,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     url: SITE_URL,
     logo: `${SITE_URL}/logo.jpeg`,
     description: siteConfig.description,
-    sameAs: [],
+    sameAs: [
+      siteConfig.instagram,
+      siteConfig.mapsUrl
+    ],
     address: {
       "@type": "PostalAddress",
+      streetAddress: "EDWIN Leather Store",
       addressLocality: "Agra",
       addressRegion: "UP",
       addressCountry: "IN"
@@ -86,6 +103,39 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     }
   };
 
+  const localBusinessJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "LeatherGoodsStore",
+    name: "EDWIN Leather Store",
+    image: `${SITE_URL}/logo.jpeg`,
+    url: SITE_URL,
+    telephone: "+91-9897863824",
+    email: "Support.edwinleather@gmail.com",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "EDWIN Leather Store",
+      addressLocality: "Agra",
+      addressRegion: "Uttar Pradesh",
+      postalCode: "282001",
+      addressCountry: "IN"
+    },
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: 27.1767,
+      longitude: 78.0081
+    },
+    openingHoursSpecification: [
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        opens: "10:00",
+        closes: "18:00"
+      }
+    ],
+    priceRange: "₹₹",
+    description: siteConfig.description
+  };
+
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <head>
@@ -93,8 +143,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }} />
       </head>
       <body>
+        <ServiceWorkerRegistration />
         <Analytics />
         <AuthProvider>
           <CartProvider>

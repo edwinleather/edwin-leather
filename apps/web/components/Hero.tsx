@@ -189,12 +189,13 @@ export function Hero() {
 
         <div className="hero__controls">
           <button className="hero__arrow" onClick={prev} aria-label="Previous slide"><ArrowLeft size={16} /></button>
-          <div className="hero__dots" role="tablist" aria-label="Slides">
+          <div className="hero__dots" role="group" aria-label="Slides">
             {slides.map((s, i) => (
               <button
                 key={i}
                 className={`hero__dot ${i === index ? "is-active" : ""}`}
                 aria-label={`Slide ${i + 1}`}
+                aria-pressed={i === index}
                 onClick={() => setIndex(i)}
               />
             ))}

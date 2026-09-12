@@ -104,7 +104,7 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (key: Sor
 
   return (
     <div className="sort-select" ref={ref}>
-      <button type="button" className="sort-select__button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+      <button type="button" className="sort-select__button" aria-label={`Sort by: ${current.label}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         <SlidersHorizontal size={15} />
         <span className="sort-select__label">Sort</span>
         <span className="sort-select__value">{current.label}</span>
