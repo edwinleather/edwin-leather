@@ -74,13 +74,12 @@ async function handler(
     return str;
   }
 
-  function applyCookies(resHeaders: Record<string, string>, setCookies: { name: string; value: string; options: Record<string, unknown> }[], clearCookies: { name: string; options: Record<string, unknown> }[]) {
-    const cookieHeaders: string[] = [];
-    for (const c of setCookies) cookieHeaders.push(buildCookieHeader(c.name, c.value, c.options));
-    for (const c of clearCookies) cookieHeaders.push(buildCookieHeader(c.name, "", { ...c.options, maxAge: 0 }));
-    if (cookieHeaders.length > 0) {
-      resHeaders["set-cookie"] = cookieHeaders.join(", ");
-    }
+  function buildFinalHeaders(resHeaders: Record<string, string>, setCookies: { name: string; value: string; options: Record<string, unknown> }[], clearCookies: { name: string; options: Record<string, unknown> }[]): Headers {
+    const h = new Headers();
+    for (const [k, v] of Object.entries(resHeaders)) h.set(k, v);
+    for (const c of setCookies) h.append("set-cookie", buildCookieHeader(c.name, c.value, c.options));
+    for (const c of clearCookies) h.append("set-cookie", buildCookieHeader(c.name, "", { ...c.options, maxAge: 0 }));
+    return h;
   }
 
   return new Promise<NextResponse>((resolve) => {
@@ -118,8 +117,7 @@ async function handler(
         resolved = true;
         clearTimeout(timer);
         resHeaders["content-type"] = resHeaders["content-type"] || "application/json";
-        applyCookies(resHeaders, setCookies, clearCookies);
-        resolve(NextResponse.json(data, { status: statusCode, headers: resHeaders }));
+        resolve(NextResponse.json(data, { status: statusCode, headers: buildFinalHeaders(resHeaders, setCookies, clearCookies) }));
         return fakeRes;
       },
       send(data: string | Buffer) {
@@ -127,10 +125,9 @@ async function handler(
         resolved = true;
         clearTimeout(timer);
         const body = Buffer.isBuffer(data) ? data : Buffer.from(data);
-        applyCookies(resHeaders, setCookies, clearCookies);
         resolve(new NextResponse(new Uint8Array(body), {
           status: statusCode,
-          headers: { ...resHeaders, "content-type": resHeaders["content-type"] || "text/plain" },
+          headers: buildFinalHeaders({ ...resHeaders, "content-type": resHeaders["content-type"] || "text/plain" }, setCookies, clearCookies),
         }));
         return fakeRes;
       },
@@ -142,10 +139,9 @@ async function handler(
         const body = Buffer.concat(chunks);
         delete resHeaders["transfer-encoding"];
         delete resHeaders["connection"];
-        applyCookies(resHeaders, setCookies, clearCookies);
         resolve(new NextResponse(body.length > 0 ? new Uint8Array(body) : null, {
           status: statusCode,
-          headers: resHeaders,
+          headers: buildFinalHeaders(resHeaders, setCookies, clearCookies),
         }));
       },
       write(chunk: string | Buffer) {
