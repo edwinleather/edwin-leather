@@ -95,6 +95,20 @@ async function handler(
   nodeReq.headers = headers;
 
   if (bodyBuffer && bodyBuffer.length > 0) {
+    // Pre-parse the body here instead of relying on express's body parsers
+    // reading from the emulated stream (unreliable on some Vercel runtimes).
+    // Setting `_body` makes body-parser skip its own read, so json routes get
+    // a parsed object and the raw Razorpay webhook keeps the exact bytes.
+    const ct = String(headers["content-type"] || "");
+    if (pathStr.startsWith("v1/payments/webhook")) {
+      (nodeReq as any).body = bodyBuffer;
+      (nodeReq as any)._body = true;
+    } else if (ct.includes("application/json")) {
+      try {
+        (nodeReq as any).body = JSON.parse(bodyBuffer.toString("utf8"));
+        (nodeReq as any)._body = true;
+      } catch { /* malformed JSON: let express's parser surface the error */ }
+    }
     nodeReq.push(bodyBuffer);
     nodeReq.push(null);
   } else {
