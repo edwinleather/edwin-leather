@@ -93,11 +93,6 @@ export function GoogleSignInButton({
     <div className="google-signin-wrap">
       <Script src={GSI_SRC} strategy="afterInteractive" onReady={() => setScriptReady(true)} />
       <div ref={containerRef} className="google-signin-slot" aria-label="Sign in with Google" />
-      {!busy && (
-        <p className="tiny muted" style={{ textAlign: "center", marginTop: 6 }}>
-          Popup stays blank? Allow cookies for accounts.google.com, or sign in with email above.
-        </p>
-      )}
       {busy && (
         <div className="google-signin-overlay" aria-hidden="true">
           <span className="btn-spinner" />
