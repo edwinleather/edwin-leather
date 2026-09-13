@@ -14,6 +14,7 @@ type GoogleIdApi = {
     client_id: string;
     callback: (response: GoogleCredentialResponse) => void;
     cancel_on_tap_outside?: boolean;
+    use_fedcm_for_prompt?: boolean;
   }): void;
   renderButton(parent: HTMLElement, options: Record<string, unknown>): void;
 };
@@ -46,6 +47,10 @@ export function GoogleSignInButton({
     window.google.accounts.id.initialize({
       client_id: CLIENT_ID,
       cancel_on_tap_outside: true,
+      // Use the browser-native FedCM flow so sign-in works even when
+      // third-party cookies are blocked (the classic popup shows a blank
+      // page in that case).
+      use_fedcm_for_prompt: true,
       callback: async (response) => {
         const credential = response?.credential;
         if (!credential) {
@@ -88,6 +93,11 @@ export function GoogleSignInButton({
     <div className="google-signin-wrap">
       <Script src={GSI_SRC} strategy="afterInteractive" onReady={() => setScriptReady(true)} />
       <div ref={containerRef} className="google-signin-slot" aria-label="Sign in with Google" />
+      {!busy && (
+        <p className="tiny muted" style={{ textAlign: "center", marginTop: 6 }}>
+          Popup stays blank? Allow cookies for accounts.google.com, or sign in with email above.
+        </p>
+      )}
       {busy && (
         <div className="google-signin-overlay" aria-hidden="true">
           <span className="btn-spinner" />
