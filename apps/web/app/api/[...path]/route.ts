@@ -52,15 +52,28 @@ async function handler(
     url: url.pathname + url.search,
     headers,
     httpVersion: "1.1",
-    socket: { remoteAddress: clientIp },
-    connection: { remoteAddress: clientIp },
+    socket: { remoteAddress: clientIp, destroy() {}, setTimeout() {}, setNoDelay() {}, setKeepAlive() {}, ref() {}, unref() {} },
+    connection: { remoteAddress: clientIp, destroy() {}, setTimeout() {}, setNoDelay() {}, setKeepAlive() {}, ref() {}, unref() {} },
   }) as any;
 
-  // Push the buffered body into the stream so Express can read it
-  if (bodyBuffer) {
-    nodeReq.push(bodyBuffer);
+  // Pre-parse the body and set it directly on the request so Express
+  // body-parser (raw-body) doesn't try to re-read the stream.
+  if (bodyBuffer && bodyBuffer.length > 0) {
+    const ct = headers["content-type"] || "";
+    if (ct.includes("application/json")) {
+      try { nodeReq.body = JSON.parse(bodyBuffer.toString()); }
+      catch { nodeReq.body = bodyBuffer; }
+    } else if (ct.includes("application/x-www-form-urlencoded")) {
+      nodeReq.body = Object.fromEntries(new URLSearchParams(bodyBuffer.toString()));
+    } else {
+      nodeReq.body = bodyBuffer;
+    }
+    nodeReq.rawBody = bodyBuffer;
+    nodeReq._body = true;
+  } else {
+    nodeReq.body = {};
+    nodeReq._body = true;
   }
-  nodeReq.push(null);
 
   function buildCookieHeader(name: string, value: string, options: Record<string, unknown>) {
     let str = `${name}=${encodeURIComponent(value)}`;

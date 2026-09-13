@@ -120,16 +120,17 @@ paymentsRouter.post("/webhook", async (req, res, next) => {
   try {
     const { keys } = await razorpay();
     if (!isConfigured(keys.webhookSecret)) return next(new ApiError(503, "RAZORPAY_WEBHOOK_SECRET is not configured"));
-    if (!Buffer.isBuffer(req.body)) return next(new ApiError(400, "Webhook body must be raw bytes"));
+    const raw: Buffer = Buffer.isBuffer(req.body) ? req.body : (req as any).rawBody;
+    if (!raw || !Buffer.isBuffer(raw)) return next(new ApiError(400, "Webhook body must be raw bytes"));
     const signature = req.header("x-razorpay-signature");
     if (!signature) return next(new ApiError(400, "Missing Razorpay signature"));
 
-    const expected = createHmac("sha256", keys.webhookSecret).update(req.body).digest("hex");
+    const expected = createHmac("sha256", keys.webhookSecret).update(raw).digest("hex");
     const supplied = Buffer.from(signature, "utf8");
     const calculated = Buffer.from(expected, "utf8");
     if (supplied.length !== calculated.length || !timingSafeEqual(supplied, calculated)) return next(new ApiError(401, "Invalid Razorpay webhook signature"));
 
-    const event = JSON.parse(req.body.toString("utf8"));
+    const event = JSON.parse(raw.toString("utf8"));
     const entity = event?.payload?.payment?.entity;
     const gatewayOrderId = entity?.order_id;
 
