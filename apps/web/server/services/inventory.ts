@@ -1,16 +1,11 @@
-import { Product } from "../models/Product";
 import { ProductVariant } from "../models/ProductVariant";
+import { ApiError } from "../middleware/error";
 import { Inventory } from "../models/Inventory";
 import { InventoryLog } from "../models/InventoryLog";
-import { ApiError } from "../middleware/error";
 
 export type StockLine = { productId: string; variantId: string; sku: string; quantity: number };
 
 export type MovementType = "purchase" | "sale" | "return" | "adjustment" | "cancellation";
-
-function legacyMatch(line: StockLine) {
-  return { "variants._id": line.variantId, "variants.sku": line.sku };
-}
 
 async function productVariantFor(line: StockLine) {
   return ProductVariant.findOne({ _id: line.variantId, productId: line.productId }).lean();
@@ -109,35 +104,7 @@ export async function reserveStock(lines: StockLine[], referenceId?: string) {
       await syncInventory(String(line.variantId), { available: -line.quantity, reserved: line.quantity });
       await logMovement({ variantId: line.variantId, productId: line.productId, type: "purchase", quantity: line.quantity, referenceId });
       reserved.push(line);
-      continue;
     }
-
-    const product = await Product.findOne({ _id: line.productId, ...legacyMatch(line), "variants.active": { $ne: false } }, { "variants.$": 1 }).lean();
-    const variant = product?.variants?.[0] as { _id?: unknown; inventoryAvailable?: number; allowBackorder?: boolean } | undefined;
-    if (!variant) {
-      failures.push({ sku: line.sku, available: 0, requested: line.quantity });
-      continue;
-    }
-    const available = variant.inventoryAvailable ?? 0;
-    if (available < line.quantity && !variant.allowBackorder) {
-      failures.push({ sku: line.sku, available, requested: line.quantity });
-      continue;
-    }
-    const res = await Product.findOneAndUpdate(
-      {
-        _id: line.productId,
-        ...legacyMatch(line),
-        "variants.active": { $ne: false },
-        ...(variant.allowBackorder ? {} : { "variants.inventoryAvailable": { $gte: line.quantity } })
-      },
-      { $inc: { "variants.$.inventoryAvailable": -line.quantity, "variants.$.inventoryReserved": line.quantity } }
-    ).lean();
-    if (!res) {
-      failures.push({ sku: line.sku, available, requested: line.quantity });
-      continue;
-    }
-    await logMovement({ variantId: line.variantId, productId: line.productId, type: "purchase", quantity: line.quantity, referenceId });
-    reserved.push(line);
   }
 
   if (failures.length > 0) {
@@ -158,14 +125,6 @@ export async function releaseStock(lines: StockLine[], referenceId?: string, typ
       if (!result) continue;
       await syncInventory(String(line.variantId), { available: line.quantity, reserved: -line.quantity });
       await logMovement({ variantId: line.variantId, productId: line.productId, type, quantity: line.quantity, referenceId });
-      continue;
-    }
-    const result = await Product.findOneAndUpdate(
-      { _id: line.productId, ...legacyMatch(line), "variants.inventoryReserved": { $gte: line.quantity } },
-      { $inc: { "variants.$.inventoryAvailable": line.quantity, "variants.$.inventoryReserved": -line.quantity } }
-    ).lean();
-    if (result) {
-      await logMovement({ variantId: line.variantId, productId: line.productId, type, quantity: line.quantity, referenceId });
     }
   }
 }
@@ -177,14 +136,6 @@ export async function commitStock(lines: StockLine[], referenceId?: string, type
       // ProductVariant.stock was already decremented at reserve time; commit only
       // clears the reserved bucket and records the sale.
       await syncInventory(String(line.variantId), { reserved: -line.quantity });
-      await logMovement({ variantId: line.variantId, productId: line.productId, type, quantity: line.quantity, referenceId });
-      continue;
-    }
-    const result = await Product.findOneAndUpdate(
-      { _id: line.productId, ...legacyMatch(line), "variants.inventoryReserved": { $gte: line.quantity } },
-      { $inc: { "variants.$.inventoryReserved": -line.quantity } }
-    ).lean();
-    if (result) {
       await logMovement({ variantId: line.variantId, productId: line.productId, type, quantity: line.quantity, referenceId });
     }
   }
@@ -221,34 +172,7 @@ export async function setVariantInventory(productId: string, variantId: string, 
     return (updated ?? null) as never;
   }
 
-  const product = await Product.findOne({ _id: productId, "variants._id": variantId }, { "variants.$": 1 }).lean();
-  const variant = product?.variants?.[0] as
-    | { _id?: unknown; inventoryReserved?: number; lowStockThreshold?: number; allowBackorder?: boolean }
-    | undefined;
-  if (!variant) return null;
-
-  const reserved = variant.inventoryReserved ?? 0;
-  const total = Math.max(0, Math.round(input.inventoryTotal));
-  const store = Math.max(0, Math.round(input.inventoryStoreAllocated));
-  const safeStore = Math.min(store, total);
-  const available = Math.max(0, total - safeStore - reserved);
-
-  const updates: Record<string, unknown> = {
-    "variants.$.inventoryTotal": total,
-    "variants.$.inventoryStoreAllocated": safeStore,
-    "variants.$.inventoryAvailable": available
-  };
-  if (input.lowStockThreshold !== undefined) updates["variants.$.lowStockThreshold"] = Math.max(0, Math.round(input.lowStockThreshold));
-  if (input.allowBackorder !== undefined) updates["variants.$.allowBackorder"] = Boolean(input.allowBackorder);
-
-  const updated = await Product.findOneAndUpdate(
-    { _id: productId, "variants._id": variantId },
-    { $set: updates },
-    { returnDocument: "after" }
-  ).lean();
-
-  if (!updated) return null;
-  return updated as never;
+  return null;
 }
 
 // Admin adjustment for a ProductVariant-backed SKU. Keeps ProductVariant.stock

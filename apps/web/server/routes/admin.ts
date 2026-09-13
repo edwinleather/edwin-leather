@@ -27,7 +27,7 @@ import { EmailLog } from "../models/EmailLog";
 import { EMAIL_TEMPLATE_KEYS, EMAIL_TEMPLATE_DEFAULTS } from "../services/email-templates/template-defaults";
 import { getEmailConfig, saveEmailConfig, DEFAULT_CC_EMAILS, DEFAULT_CC_TYPES } from "../services/email-config";
 import { PageContent } from "../models/PageContent";
-import { commitStock, releaseStock, setVariantInventory, adjustVariantInventory, type StockLine } from "../services/inventory";
+import { commitStock, releaseStock, adjustVariantInventory, type StockLine } from "../services/inventory";
 import { orderResponse } from "../services/orders";
 import { getTaxConfig } from "../services/tax";
 import { cloudName, deleteAsset, isCloudinaryConfigured, uploadImage } from "../services/cloudinary";
@@ -41,7 +41,7 @@ import {
   sendOrderCancelledEmail,
   sendReturnRequestedEmail
 } from "../services/send-order-email";
-import { attachMedia } from "../services/media";
+import { attachMedia, reconcileMediaForSave, removeMedia } from "../services/media";
 
 export const adminRouter = Router();
 
@@ -61,49 +61,15 @@ const productSchema = z.object({
   seoTitle: z.string().max(70).optional(),
   seoDescription: z.string().max(160).optional(),
   category: z.string().min(2),
+  categoryId: z.string().min(1).optional().nullable(),
   collection: z.string().optional(),
   brand: z.string().optional(),
   hsn: z.string().optional(),
   gst: z.number().min(0).optional(),
   deliveryBy: z.string().optional(),
-  articleNumber: z.array(z.string()).default([]),
-  styleCode: z.string().optional(),
-  brandColor: z.string().optional(),
-  brandSize: z.string().optional(),
-  ukIndiaSize: z.string().optional(),
-  euroSize: z.string().optional(),
-  womenSandalType: z.string().optional(),
-  color: z.array(z.string()).default([]),
-  typeForFlats: z.string().optional(),
-  typeForHeels: z.string().optional(),
-  occasion: z.array(z.string()).default([]),
-  outerMaterial: z.array(z.string()).default([]),
-  heelHeight: z.string().optional(),
-  idealFor: z.string().optional(),
-  ornamentationType: z.string().optional(),
-  insoleMaterial: z.array(z.string()).default([]),
-  packOf: z.string().optional(),
-  closure: z.array(z.string()).default([]),
-  heelPattern: z.string().optional(),
-  soleMaterial: z.array(z.string()).default([]),
-  innerMaterial: z.array(z.string()).default([]),
-  upperPattern: z.string().optional(),
-  careInstructions: z.array(z.string()).default([]),
-  removableInsole: z.string().optional(),
-  searchKeywords: z.array(z.string()).default([]),
-  keyFeatures: z.array(z.string()).default([]),
-  videoUrl: z.string().optional(),
-  eanUpc: z.array(z.string()).default([]),
-  cushioningLevel: z.string().optional(),
-  otherDetails: z.string().optional(),
-  includedInBox: z.array(z.string()).default([]),
-  returnReplacement: z.string().optional(),
-  cashDelivery: z.string().optional(),
-  customerSupport: z.string().optional(),
   price: z.number().min(0),
   compareAtPrice: z.number().min(0).optional(),
   salePrice: z.number().min(0).optional(),
-  images: z.array(z.object({ url: z.string().url(), publicId: z.string().optional(), alt: z.string().optional() })).max(4).default([]),
   attributes: z
     .array(
       z.object({
@@ -135,7 +101,9 @@ const productSchema = z.object({
         price: z.number().min(0),
         salePrice: z.number().min(0).optional(),
         stock: z.number().int().min(0).default(0),
-        images: z.array(z.object({ url: z.string().url(), publicId: z.string().optional(), alt: z.string().optional() })).max(4).default([]),
+        articleNumber: z.string().max(60).optional(),
+        barcode: z.string().max(60).optional(),
+        status: z.enum(["draft", "active", "inactive"]).optional(),
         active: z.boolean().default(true),
         allowBackorder: z.boolean().default(false)
       })
@@ -144,25 +112,7 @@ const productSchema = z.object({
   featured: z.boolean().default(false),
   codAvailable: z.boolean().default(true),
   active: z.boolean().default(true),
-  status: z.enum(["draft", "active", "inactive"]).default("active"),
-  variants: z
-    .array(
-      z.object({
-        label: z.string().min(1),
-        sku: z.string().min(1),
-        color: z.string().min(1),
-        size: z.string().optional(),
-        priceOverride: z.number().min(0).optional(),
-        salePrice: z.number().min(0).optional(),
-        inventoryAvailable: z.number().int().min(0).optional(),
-        inventoryTotal: z.number().int().min(0).optional(),
-        inventoryStoreAllocated: z.number().int().min(0).optional(),
-        lowStockThreshold: z.number().int().min(0).optional(),
-        allowBackorder: z.boolean().optional(),
-        active: z.boolean().default(true)
-      })
-    )
-    .default([])
+  status: z.enum(["draft", "active", "inactive"]).default("active")
 });
 
 const couponBaseSchema = z.object({
@@ -285,24 +235,6 @@ async function resolveCategoryStructure(input: { attributes?: { attributeId: str
   return { attributes: [], fields: [] };
 }
 
-function normalizeVariant(
-  variant: { _id?: unknown; inventoryAvailable?: number; inventoryTotal?: number; inventoryStoreAllocated?: number; lowStockThreshold?: number; allowBackorder?: boolean; inventoryReserved?: number },
-  existingReserved = 0
-) {
-  const total = Math.max(0, Math.round(variant.inventoryTotal ?? variant.inventoryAvailable ?? 0));
-  const store = Math.min(total, Math.max(0, Math.round(variant.inventoryStoreAllocated ?? 0)));
-  const reserved = Math.max(0, Math.round(variant.inventoryReserved ?? existingReserved));
-  return {
-    ...variant,
-    inventoryTotal: total,
-    inventoryStoreAllocated: store,
-    inventoryReserved: reserved,
-    inventoryAvailable: Math.max(0, total - store - reserved),
-    lowStockThreshold: variant.lowStockThreshold ?? 3,
-    allowBackorder: variant.allowBackorder ?? false
-  };
-}
-
 // ---------------------------------------------------------------- Products
 
 adminRouter.get("/products", requireAdmin, requireFeature("products"), async (_req, res, next) => {
@@ -331,14 +263,13 @@ adminRouter.post("/products", requireAdmin, requireFeature("products"), async (r
   try {
     await requireDb();
     const input = productSchema.parse(req.body);
-    const variants = input.variants.map((variant) => normalizeVariant(variant));
     const attributes = await normalizeProductAttributes(input.attributes ?? []);
     const category = input.category ? await Category.findOne({ name: input.category }).lean() : null;
     if (category) {
       const errors = await validateProductAttributes(category.attributes ?? [], attributes);
       if (errors.length) return next(new ApiError(400, "Invalid attribute values", errors));
     }
-    const product = await Product.create({ ...input, attributes, variants });
+    const product = await Product.create({ ...input, attributes });
     if (product.variantDimensions && product.variantDimensions.length > 0) {
       await reconcileProductVariants(String(product._id), input.variantDimensions ?? [], input.productVariants ?? []);
     }
@@ -366,14 +297,6 @@ adminRouter.patch("/products/:productId", requireAdmin, requireFeature("products
         if (errors.length) return next(new ApiError(400, "Invalid attribute values", errors));
       }
     }
-    if (input.variants) {
-      const existing = new Map<string, number>();
-      for (const v of product.variants ?? []) existing.set(String(v._id), v.inventoryReserved ?? 0);
-      update.variants = input.variants.map((variant) => {
-        const withId = { ...variant, _id: (variant as { _id?: unknown })._id };
-        return normalizeVariant(withId, existing.get(String((variant as { _id?: unknown })._id)) ?? 0);
-      });
-    }
     const updated = await Product.findByIdAndUpdate(req.params.productId, update, { returnDocument: "after", runValidators: true });
     if (!updated) return next(new ApiError(404, "Product not found"));
     if (input.variantDimensions) {
@@ -390,57 +313,34 @@ adminRouter.patch("/products/:productId", requireAdmin, requireFeature("products
   }
 });
 
-adminRouter.patch("/products/:productId/images/reorder", requireAdmin, requireFeature("products"), async (req, res, next) => {
+// Reconcile the Media collection to match a product's full image set
+// (product-level gallery + per-variant galleries). Media is the single source of
+// truth for images; the legacy embedded image arrays are not used anymore.
+const mediaReconcileSchema = z.object({
+  product: z.array(z.object({ url: z.string().min(1), publicId: z.string().optional(), alt: z.string().optional() })).default([]),
+  variants: z.record(z.string(), z.array(z.object({ url: z.string().min(1), publicId: z.string().optional(), alt: z.string().optional() }))).default({})
+});
+
+adminRouter.put("/products/:productId/media", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
     await requireDb();
-    const input = z.object({ orderedIds: z.array(z.string()).min(1) }).parse(req.body);
-    const product = await Product.findById(req.params.productId);
+    const input = mediaReconcileSchema.parse(req.body);
+    await reconcileMediaForSave(String(req.params.productId), input.product, input.variants);
+    const product = await Product.findById(req.params.productId).lean();
     if (!product) return next(new ApiError(404, "Product not found"));
-    const orderMap = new Map(input.orderedIds.map((id, idx) => [id, idx]));
-    const reordered = [...product.images].sort((a, b) => {
-      const aIdx = orderMap.get(String(a._id));
-      const bIdx = orderMap.get(String(b._id));
-      if (aIdx === undefined && bIdx === undefined) return 0;
-      if (aIdx === undefined) return 1;
-      if (bIdx === undefined) return -1;
-      return aIdx - bIdx;
-    });
-    product.images = reordered;
-    await product.save();
-    return res.json({ ok: true, data: product.images });
+    await attachMedia([product] as never);
+    return res.json({ ok: true, data: (product as Record<string, unknown>).media });
   } catch (error) {
-    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid reorder input", error.flatten()));
+    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid media input", error.flatten()));
     return next(error);
   }
 });
 
-adminRouter.patch("/products/:productId/images/:imageId", requireAdmin, requireFeature("products"), async (req, res, next) => {
+adminRouter.delete("/products/:productId/media/:mediaId", requireAdmin, requireFeature("products"), async (req, res, next) => {
   try {
     await requireDb();
-    const input = z.object({ alt: z.string().max(120).optional() }).parse(req.body);
-    const product = await Product.findById(req.params.productId);
-    if (!product) return next(new ApiError(404, "Product not found"));
-    const image = product.images.id(req.params.imageId);
-    if (!image) return next(new ApiError(404, "Image not found"));
-    if (input.alt !== undefined) image.alt = input.alt;
-    await product.save();
-    return res.json({ ok: true, data: product.images });
-  } catch (error) {
-    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid image input", error.flatten()));
-    return next(error);
-  }
-});
-
-adminRouter.delete("/products/:productId/images/:imageId", requireAdmin, requireFeature("products"), async (req, res, next) => {
-  try {
-    await requireDb();
-    const product = await Product.findById(req.params.productId);
-    if (!product) return next(new ApiError(404, "Product not found"));
-    const img = product.images.id(req.params.imageId);
-    if (!img) return next(new ApiError(404, "Image not found"));
-    img.deleteOne();
-    await product.save();
-    return res.json({ ok: true, data: product.images });
+    await removeMedia(String(req.params.mediaId));
+    return res.json({ ok: true });
   } catch (error) {
     return next(error);
   }
@@ -520,75 +420,8 @@ adminRouter.patch("/products/bulk", requireAdmin, requireFeature("products"), as
   }
 });
 
-adminRouter.post("/products/:productId/variants", requireAdmin, requireFeature("products"), async (req, res, next) => {
-  try {
-    await requireDb();
-    const input = z
-      .object({
-        label: z.string().min(1),
-        sku: z.string().min(1),
-        color: z.string().min(1),
-        size: z.string().optional(),
-        priceOverride: z.number().min(0).optional(),
-        salePrice: z.number().min(0).optional(),
-        inventoryAvailable: z.number().int().min(0).default(0)
-      })
-      .parse(req.body);
-    const product = await Product.findByIdAndUpdate(
-      req.params.productId,
-      { $push: { variants: { ...input, inventoryReserved: 0, active: true } } },
-      { returnDocument: "after", runValidators: true }
-    );
-    if (!product) return next(new ApiError(404, "Product not found"));
-    return res.status(201).json({ ok: true, data: product });
-  } catch (error) {
-    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid variant input", error.flatten()));
-    return next(error);
-  }
-});
 
-adminRouter.patch("/products/:productId/variants/:variantId", requireAdmin, requireFeature("products"), async (req, res, next) => {
-  try {
-    await requireDb();
-    const input = z
-      .object({
-        label: z.string().min(1).optional(),
-        size: z.string().optional(),
-        priceOverride: z.number().min(0).nullable().optional(),
-        salePrice: z.number().min(0).nullable().optional(),
-        inventoryAvailable: z.number().int().min(0).optional(),
-        active: z.boolean().optional()
-      })
-      .parse(req.body);
-    const updates: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(input)) updates[`variants.$.${key}`] = value;
-    const product = await Product.findOneAndUpdate(
-      { _id: req.params.productId, "variants._id": req.params.variantId },
-      { $set: updates },
-      { returnDocument: "after", runValidators: true }
-    );
-    if (!product) return next(new ApiError(404, "Variant not found"));
-    return res.json({ ok: true, data: product });
-  } catch (error) {
-    if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid variant input", error.flatten()));
-    return next(error);
-  }
-});
 
-adminRouter.delete("/products/:productId/variants/:variantId", requireAdmin, requireFeature("products"), async (req, res, next) => {
-  try {
-    await requireDb();
-    const product = await Product.findByIdAndUpdate(
-      req.params.productId,
-      { $pull: { variants: { _id: req.params.variantId } } },
-      { returnDocument: "after" }
-    );
-    if (!product) return next(new ApiError(404, "Variant not found"));
-    return res.json({ ok: true, data: product });
-  } catch (error) {
-    return next(error);
-  }
-});
 
 // ---------------------------------------------------------------- Inventory
 
@@ -597,37 +430,11 @@ adminRouter.get("/inventory", requireAdmin, requireFeature("inventory"), async (
     await requireDb();
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 100));
-    const products = await Product.find({}, { name: 1, slug: 1, active: 1, category: 1, variants: 1 }).lean();
+    const products = await Product.find({}, { name: 1, slug: 1, active: 1, category: 1 }).lean();
     const rows: unknown[] = [];
     const productById: Record<string, { name: string; slug: string; active: boolean }> = {};
-
     for (const product of products) {
       productById[String(product._id)] = { name: product.name, slug: product.slug, active: product.active };
-      for (const variant of product.variants ?? []) {
-        const v = variant as { inventoryTotal?: number; inventoryAvailable?: number; inventoryReserved?: number; inventoryStoreAllocated?: number } & (typeof products)[number]["variants"][number];
-        if (v.inventoryTotal === undefined) {
-          v.inventoryTotal = (v.inventoryAvailable ?? 0) + (v.inventoryReserved ?? 0);
-        }
-        if (v.inventoryStoreAllocated === undefined) v.inventoryStoreAllocated = 0;
-        rows.push({
-          kind: "legacy",
-          variantId: String((v as { _id: unknown })._id),
-          productId: String(product._id),
-          productName: product.name,
-          slug: product.slug,
-          active: product.active,
-          sku: v.sku,
-          label: v.label,
-          color: v.color,
-          size: v.size,
-          available: v.inventoryAvailable ?? 0,
-          reserved: v.inventoryReserved ?? 0,
-          damaged: 0,
-          store: v.inventoryStoreAllocated ?? 0,
-          lowStockThreshold: v.lowStockThreshold ?? 3,
-          allowBackorder: v.allowBackorder ?? false
-        });
-      }
     }
 
     // ProductVariant-backed SKUs
@@ -666,9 +473,8 @@ adminRouter.get("/inventory", requireAdmin, requireFeature("inventory"), async (
 });
 
 const inventorySetSchema = z.object({
-  kind: z.enum(["variant", "legacy"]).optional(),
+  kind: z.enum(["variant"]).optional(),
   inventoryTotal: z.number().int().min(0),
-  inventoryStoreAllocated: z.number().int().min(0).optional().default(0),
   lowStockThreshold: z.number().int().min(0).optional(),
   allowBackorder: z.boolean().optional(),
   damaged: z.number().int().min(0).optional()
@@ -681,23 +487,17 @@ adminRouter.patch("/inventory/:productId/:variantId", requireAdmin, requireFeatu
     const productId = String(req.params.productId);
     const variantId = String(req.params.variantId);
 
-    if (input.kind === "variant") {
-      const updated = await adjustVariantInventory(
-        variantId,
-        productId,
-        {
-          total: input.inventoryTotal,
-          damaged: input.damaged ?? 0,
-          lowStockThreshold: input.lowStockThreshold,
-          allowBackorder: input.allowBackorder
-        },
-        String((req as AuthenticatedRequest & { admin?: { id?: string } }).admin?.id ?? "")
-      );
-      if (!updated) return next(new ApiError(404, "Variant not found"));
-      return res.json({ ok: true, data: updated });
-    }
-
-    const updated = await setVariantInventory(productId, variantId, input);
+    const updated = await adjustVariantInventory(
+      variantId,
+      productId,
+      {
+        total: input.inventoryTotal,
+        damaged: input.damaged ?? 0,
+        lowStockThreshold: input.lowStockThreshold,
+        allowBackorder: input.allowBackorder
+      },
+      String((req as AuthenticatedRequest & { admin?: { id?: string } }).admin?.id ?? "")
+    );
     if (!updated) return next(new ApiError(404, "Variant not found"));
     return res.json({ ok: true, data: updated });
   } catch (error) {

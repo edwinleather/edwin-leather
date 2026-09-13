@@ -2,25 +2,10 @@ import mongoose from "mongoose";
 
 const { Schema, model, models } = mongoose;
 
-const variantSchema = new Schema(
-  {
-    label: { type: String, required: true },
-    sku: { type: String, required: true, unique: true, index: true },
-    color: { type: String, required: true },
-    size: String,
-    priceOverride: Number,
-    salePrice: Number,
-    inventoryTotal: { type: Number, default: 0, min: 0 },
-    inventoryStoreAllocated: { type: Number, default: 0, min: 0 },
-    inventoryAvailable: { type: Number, default: 0, min: 0 },
-    inventoryReserved: { type: Number, default: 0, min: 0 },
-    lowStockThreshold: { type: Number, default: 3, min: 0 },
-    allowBackorder: { type: Boolean, default: false },
-    active: { type: Boolean, default: true }
-  },
-  { _id: true }
-);
-
+// A product only stores common information. All category-specific detail lives in
+// `attributes[]` (product attributes) and `variantDimensions[]` (variant
+// dimensions). Sellable items are standalone ProductVariant documents; images
+// live in the Media collection. Legacy hardcoded spec columns were removed.
 const productSchema = new Schema(
   {
     slug: { type: String, required: true, unique: true, index: true },
@@ -30,55 +15,18 @@ const productSchema = new Schema(
     seoTitle: String,
     seoDescription: String,
     category: { type: String, required: true, index: true },
-    // Canonical category reference. New products set this; the field is nullable
-    // until the migration backfills existing products by category name.
+    // Canonical category reference (category name stays as the display/search key).
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", index: true },
     collection: String,
     brand: String,
     hsn: String,
     gst: Number,
     deliveryBy: String,
-    articleNumber: [String],
-    styleCode: String,
-    brandColor: String,
-    brandSize: String,
-    ukIndiaSize: String,
-    euroSize: String,
-    womenSandalType: String,
-    color: [String],
-    typeForFlats: String,
-    typeForHeels: String,
-    occasion: [String],
-    outerMaterial: [String],
-    heelHeight: String,
-    idealFor: String,
-    ornamentationType: String,
-    insoleMaterial: [String],
-    packOf: String,
-    closure: [String],
-    heelPattern: String,
-    soleMaterial: [String],
-    innerMaterial: [String],
-    upperPattern: String,
-    careInstructions: [String],
-    removableInsole: String,
-    searchKeywords: [String],
-    keyFeatures: [String],
-    videoUrl: String,
-    eanUpc: [String],
-    cushioningLevel: String,
-    otherDetails: String,
-    includedInBox: [String],
-    returnReplacement: String,
-    cashDelivery: String,
-    customerSupport: String,
+    // Display pricing. Variant prices are the canonical sellable prices.
     price: { type: Number, required: true, min: 0 },
     compareAtPrice: Number,
     salePrice: Number,
-    images: [{ url: String, publicId: String, alt: String }],
-    // Attribute values reference the shared Attribute pool. `key`/`label` are
-    // legacy fields kept so older products remain readable and savable until
-    // they are migrated to attributeId references.
+    // Product attribute values, each referencing the shared Attribute pool.
     attributes: [
       {
         attributeId: { type: Schema.Types.ObjectId, ref: "Attribute" },
@@ -87,16 +35,15 @@ const productSchema = new Schema(
         value: mongoose.Schema.Types.Mixed
       }
     ],
-    // The dimensions that vary across this product's variants and the option
-    // values chosen for each (e.g. Color: [Black, White], Size: [8, 9]). The
-    // concrete ProductVariant docs are generated from these combinations.
+    // The dimensions that vary across this product\'s variants and the option
+    // values chosen for each (e.g. Color: [Black, White], Size: [8, 9]).
+    // The concrete ProductVariant docs are generated from these combinations.
     variantDimensions: [
       {
         attributeId: { type: Schema.Types.ObjectId, ref: "Attribute" },
         values: [String]
       }
     ],
-    variants: [variantSchema],
     featured: { type: Boolean, default: false },
     codAvailable: { type: Boolean, default: true },
     active: { type: Boolean, default: true },

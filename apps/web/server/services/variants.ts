@@ -149,12 +149,11 @@ export async function reconcileProductVariants(productId: string, dimensions: Va
 }
 
 // ---------------------------------------------------------------- Resolution
-// A unified view of a purchasable variant regardless of storage: a ProductVariant
-// document (new system) or a legacy embedded `product.variants` entry. Every
-// purchase path (cart, order creation, stock validation) resolves through this so
-// both systems behave identically downstream.
+// A unified view of a purchasable ProductVariant document. Every purchase path
+// (cart, order creation, stock validation) resolves through this so Product stays
+// slim and variants are the only sellable units.
 export type ResolvedVariant = {
-  kind: "legacy" | "product";
+  kind: "product";
   variantId: string;
   sku: string;
   label: string;
@@ -175,7 +174,6 @@ export type ResolveProduct = {
   price: number;
   compareAtPrice?: number | null;
   salePrice?: number | null;
-  variants?: { _id: unknown; label: string; sku: string; color?: string; size?: string; priceOverride?: number; salePrice?: number; inventoryAvailable?: number; allowBackorder?: boolean; active?: boolean }[];
   variantDimensions?: { attributeId: unknown }[];
 };
 
@@ -209,33 +207,6 @@ export function resolveVariantById(
   productVariants: ResolveProductVariant[],
   variantId: string
 ): ResolvedVariant | null {
-  const legacy = (product.variants ?? []).find((v) => String(v._id) === String(variantId));
-  if (legacy) {
-    const pricing = resolvePrice(legacy.priceOverride ?? product.price, {
-      salePrice: legacy.salePrice,
-      compareAtPrice: product.compareAtPrice
-    });
-    return {
-      kind: "legacy",
-      variantId: String(legacy._id),
-      sku: legacy.sku,
-      label: legacy.label,
-      price: pricing.price,
-      basePrice: pricing.basePrice,
-      salePrice: pricing.salePrice,
-      compareAtPrice: pricing.compareAtPrice,
-      hasDiscount: pricing.hasDiscount,
-      percentOff: pricing.percentOff,
-      stock: legacy.inventoryAvailable ?? 0,
-      allowBackorder: Boolean(legacy.allowBackorder),
-      active: legacy.active !== false,
-      attributes: [
-        { key: "color", name: "Color", value: legacy.color ?? "" },
-        ...(legacy.size ? [{ key: "size", name: "Size", value: legacy.size }] : [])
-      ]
-    };
-  }
-
   const pv = (productVariants ?? []).find((v) => String(v._id) === String(variantId));
   if (pv) {
     const pricing = resolvePrice(pv.price, {
