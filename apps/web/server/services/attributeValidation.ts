@@ -29,24 +29,31 @@ function isMissing(value: string | string[] | undefined): boolean {
 function validateValue(type: AttributeType, options: string[], value: string | string[]): string | null {
   const opts = options ?? [];
 
-  if (type === "number") {
-    const n = typeof value === "number" ? value : Number(String(Array.isArray(value) ? value[0] : value).trim());
-    return typeof n === "number" && isFinite(n) ? null : "Must be a number";
-  }
-
-  if (type === "yesno") {
+  // "boolean" and "yesno" are the same family (yesno is the legacy name).
+  // Accept booleans and the "Yes"/"No" strings the current UI already emits.
+  if (type === "yesno" || type === "boolean") {
     const v = value as unknown;
     const ok = v === true || v === false || v === "Yes" || v === "No" || v === "yes" || v === "no";
     return ok ? null : "Must be Yes or No";
   }
 
-  if (type === "select") {
+  if (type === "color") {
+    const s = String(Array.isArray(value) ? value[0] : value ?? "").trim().replace(/^#/, "");
+    return /^[0-9a-fA-F]{3}([0-9a-fA-F]{3}|[0-9a-fA-F]{5})?$/.test(s) ? null : "Must be a hex colour";
+  }
+
+  if (type === "number") {
+    const n = typeof value === "number" ? value : Number(String(Array.isArray(value) ? value[0] : value).trim());
+    return typeof n === "number" && isFinite(n) ? null : "Must be a number";
+  }
+
+  if (type === "dropdown" || type === "select") {
     const s = Array.isArray(value) ? String(value[0] ?? "") : String(value ?? "");
     if (opts.length > 0 && !opts.includes(s)) return `Must be one of: ${opts.join(", ")}`;
     return null;
   }
 
-  if (type === "multi") {
+  if (type === "multiselect" || type === "multi") {
     const arr = Array.isArray(value) ? value.map((v) => String(v)) : [String(value ?? "")];
     if (opts.length > 0) {
       for (const v of arr) {

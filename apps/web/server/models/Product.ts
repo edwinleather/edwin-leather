@@ -30,6 +30,9 @@ const productSchema = new Schema(
     seoTitle: String,
     seoDescription: String,
     category: { type: String, required: true, index: true },
+    // Canonical category reference. New products set this; the field is nullable
+    // until the migration backfills existing products by category name.
+    categoryId: { type: Schema.Types.ObjectId, ref: "Category", index: true },
     collection: String,
     brand: String,
     hsn: String,

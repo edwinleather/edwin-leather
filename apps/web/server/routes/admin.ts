@@ -41,6 +41,7 @@ import {
   sendOrderCancelledEmail,
   sendReturnRequestedEmail
 } from "../services/send-order-email";
+import { attachMedia } from "../services/media";
 
 export const adminRouter = Router();
 
@@ -319,6 +320,7 @@ adminRouter.get("/products", requireAdmin, requireFeature("products"), async (_r
     for (const p of data) {
       (p as { productVariants?: unknown }).productVariants = byProduct.get(String(p._id)) ?? [];
     }
+    await attachMedia(data as never);
     return res.json({ ok: true, data });
   } catch (error) {
     return next(error);

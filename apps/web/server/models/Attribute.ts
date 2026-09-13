@@ -12,10 +12,15 @@ const attributeSchema = new Schema(
     key: { type: String, required: true, unique: true, trim: true, lowercase: true, index: true },
     type: {
       type: String,
-      enum: ["text", "multi", "textarea", "select", "yesno", "number"],
+      // "select"/"multi"/"yesno" are legacy names kept valid so old data and the
+      // current UI keep working. New clients may use the canonical names
+      // "dropdown"/"multiselect"/"boolean"; the attribute engine normalizes
+      // between them. "color" adds an optional hex value for swatch rendering.
+      enum: ["text", "multi", "textarea", "select", "yesno", "number", "dropdown", "multiselect", "boolean", "color"],
       default: "text"
     },
     options: [String],
+    colorHex: String,
     description: String
   },
   { timestamps: true }

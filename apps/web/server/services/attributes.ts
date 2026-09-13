@@ -1,8 +1,52 @@
 import { Attribute } from "../models/Attribute";
 import { Category } from "../models/Category";
 
-export const FIELD_TYPES = ["text", "multi", "textarea", "select", "yesno", "number"] as const;
+export const FIELD_TYPES = [
+  "text",
+  "multi",
+  "textarea",
+  "select",
+  "yesno",
+  "number",
+  // New canonical names (additive; old names stay valid for legacy data).
+  "dropdown",
+  "multiselect",
+  "boolean",
+  "color"
+] as const;
 export type AttributeType = (typeof FIELD_TYPES)[number];
+
+// Map any legacy or canonical name onto the canonical type used by new UI/API
+// code: select => dropdown, multi => multiselect, yesno => boolean.
+export function canonicalAttributeType(type: string): AttributeType {
+  switch (type) {
+    case "select":
+      return "dropdown";
+    case "multi":
+      return "multiselect";
+    case "yesno":
+      return "boolean";
+    default:
+      return FIELD_TYPES.includes(type as AttributeType) ? (type as AttributeType) : "text";
+  }
+}
+
+// Equivalent storage values a validator should treat as one type family.
+export function typeFamilies(type: string): string[] {
+  switch (type) {
+    case "select":
+    case "dropdown":
+      return ["select", "dropdown"];
+    case "multi":
+    case "multiselect":
+      return ["multi", "multiselect"];
+    case "yesno":
+    case "boolean":
+      return ["yesno", "boolean"];
+    default:
+      return [type];
+  }
+}
 
 export type AttributeInput = { name: string; type?: AttributeType; options?: string[] };
 

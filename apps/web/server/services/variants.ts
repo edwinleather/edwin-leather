@@ -12,6 +12,9 @@ export type ProductVariantInput = {
   active: boolean;
   allowBackorder?: boolean;
   salePrice?: number;
+  articleNumber?: string;
+  barcode?: string;
+  status?: "draft" | "active" | "inactive";
   images?: { url: string; publicId?: string; alt?: string }[];
 };
 
@@ -56,8 +59,13 @@ export function generateCombinations(dimensions: VariantDimensionInput[]): Varia
 
 // Reconcile a product's ProductVariant documents against the dimensions and the
 // admin-provided variant details. For each generated combination it upserts a
-// ProductVariant (keeping the admin-entered sku/price/stock/active) and deletes
-// any combination that no longer exists.
+// ProductVariant (keeping the admin-entered data and the existing document _id)
+// and **soft-deactivates** any combination that no longer exists.
+//
+// Why soft-deactivate instead of delete? Orders, carts and Inventory documents
+// reference variant _ids; deleting a variant orphans those references and would
+// corrupt order line labels after reconcile. Deactivated variants stay resolved
+// in historical data and can be re-activated if their combo returns.
 export async function reconcileProductVariants(productId: string, dimensions: VariantDimensionInput[], productVariants: ProductVariantInput[]) {
   const generated = generateCombinations(dimensions);
   const providedByKey = new Map<string, ProductVariantInput>();
@@ -81,16 +89,34 @@ export async function reconcileProductVariants(productId: string, dimensions: Va
     seenKeys.add(key);
     const provided = providedByKey.get(key);
     const current = existingByKey.get(key);
-    const data = {
+
+    // A combo present in the dimensions is sellable, so it is active unless the
+    // admin explicitly disabled it in THIS save. Ignoring a previously
+    // soft-deactivated `active:false` here is what lets removed combos come back.
+    const active = provided?.active ?? true;
+    const status =
+      provided?.status ??
+      (active === false ? "inactive" : current?.status ?? "active");
+
+    const data: Record<string, unknown> = {
       attributes: combo.map((c) => ({ attributeId: new mongoose.Types.ObjectId(c.attributeId), value: c.value })),
       sku: provided?.sku ?? current?.sku ?? "",
       price: provided?.price ?? current?.price ?? 0,
       salePrice: provided?.salePrice ?? current?.salePrice ?? undefined,
+      articleNumber: provided?.articleNumber ?? current?.articleNumber ?? undefined,
+      barcode: provided?.barcode ?? current?.barcode ?? undefined,
       images: provided?.images ?? current?.images ?? [],
       stock: provided?.stock ?? current?.stock ?? 0,
-      active: provided?.active ?? current?.active ?? true,
+      active,
+      status,
       allowBackorder: provided?.allowBackorder ?? current?.allowBackorder ?? false
     };
+    // $set with undefined is legal in MongoDB but store nothing; strip to keep
+    // documents clean.
+    for (const k of Object.keys(data)) {
+      if (data[k] === undefined) delete data[k];
+    }
+
     if (current) {
       ops.push({
         updateOne: {
@@ -106,7 +132,12 @@ export async function reconcileProductVariants(productId: string, dimensions: Va
   for (const doc of existing) {
     const key = comboKeyFromDoc(doc.attributes);
     if (!seenKeys.has(key)) {
-      ops.push({ deleteOne: { filter: { _id: doc._id } } });
+      ops.push({
+        updateOne: {
+          filter: { _id: doc._id },
+          update: { $set: { active: false, status: "inactive" } }
+        }
+      });
     }
   }
 
