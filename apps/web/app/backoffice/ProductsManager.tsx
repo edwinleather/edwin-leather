@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ArrowUpRight, Crop, Plus, Search, Trash2, X } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { type Attribute, type CategoryAttributeRef } from "@/lib/field-defs";
@@ -79,6 +79,40 @@ export function ProductsManager() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
+  const dirtyRef = useRef(false);
+  const saveRef = useRef<(() => void) | null>(null);
+  const saveBusyRef = useRef(false);
+  const pendingTargetRef = useRef<Product | "new" | null>(null);
+  const [confirmSwitch, setConfirmSwitch] = useState(false);
+
+  function requestEdit(target: Product | "new") {
+    // Clicking the product that is already open keeps the form as-is.
+    if (editing && target !== "new" && editing !== "new" && editing._id === target._id) return;
+    if (editing === "new" && target === "new") return;
+    if (dirtyRef.current) {
+      pendingTargetRef.current = target;
+      setConfirmSwitch(true);
+      return;
+    }
+    pendingTargetRef.current = null;
+    setEditing(target);
+  }
+
+  function handleSaved() {
+    load();
+    const target = pendingTargetRef.current;
+    pendingTargetRef.current = null;
+    dirtyRef.current = false;
+    setConfirmSwitch(false);
+    setEditing(target); // null (plain save) or the requested product ("save & switch")
+  }
+
+  function handleClose() {
+    pendingTargetRef.current = null;
+    setConfirmSwitch(false);
+    setEditing(null);
+  }
+
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -157,17 +191,21 @@ export function ProductsManager() {
     <div className="admin-panel">
       <div className="admin-panel__head">
         <div><span className="eyebrow">Catalog</span><h2>Products</h2></div>
-        <button className="button button--dark" onClick={() => setEditing("new")}>Add product <ArrowUpRight size={15} /></button>
+        <button className="button button--dark" onClick={() => requestEdit("new")}>Add product <ArrowUpRight size={15} /></button>
       </div>
 
       <label className="order-search"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, SKU, category or brand" /></label>
 
       {editing && (
         <ProductForm
+          key={editing === "new" ? "new" : editing._id}
           product={editing === "new" ? null : editing}
           categories={categories}
-          onSaved={() => { setEditing(null); load(); }}
-          onClose={() => setEditing(null)}
+          onSaved={handleSaved}
+          onClose={handleClose}
+          onDirty={() => { dirtyRef.current = true; }}
+          saveRef={saveRef}
+          saveBusyRef={saveBusyRef}
         />
       )}
 
@@ -196,7 +234,7 @@ export function ProductsManager() {
                 <td>{p.variants.length + (p.productVariants?.length ?? 0)}</td>
                 <td><span className={`status ${p.status === "active" ? "status--confirmed" : p.status === "draft" ? "status--pending" : ""}`}>{p.status ?? (p.active ? "active" : "inactive")}</span></td>
                 <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                  <button className="text-button" onClick={() => setEditing(p)}>Edit</button>
+                  <button className="text-button" onClick={() => requestEdit(p)}>Edit</button>
                   <button className="text-button" onClick={() => duplicateProduct(p)}>Duplicate</button>
                   <button className="text-button" style={{ color: "var(--danger, #b91c1c)" }} onClick={() => removeProduct(p)}>Delete</button>
                 </td>
@@ -205,6 +243,22 @@ export function ProductsManager() {
           </tbody>
         </table>
       </div>
+
+      {confirmSwitch && pendingTargetRef.current && (
+        <div className="resizer-overlay">
+          <div className="resizer">
+            <h3 style={{ margin: 0 }}>Unsaved changes</h3>
+            <p className="muted" style={{ margin: "8px 0" }}>
+              This product form has unsaved changes. Save them before switching, discard them, or go back?
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" className="button button--dark" disabled={saveBusyRef.current} onClick={() => { setConfirmSwitch(false); try { saveRef.current?.(); } catch {} }}>Save changes</button>
+              <button type="button" className="button button--ghost" onClick={() => { const t = pendingTargetRef.current; pendingTargetRef.current = null; dirtyRef.current = false; setConfirmSwitch(false); setEditing(t); }}>Discard changes</button>
+              <button type="button" className="button button--ghost" onClick={() => setConfirmSwitch(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -223,10 +277,18 @@ function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function ProductForm({ product, categories, onSaved, onClose }: { product: Product | null; categories: Category[]; onSaved: () => void; onClose: () => void }) {
+function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, saveBusyRef }: {
+  product: Product | null;
+  categories: Category[];
+  onSaved: () => void;
+  onClose: () => void;
+  onDirty: () => void;
+  saveRef: { current: (() => void) | null };
+  saveBusyRef: { current: boolean };
+}) {
   const DRAFT_KEY = product ? `edwin-product-draft-${product._id}` : "edwin-product-draft-new";
 
-  const [form, setForm] = useState<Omit<Product, "_id" | "images" | "variants">>(() => {
+  const [form, setFormBase] = useState<Omit<Product, "_id" | "images" | "variants">>(() => {
     const defaults = product ? { slug: product.slug, name: product.name, subtitle: product.subtitle ?? "", description: product.description, seoTitle: product.seoTitle, seoDescription: product.seoDescription, category: product.category, collection: product.collection ?? "", brand: product.brand ?? "", hsn: product.hsn ?? "", gst: product.gst, deliveryBy: product.deliveryBy ?? "", price: product.price, compareAtPrice: product.compareAtPrice, salePrice: product.salePrice, featured: product.featured, codAvailable: product.codAvailable, active: product.active, status: product.status ?? (product.active ? "active" : "inactive") } : { ...emptyProduct(), compareAtPrice: undefined };
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
@@ -238,29 +300,29 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).slugAuto; if (v !== undefined) return v; } } catch {}
     return !product;
   });
-  const [images, setImages] = useState<ImageAsset[]>(() => {
+  const [images, setImagesBase] = useState<ImageAsset[]>(() => {
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).images; if (v) return v; } } catch {}
     return (product?.images ?? []).map((img) => ({ ...img, local: false }));
   });
-  const [variants, setVariants] = useState<Variant[]>(() => {
+  const [variants, setVariantsBase] = useState<Variant[]>(() => {
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).variants; if (v) return v; } } catch {}
     return product?.variants ?? [];
   });
-  const [variantDims, setVariantDims] = useState<VariantDim[]>(() => {
+  const [variantDims, setVariantDimsBase] = useState<VariantDim[]>(() => {
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).variantDims; if (v) return v; } } catch {}
     return (product?.variantDimensions ?? []).map((d) => {
       const def = typeof d.attributeId === "object" && d.attributeId ? d.attributeId : null;
       return { attributeId: typeof d.attributeId === "object" ? d.attributeId._id : String(d.attributeId), key: def?.key ?? "", name: def?.name ?? "", values: d.values ?? [] };
     });
   });
-  const [variantRows, setVariantRows] = useState<VariantRow[]>(() => {
+  const [variantRows, setVariantRowsBase] = useState<VariantRow[]>(() => {
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).variantRows; if (v) return v; } } catch {}
     return (product?.productVariants ?? []).map((v) => ({
       attributes: v.attributes.map((a) => ({ attributeId: typeof a.attributeId === "object" ? a.attributeId._id : String(a.attributeId), value: String(a.value) })),
       sku: v.sku, price: v.price, salePrice: v.salePrice, stock: v.stock, active: v.active, allowBackorder: Boolean(v.allowBackorder), images: v.images ?? []
     }));
   });
-  const [attrValues, setAttrValues] = useState<Record<string, string | string[]>>(() => {
+  const [attrValues, setAttrValuesBase] = useState<Record<string, string | string[]>>(() => {
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).attrValues; if (v) return v; } } catch {}
     const init: Record<string, string | string[]> = {};
     for (const a of product?.attributes ?? []) {
@@ -294,6 +356,17 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
   const [error, setError] = useState<string | null>(null);
   const [attrErrors, setAttrErrors] = useState<Record<string, string>>({});
   const [editingImage, setEditingImage] = useState<{ dataUri: string; name: string; editIndex?: number } | null>(null);
+  // Every user-data mutation flows through these wrappers so the parent can
+  // warn about unsaved changes before switching to a different product.
+  const wrap = <T,>(base: Dispatch<SetStateAction<T>>): Dispatch<SetStateAction<T>> =>
+    (value) => { onDirty(); base(value); };
+  const setForm = wrap(setFormBase);
+  const setImages = wrap(setImagesBase);
+  const setVariants = wrap(setVariantsBase);
+  const setVariantDims = wrap(setVariantDimsBase);
+  const setVariantRows = wrap(setVariantRowsBase);
+  const setAttrValues = wrap(setAttrValuesBase);
+
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -333,7 +406,7 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
   // Reconcile the editable variant rows with the generated combinations,
   // preserving any SKU/price/stock already entered for an unchanged combo.
   useEffect(() => {
-    setVariantRows((rows) => {
+    setVariantRowsBase((rows) => {
       const existing = new Map(rows.map((r) => [comboKey(r.attributes), r]));
       return combos.map((combo, i) => {
         const prev = existing.get(comboKey(combo));
@@ -420,8 +493,8 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
     setImages((list) => list.filter((i) => i.publicId !== publicId));
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault();
     setError(null);
     const validVariants = variants.filter((v) => v.label.trim() && v.sku.trim() && v.color.trim());
     if (variants.length > 0 && validVariants.length !== variants.length) {
@@ -553,6 +626,13 @@ function ProductForm({ product, categories, onSaved, onClose }: { product: Produ
       setSaving(false);
     }
   }
+
+  // Expose the current submit + busy state so the "unsaved changes" dialog
+  // (in the parent ProductsManager) can trigger a real save before switching.
+  useEffect(() => {
+    saveRef.current = submit;
+    saveBusyRef.current = saving;
+  });
 
   return (
     <>
