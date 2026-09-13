@@ -67,6 +67,8 @@ async function handler(
     let statusCode = 200;
     const chunks: Buffer[] = [];
     let resolved = false;
+    const setCookies: { name: string; value: string; options: Record<string, unknown> }[] = [];
+    const clearCookies: { name: string; options: Record<string, unknown> }[] = [];
 
     const fakeRes = {
       status(code: number) { statusCode = code; return fakeRes; },
@@ -76,10 +78,18 @@ async function handler(
         return fakeRes;
       },
       getHeader(key: string) { return resHeaders[key.toLowerCase()]; },
-      removeHeader(key: string) { delete resHeaders[key.toLowerCase()]; },
+      removeHeader(key: string) { delete resHeaders[key.toLowerCase()]; return fakeRes; },
       writeHead(code: number, h?: Record<string, string>) {
         statusCode = code;
         if (h) Object.assign(resHeaders, h);
+        return fakeRes;
+      },
+      cookie(name: string, value: string, options: Record<string, unknown>) {
+        setCookies.push({ name, value, options });
+        return fakeRes;
+      },
+      clearCookie(name: string, options: Record<string, unknown>) {
+        clearCookies.push({ name, options });
         return fakeRes;
       },
       json(data: unknown) {
@@ -88,7 +98,20 @@ async function handler(
         clearTimeout(timer);
         const body = JSON.stringify(data);
         resHeaders["content-type"] = resHeaders["content-type"] || "application/json";
-        resolve(NextResponse.json(data, { status: statusCode, headers: resHeaders }));
+        const response = NextResponse.json(data, { status: statusCode, headers: resHeaders });
+        for (const c of setCookies) {
+          const cookieOpts: Record<string, unknown> = { ...c.options };
+          delete cookieOpts.maxAge;
+          delete cookieOpts.expires;
+          response.cookies.set(c.name, c.value, cookieOpts as any);
+        }
+        for (const c of clearCookies) {
+          const cookieOpts: Record<string, unknown> = { ...c.options };
+          delete cookieOpts.maxAge;
+          delete cookieOpts.expires;
+          response.cookies.set(c.name, "", { ...cookieOpts as any, maxAge: 0 });
+        }
+        resolve(response);
         return fakeRes;
       },
       send(data: string | Buffer) {
@@ -96,10 +119,23 @@ async function handler(
         resolved = true;
         clearTimeout(timer);
         const body = Buffer.isBuffer(data) ? data : Buffer.from(data);
-        resolve(new NextResponse(new Uint8Array(body), {
+        const response = new NextResponse(new Uint8Array(body), {
           status: statusCode,
           headers: { ...resHeaders, "content-type": resHeaders["content-type"] || "text/plain" },
-        }));
+        });
+        for (const c of setCookies) {
+          const cookieOpts: Record<string, unknown> = { ...c.options };
+          delete cookieOpts.maxAge;
+          delete cookieOpts.expires;
+          response.cookies.set(c.name, c.value, cookieOpts as any);
+        }
+        for (const c of clearCookies) {
+          const cookieOpts: Record<string, unknown> = { ...c.options };
+          delete cookieOpts.maxAge;
+          delete cookieOpts.expires;
+          response.cookies.set(c.name, "", { ...cookieOpts as any, maxAge: 0 });
+        }
+        resolve(response);
         return fakeRes;
       },
       end(data?: string | Buffer) {
@@ -110,10 +146,23 @@ async function handler(
         const body = Buffer.concat(chunks);
         delete resHeaders["transfer-encoding"];
         delete resHeaders["connection"];
-        resolve(new NextResponse(body.length > 0 ? new Uint8Array(body) : null, {
+        const response = new NextResponse(body.length > 0 ? new Uint8Array(body) : null, {
           status: statusCode,
           headers: resHeaders,
-        }));
+        });
+        for (const c of setCookies) {
+          const cookieOpts: Record<string, unknown> = { ...c.options };
+          delete cookieOpts.maxAge;
+          delete cookieOpts.expires;
+          response.cookies.set(c.name, c.value, cookieOpts as any);
+        }
+        for (const c of clearCookies) {
+          const cookieOpts: Record<string, unknown> = { ...c.options };
+          delete cookieOpts.maxAge;
+          delete cookieOpts.expires;
+          response.cookies.set(c.name, "", { ...cookieOpts as any, maxAge: 0 });
+        }
+        resolve(response);
       },
       write(chunk: string | Buffer) {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
