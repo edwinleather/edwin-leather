@@ -68,6 +68,9 @@ export async function exportAllDatabases(): Promise<{
 // Restore a previously exported dump into the databases the API is currently
 // connected to. Each collection is cleared and re-populated from the dump so the
 // result is identical to the source (no stale or orphaned documents remain).
+const MAX_IMPORT_DOCUMENTS = 500_000;
+const MAX_IMPORT_COLLECTIONS = 200;
+
 export async function importAllDatabases(payload: {
   format: string;
   version: number;
@@ -90,9 +93,15 @@ export async function importAllDatabases(payload: {
 
     for (const [name, rawDocs] of Object.entries(source)) {
       if (name.startsWith("system.")) continue;
+      if (collections >= MAX_IMPORT_COLLECTIONS) {
+        throw new ApiError(413, `Import exceeds maximum of ${MAX_IMPORT_COLLECTIONS} collections.`);
+      }
       const col = db.collection(name);
       // Deserialize EJSON back into native BSON types (ObjectId, Date, etc.).
       const docs = EJSON.deserialize(rawDocs) as Document[];
+      if (documents + docs.length > MAX_IMPORT_DOCUMENTS) {
+        throw new ApiError(413, `Import exceeds maximum of ${MAX_IMPORT_DOCUMENTS} documents.`);
+      }
       // Clear any existing data in the target so the dump fully overwrites it.
       await col.deleteMany({});
       if (docs.length > 0) {

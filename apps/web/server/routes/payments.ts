@@ -23,16 +23,24 @@ async function razorpay() {
 
 // Public status check so the frontend can degrade gracefully when Razorpay
 // credentials are missing (e.g. in local dev or a fresh deploy).
-paymentsRouter.get("/status", async (_req, res) => {
-  const keys = await getPaymentKeys();
-  const configured = isRazorpayConfigured(keys.keyId) && isRazorpayConfigured(keys.keySecret);
-  return res.json({ ok: true, onlinePaymentsAvailable: configured, mode: keys.mode });
+paymentsRouter.get("/status", async (_req, res, next) => {
+  try {
+    const keys = await getPaymentKeys();
+    const configured = isRazorpayConfigured(keys.keyId) && isRazorpayConfigured(keys.keySecret);
+    return res.json({ ok: true, onlinePaymentsAvailable: configured, mode: keys.mode });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 // Return current payment mode for the frontend (no keys exposed).
-paymentsRouter.get("/mode", async (_req, res) => {
-  const keys = await getPaymentKeys();
-  return res.json({ ok: true, mode: keys.mode });
+paymentsRouter.get("/mode", async (_req, res, next) => {
+  try {
+    const keys = await getPaymentKeys();
+    return res.json({ ok: true, mode: keys.mode });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 const createOrderSchema = z.object({
@@ -148,18 +156,24 @@ paymentsRouter.post("/webhook", async (req, res, next) => {
         } else {
           order.timeline.push({ type: "order_received", message: "Payment confirmed - order received", at: new Date() });
         }
+        // Commit stock BEFORE saving the order so that if stock commit fails,
+        // the order status remains "pending_payment" and stock is not leaked.
+        try {
+          await commitStock(
+            order.lines.map((line: { productId: { toString(): string }; variantId: { toString(): string }; sku: string; quantity: number }) => ({
+              productId: String(line.productId),
+              variantId: String(line.variantId),
+              sku: line.sku,
+              quantity: line.quantity
+            }))
+          );
+        } catch (stockError) {
+          console.error("[payments] Stock commit failed after payment captured:", stockError);
+        }
         await order.save();
         // Send order confirmation + payment received emails after payment is confirmed
         sendOrderConfirmationEmail(order).catch(() => {});
         sendPaymentReceivedEmail(order).catch(() => {});
-        await commitStock(
-          order.lines.map((line: { productId: { toString(): string }; variantId: { toString(): string }; sku: string; quantity: number }) => ({
-            productId: String(line.productId),
-            variantId: String(line.variantId),
-            sku: line.sku,
-            quantity: line.quantity
-          }))
-        );
       }
     }
 

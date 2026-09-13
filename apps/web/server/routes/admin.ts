@@ -487,7 +487,7 @@ adminRouter.patch("/products/bulk/status", requireAdmin, requireFeature("product
     const objectIds = validIds.map((id) => new Types.ObjectId(id));
     const isActive = input.status === "active";
     await Product.updateMany({ _id: { $in: objectIds } }, { $set: { status: input.status, active: isActive } });
-    return res.json({ ok: true, updated: input.ids.length });
+    return res.json({ ok: true, updated: validIds.length });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid bulk status input", error.flatten()));
     return next(error);
@@ -507,9 +507,11 @@ adminRouter.patch("/products/bulk", requireAdmin, requireFeature("products"), as
         codAvailable: z.boolean().optional()
       }).refine((p) => Object.keys(p).length > 0, "At least one field to update")
     }).parse(req.body);
-    const objectIds = input.ids.map((id) => new Types.ObjectId(id));
+    const validIds = input.ids.filter((id) => Types.ObjectId.isValid(id));
+    if (validIds.length === 0) return next(new ApiError(400, "No valid product IDs provided"));
+    const objectIds = validIds.map((id) => new Types.ObjectId(id));
     await Product.updateMany({ _id: { $in: objectIds } }, { $set: input.patch });
-    return res.json({ ok: true, updated: input.ids.length });
+    return res.json({ ok: true, updated: validIds.length });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid bulk input", error.flatten()));
     return next(error);

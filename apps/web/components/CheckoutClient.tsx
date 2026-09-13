@@ -41,7 +41,7 @@ export function CheckoutClient() {
   const availableItems = items.filter((item) => !item.isOutOfStock);
   const { authed, loading, user } = useAuth();
   const router = useRouter();
-  const { enabled: codGlobalEnabled, depositPercent } = useCodConfig();
+  const { loaded: codLoaded, enabled: codGlobalEnabled, depositPercent } = useCodConfig();
   const [method, setMethod] = useState<"razorpay" | "cod">("razorpay");
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<{ amount: number; freeShipping: boolean; valid: boolean; note: string } | null>(null);
@@ -203,7 +203,8 @@ export function CheckoutClient() {
   const remainingToFree = Math.max(deliveryConfig.freeDeliveryThreshold - subtotal, 0);
 
   // COD is offered only when globally enabled AND every cart item supports it.
-  const codEnabled = codGlobalEnabled && availableItems.length > 0 && availableItems.every((item) => item.codAvailable !== false);
+  // Don't show COD until the config has loaded to avoid a flash of incorrect UI.
+  const codEnabled = codLoaded && codGlobalEnabled && availableItems.length > 0 && availableItems.every((item) => item.codAvailable !== false);
   useEffect(() => {
     if (method === "cod" && !codEnabled) setMethod("razorpay");
   }, [method, codEnabled]);
@@ -430,7 +431,7 @@ if (placed) {
               </button>
             ) : null}
           </div>
-          {!codEnabled && availableItems.length > 0 && (
+          {codLoaded && !codEnabled && availableItems.length > 0 && (
             <p className="checkout-note" style={{ marginTop: 10 }}><ShieldCheck size={15} /> Cash on Delivery is not available for this order.</p>
           )}
         </div>

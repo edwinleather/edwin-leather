@@ -143,7 +143,10 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
         <div className="quantity-control quantity-control--large">
           <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Decrease quantity"><Minus size={15} /></button>
           <span>{quantity}</span>
-          <button onClick={() => setQuantity((value) => Math.min(Math.max(variant.inventory, 1), value + 1))} aria-label="Increase quantity"><Plus size={15} /></button>
+          <button onClick={() => setQuantity((value) => {
+            const maxQty = variant.allowBackorder ? Infinity : Math.max(variant.inventory, 1);
+            return Math.min(maxQty, value + 1);
+          })} aria-label="Increase quantity"><Plus size={15} /></button>
         </div>
         <button className="button button--dark purchase-button" disabled={!inStock} onClick={addToBag}>
           {inStock ? `Add to bag - ${formatPrice(unitPrice * quantity)}` : "Sold out"}

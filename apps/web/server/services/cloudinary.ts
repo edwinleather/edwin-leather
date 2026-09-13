@@ -40,8 +40,8 @@ export function parseDataUri(dataUri: string, maxBytes = MAX_BYTES): { mime: str
 
 export async function uploadImage(dataUri: string, folder = "edwin/products", maxBytes = MAX_BYTES): Promise<{ url: string; publicId: string }> {
   ensureConfigured();
-  const { base64 } = parseDataUri(dataUri, maxBytes);
-  const result = await cloudinary.uploader.upload(`data:image/webp;base64,${base64}`, {
+  const { mime, base64 } = parseDataUri(dataUri, maxBytes);
+  const result = await cloudinary.uploader.upload(`data:${mime};base64,${base64}`, {
     folder,
     resource_type: "image",
     // Normalize every uploaded image to WebP so the stored master is small,

@@ -6,8 +6,7 @@ let dbConnected = false;
 
 async function ensureDb() {
   if (!dbConnected) {
-    await connectDatabase();
-    dbConnected = true;
+    dbConnected = await connectDatabase();
   }
 }
 

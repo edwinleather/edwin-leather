@@ -5,7 +5,7 @@ export const config = {
   matcher: ["/((?!_next|api|.*\\..*).*)"]
 };
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   if (host.startsWith("www.")) {
     const url = request.nextUrl.clone();

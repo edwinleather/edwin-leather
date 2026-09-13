@@ -3,23 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "workspaces": [
-    "apps/web",
-    "apps/api"
+    "apps/web"
   ],
   "scripts": {
-    "dev": "concurrently -n web,api -c auto \"npm run dev:web\" \"npm run dev:api\"",
-    "dev:web": "npm run dev --workspace @edwin/web",
-    "dev:api": "npm run dev --workspace @edwin/api",
-    "build": "npm run build --workspace @edwin/web && npm run build --workspace @edwin/api",
-    "start:web": "npm run start --workspace @edwin/web",
-    "start:api": "npm run start --workspace @edwin/api"
+    "dev": "npm run dev --workspace @edwin/web",
+    "build": "npm run build --workspace @edwin/web",
+    "start": "npm run start --workspace @edwin/web"
   },
   "engines": {
     "node": ">=20.11.0"
   },
   "devDependencies": {
-    "concurrently": "latest",
-    "playwright": "^1.63.0",
-    "serverless-http": "^4.0.0"
+    "playwright": "^1.63.0"
   }
 }
