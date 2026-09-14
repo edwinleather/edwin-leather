@@ -21,11 +21,13 @@ function isOperator(obj: unknown): boolean {
 }
 
 async function attachVariants(data: (Record<string, unknown> & { _id: { toString(): string } })[]) {
+  if (data.length === 0) return;
   const ids = data.map((p) => p._id.toString());
   const variants = await ProductVariant.find({ productId: { $in: ids }, active: true })
     .populate("attributes.attributeId")
+    .sort({ sku: 1 })
     .lean();
-  const byProduct = new Map<string, typeof variants>();
+  const byProduct = new Map<string, (typeof variants)>();
   for (const v of variants) {
     const pid = String(v.productId);
     const list = byProduct.get(pid) ?? [];

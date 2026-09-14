@@ -5,7 +5,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductGallery } from "@/components/ProductGallery";
 import { ProductViewTracker } from "@/components/ProductViewTracker";
 import { ReviewForm } from "@/components/ReviewForm";
-import { getCatalog, getProductBySlug, getCategoryByName } from "@/lib/catalog";
+import { getCatalog, productBySlug, getCategoryByName } from "@/lib/catalog";
 import { SpecTable } from "@/components/attributes/SpecTable";
 import { productInStock } from "@/lib/utils";
 import { slugify } from "@/lib/slugs";
@@ -38,49 +38,12 @@ function productSpecs(product: Product): { key: string; label: string; value: st
     }
   }
 
-  // Fallback: legacy hardcoded fields not already in attributes[]
-  const legacy: [string, string, string | string[]][] = [
-    ["articleNumber", "Article Number", join(product.articleNumber)],
-    ["styleCode", "Style Code", product.styleCode ?? ""],
-    ["brandColor", "Brand Colour", product.brandColor ?? ""],
-    ["brandSize", "Brand Size", product.brandSize ?? ""],
-    ["ukIndiaSize", "UK/India Size", product.ukIndiaSize ?? ""],
-    ["euroSize", "Euro Size", product.euroSize ?? ""],
-    ["womenSandalType", "Women Sandal Type", product.womenSandalType ?? ""],
-    ["color", "Colour", join(product.color)],
-    ["typeForFlats", "Type for Flats", product.typeForFlats ?? ""],
-    ["typeForHeels", "Type for Heels", product.typeForHeels ?? ""],
-    ["occasion", "Occasion", join(product.occasion)],
-    ["outerMaterial", "Outer Material", join(product.outerMaterial)],
-    ["heelHeight", "Heel Height", product.heelHeight ?? ""],
-    ["idealFor", "Ideal For", product.idealFor ?? ""],
-    ["ornamentationType", "Ornamentation Type", product.ornamentationType ?? ""],
-    ["insoleMaterial", "Insole Material", join(product.insoleMaterial)],
-    ["packOf", "Pack of", product.packOf ?? ""],
-    ["closure", "Closure", join(product.closure)],
-    ["heelPattern", "Heel Pattern", product.heelPattern ?? ""],
-    ["soleMaterial", "Sole Material", join(product.soleMaterial)],
-    ["innerMaterial", "Inner Material", join(product.innerMaterial)],
-    ["upperPattern", "Upper Pattern", product.upperPattern ?? ""],
-    ["careInstructions", "Care Instructions", join(product.careInstructions)],
-    ["removableInsole", "Removable Insole", product.removableInsole ?? ""],
-    ["eanUpc", "EAN/UPC", join(product.eanUpc)],
-    ["cushioningLevel", "Cushioning Level", product.cushioningLevel ?? ""],
-    ["includedInBox", "Included in Box", join(product.includedInBox)],
-  ];
-  for (const [key, label, value] of legacy) {
-    if (seen.has(key)) continue;
-    if (Array.isArray(value) ? value.length > 0 : Boolean(value)) {
-      rows.push({ key, label, value });
-    }
-  }
-
   return rows;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const product = await productBySlug(slug);
   if (!product) return { title: "Product not found" };
   const description = truncate(product.seoDescription || [product.subtitle, product.description].filter(Boolean).join(". "));
   return {
@@ -92,20 +55,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       description,
       url: `${SITE}/product/${product.slug}`,
       type: "website",
-      images: product.images?.[0] ? [{ url: product.images[0], alt: product.imageAlts?.[0] || product.name }] : undefined
+      images: product.media?.[0] ? [{ url: product.media[0].url, alt: product.media[0].alt || product.name }] : undefined
     },
     twitter: {
       card: "summary_large_image",
       title: product.seoTitle || `${product.name} | ${product.category}`,
       description,
-      images: product.images?.[0] ? [product.images[0]] : undefined
+      images: product.media?.[0] ? [product.media[0].url] : undefined
     }
   };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const product = await productBySlug(slug);
   if (!product) notFound();
   const catalog = await getCatalog();
   const sameCategory = catalog.filter((item) => item.id !== product.id && item.category === product.category);
@@ -127,14 +90,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
-    image: product.images,
+    image: product.media?.[0]?.url || '',
     description: product.description,
     sku: product.variants[0]?.sku,
     offers: {
       "@type": "Offer",
       url: `${SITE}/product/${product.slug}`,
       priceCurrency: "INR",
-      price: product.variants.length > 0 ? Math.min(...product.variants.map(v => v.price || Infinity)) : price,
+      price: product.productVariants?.length ?? 0 > 0 ? Math.min(...(product.productVariants ?? []).map((v) => v.price || Infinity)) : price,
       availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
       priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -171,13 +134,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
       )}
 
-      {(product.returnReplacement || product.cashDelivery || product.customerSupport) && (
-        <div className="product-services container-wide">
-          {product.returnReplacement && <span className="product-services__item">{product.returnReplacement === "Yes" ? "10-day return/replacement" : product.returnReplacement}</span>}
-          {product.cashDelivery && <span className="product-services__item">{product.cashDelivery}</span>}
-          {product.customerSupport && <span className="product-services__item">Customer support · {product.customerSupport}</span>}
-        </div>
-      )}
+
 
       {specs.length > 0 && (
         <section className="product-specs container-wide">

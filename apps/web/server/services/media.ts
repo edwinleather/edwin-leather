@@ -5,41 +5,49 @@ import { Media, type MediaType } from "../models/Media";
 // the image was uploaded through the store's own pipeline.
 export type MediaItem = { url: string; publicId?: string; alt?: string };
 
+// Flat media item as returned to API clients. Product-level images have no
+// variantId; variant-specific images carry the variant id so the frontend can
+// filter galleries per selected variant.
+export type MediaImage = {
+  url: string;
+  publicId?: string;
+  alt?: string;
+  variantId?: string;
+  position?: number;
+};
+
 type ProductWithVariants = {
   _id: unknown;
   images?: MediaItem[];
   productVariants?: { _id: unknown; images?: MediaItem[] }[];
 };
 
-function toItem(d: { url: string; publicId?: string; alt?: string }): MediaItem {
-  return { url: d.url, publicId: d.publicId, alt: d.alt };
+function toImage(d: { url: string; publicId?: string; alt?: string }, variantId?: string, position = 0): MediaImage {
+  return { url: d.url, publicId: d.publicId, alt: d.alt, variantId, position };
 }
 
 function keyOf(item: MediaItem): string {
   return (item.publicId || item.url || "").trim();
 }
 
-// Attach a merged media view to each product so both the admin panel and the
-// storefront can render product-level and per-variant galleries.
+// Attach a flat media view to each product so both the admin panel and the
+// storefront can render product-level and per-variant galleries from one field.
 //
-//   product.media = {
-//     product:  MediaItem[],                        // PRODUCT_IMAGE docs
-//     variants: { [variantId]: MediaItem[] }        // VARIANT_IMAGE docs
-//   }
+//   product.media = MediaImage[]
 //
-// When no Media docs exist yet (pre-migration data), each gallery falls back to
-// the legacy embedded arrays (product.images / variant.images) so the new UI
-// works before any data is migrated.
+// Product-level images have no variantId; variant-specific images carry the
+// variant id. When no Media docs exist yet (pre-migration data), each gallery
+// falls back to the legacy embedded arrays (product.images / variant.images).
 export async function attachMedia(products: ProductWithVariants[]): Promise<void> {
   if (!products || products.length === 0) return;
 
   const productIds = products.map((p) => String(p._id)).filter(Boolean);
   const variantIds: string[] = [];
-  const variantIdsByProduct = new Map<string, string[]>();
   for (const p of products) {
-    const ids = (p.productVariants ?? []).map((v) => String(v._id)).filter(Boolean);
-    variantIdsByProduct.set(String(p._id), ids);
-    variantIds.push(...ids);
+    for (const v of p.productVariants ?? []) {
+      const id = String(v._id);
+      if (id) variantIds.push(id);
+    }
   }
 
   const or: Record<string, unknown>[] = [];
@@ -65,15 +73,32 @@ export async function attachMedia(products: ProductWithVariants[]): Promise<void
 
   for (const p of products) {
     const pMedia = productByPid.get(String(p._id));
-    const productGallery =
-      pMedia && pMedia.length > 0 ? pMedia.map(toItem) : (p.images ?? []);
-    const variants: Record<string, MediaItem[]> = {};
+    const flat: MediaImage[] = [];
+    if (pMedia && pMedia.length > 0) {
+      for (let i = 0; i < pMedia.length; i++) {
+        const d = pMedia[i];
+        flat.push(toImage({ url: d.url, publicId: d.publicId, alt: d.alt }, undefined, d.position ?? i));
+      }
+    } else if (p.images && p.images.length > 0) {
+      for (let i = 0; i < p.images.length; i++) {
+        flat.push(toImage(p.images[i], undefined, i));
+      }
+    }
     for (const v of p.productVariants ?? []) {
       const vMedia = variantByVid.get(String(v._id));
-      variants[String(v._id)] =
-        vMedia && vMedia.length > 0 ? vMedia.map(toItem) : (v.images ?? []);
+      if (vMedia && vMedia.length > 0) {
+        for (let i = 0; i < vMedia.length; i++) {
+          const d = vMedia[i];
+          flat.push(toImage({ url: d.url, publicId: d.publicId, alt: d.alt }, String(v._id), d.position ?? i));
+        }
+      } else if ((v as Record<string, unknown>).images && (v as unknown as MediaItem[]).length > 0) {
+        const vimgs = (v as unknown as MediaItem[]) as MediaItem[];
+        for (let i = 0; i < vimgs.length; i++) {
+          flat.push(toImage(vimgs[i], String(v._id), i));
+        }
+      }
     }
-    (p as Record<string, unknown>).media = { product: productGallery, variants };
+    (p as Record<string, unknown>).media = flat;
   }
 }
 

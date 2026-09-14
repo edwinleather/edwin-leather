@@ -3,9 +3,13 @@ import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lens } from "./ui/lens";
 import type { Product } from "@/lib/types";
+import { variantInStock } from "@/lib/utils";
 
 export function ProductGallery({ product }: { product: Product }) {
-  const images = product.images;
+  const allImages = product.media ?? [];
+  const inStockVariant = product.productVariants?.find((pv) => pv.stock > 0 || Boolean(pv.allowBackorder)) ?? product.productVariants?.[0];
+  const variantId = inStockVariant?.id;
+  const images = variantId ? allImages.filter((img) => !img.variantId || img.variantId === variantId) : allImages.filter((img) => !img.variantId);
   const [active, setActive] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const [zoom, setZoom] = useState(false);
@@ -36,7 +40,7 @@ export function ProductGallery({ product }: { product: Product }) {
     <>
       <div className="pg">
         <div className="pg__thumbs" role="tablist" aria-label="Product images">
-          {images.map((src, i) => (
+                    {images.map((src, i) => (
             <button
               key={i}
               type="button"
@@ -45,7 +49,7 @@ export function ProductGallery({ product }: { product: Product }) {
               className={`pg__thumb${i === active ? " pg__thumb--active" : ""}`}
               onClick={() => setActive(i)}
             >
-              <img src={src} alt={`${product.name} view ${i + 1}`} draggable={false} loading="lazy" />
+              <img src={src.url} alt={src.alt || `${product.name} view ${i + 1}`} draggable={false} loading="lazy" />
             </button>
           ))}
         </div>
@@ -53,7 +57,7 @@ export function ProductGallery({ product }: { product: Product }) {
         <div className="pg__main">
           <div className="pg__counter">{active + 1} / {images.length}</div>
           <div className="pg__stage">
-            <Lens src={images[active]} className="pg__lens" onClick={() => setLightbox(true)} />
+            <Lens src={images[active]?.url ?? ""} className="pg__lens" onClick={() => setLightbox(true)} />
           </div>
         </div>
       </div>
@@ -101,8 +105,8 @@ export function ProductGallery({ product }: { product: Product }) {
               transition={{ duration: 0.3, ease: "easeOut" }}
             >
               <img
-                src={images[active]}
-                alt={`${product.name} view ${active + 1}`}
+                                src={images[active]?.url ?? ""}
+                alt={images[active]?.alt || `${product.name} view ${active + 1}`}
                 className="lb__image"
                 draggable={false}
               />

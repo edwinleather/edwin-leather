@@ -1,7 +1,7 @@
-import type { Product } from "./types";
+import type { Product, ProductVariantItem } from "./types";
 import { API_URL } from "./api";
 
-type ApiImage = { url: string; alt?: string };
+type MediaItem = { url: string; alt?: string; publicId?: string; position?: number };
 
 export type CategoryInfo = {
   name: string;
@@ -16,7 +16,7 @@ export type CategoryInfo = {
     customerVisible?: boolean;
   }[];
 };
-type ApiVariant = { _id: string; label: string; sku: string; color: string; size?: string; inventoryAvailable: number; allowBackorder?: boolean; priceOverride?: number; salePrice?: number };
+
 type ApiProductVariant = {
   _id: string;
   sku: string;
@@ -28,7 +28,12 @@ type ApiProductVariant = {
   allowBackorder?: boolean;
   attributes: { attributeId: { key: string; name: string } | string; value: string | string[] }[];
 };
-type ApiVariantDimension = { attributeId: { _id: string; key: string; name: string } | string; values: string[] };
+
+type ApiVariantDimension = {
+  attributeId: { _id: string; key: string; name: string } | string;
+  values: string[];
+};
+
 type ApiProduct = {
   _id: string;
   slug: string;
@@ -41,48 +46,13 @@ type ApiProduct = {
   hsn?: string;
   gst?: number;
   deliveryBy?: string;
-  articleNumber?: string[];
-  styleCode?: string;
-  brandColor?: string;
-  brandSize?: string;
-  ukIndiaSize?: string;
-  euroSize?: string;
-  womenSandalType?: string;
-  color?: string[];
-  typeForFlats?: string;
-  typeForHeels?: string;
-  occasion?: string[];
-  outerMaterial?: string[];
-  heelHeight?: string;
-  idealFor?: string;
-  ornamentationType?: string;
-  insoleMaterial?: string[];
-  packOf?: string;
-  closure?: string[];
-  heelPattern?: string;
-  soleMaterial?: string[];
-  innerMaterial?: string[];
-  upperPattern?: string;
-  careInstructions?: string[];
-  removableInsole?: string;
-  searchKeywords?: string[];
-  keyFeatures?: string[];
-  videoUrl?: string;
-  eanUpc?: string[];
-  cushioningLevel?: string;
-  otherDetails?: string;
-  includedInBox?: string[];
-  returnReplacement?: string;
-  cashDelivery?: string;
-  customerSupport?: string;
   price: number;
   compareAtPrice?: number;
   salePrice?: number;
   promotion?: { name: string; amount: number; price: number } | null;
   seoTitle?: string;
   seoDescription?: string;
-  images?: ApiImage[];
-  variants?: ApiVariant[];
+  media?: MediaItem[];
   productVariants?: ApiProductVariant[];
   variantDimensions?: ApiVariantDimension[];
   featured?: boolean;
@@ -95,6 +65,47 @@ type ApiProduct = {
 };
 
 function mapProduct(api: ApiProduct): Product {
+  const media: MediaItem[] = (api.media ?? []).map((m) => ({
+    url: m.url,
+    alt: m.alt,
+    publicId: m.publicId,
+    position: m.position
+  }));
+
+  const productVariants: ProductVariantItem[] = (api.productVariants ?? []).map((variant) => ({
+    id: String(variant._id),
+    sku: variant.sku,
+    price: variant.price,
+    salePrice: variant.salePrice,
+    stock: variant.stock,
+    active: variant.active,
+    allowBackorder: variant.allowBackorder,
+    attributes: variant.attributes.map((a) => {
+      const def = typeof a.attributeId === "object" && a.attributeId ? a.attributeId : null;
+      return { key: def?.key ?? "", name: def?.name ?? "", value: a.value };
+    })
+  }));
+
+  const variantDimensions = (api.variantDimensions ?? []).map((d) => {
+    const attrId = typeof d.attributeId === "object" && d.attributeId ? d.attributeId : null;
+    return {
+      attributeId: typeof d.attributeId === "object" && d.attributeId ? String(d.attributeId._id) : String(d.attributeId),
+      name: attrId ? attrId.name : "",
+      key: attrId ? attrId.key : "",
+      options: Array.from(new Set((d.values ?? []).filter(Boolean))),
+      values: d.values ?? []
+    };
+  });
+
+  const attributes = (api.attributes ?? []).map((a) => {
+    const def = typeof a.attributeId === "object" && a.attributeId ? a.attributeId : null;
+    return {
+      key: def?.key ?? a.key ?? "",
+      label: def?.name ?? a.label ?? "",
+      value: a.value
+    };
+  });
+
   return {
     id: String(api._id),
     slug: api.slug,
@@ -106,163 +117,63 @@ function mapProduct(api: ApiProduct): Product {
     hsn: api.hsn,
     gst: api.gst,
     deliveryBy: api.deliveryBy,
-    articleNumber: api.articleNumber ?? [],
-    styleCode: api.styleCode,
-    brandColor: api.brandColor,
-    brandSize: api.brandSize,
-    ukIndiaSize: api.ukIndiaSize,
-    euroSize: api.euroSize,
-    womenSandalType: api.womenSandalType,
-    color: api.color ?? [],
-    typeForFlats: api.typeForFlats,
-    typeForHeels: api.typeForHeels,
-    occasion: api.occasion ?? [],
-    outerMaterial: api.outerMaterial ?? [],
-    heelHeight: api.heelHeight,
-    idealFor: api.idealFor,
-    ornamentationType: api.ornamentationType,
-    insoleMaterial: api.insoleMaterial ?? [],
-    packOf: api.packOf,
-    closure: api.closure ?? [],
-    heelPattern: api.heelPattern,
-    soleMaterial: api.soleMaterial ?? [],
-    innerMaterial: api.innerMaterial ?? [],
-    upperPattern: api.upperPattern,
-    careInstructions: api.careInstructions ?? [],
-    removableInsole: api.removableInsole,
-    searchKeywords: api.searchKeywords ?? [],
-    keyFeatures: api.keyFeatures ?? [],
-    videoUrl: api.videoUrl,
-    eanUpc: api.eanUpc ?? [],
-    cushioningLevel: api.cushioningLevel,
-    otherDetails: api.otherDetails,
-    includedInBox: api.includedInBox ?? [],
-    returnReplacement: api.returnReplacement,
-    cashDelivery: api.cashDelivery,
-    customerSupport: api.customerSupport,
     price: api.price,
     compareAtPrice: api.compareAtPrice,
     salePrice: api.salePrice,
     promotion: api.promotion ?? null,
-    description: api.description,
     seoTitle: api.seoTitle,
     seoDescription: api.seoDescription,
+    description: api.description,
     details: [],
-    images: (api.images ?? []).map((image) => image.url),
-    imageAlts: (api.images ?? []).map((image) => image.alt ?? ""),
-    attributes: (api.attributes ?? [])
-      .map((a) => {
-        const def = typeof a.attributeId === "object" && a.attributeId ? a.attributeId : null;
-        return {
-          key: def?.key ?? (a.key ?? ""),
-          label: def?.name ?? (a.label ?? (a.key ?? "")),
-          value: a.value ?? ""
-        };
-      })
-      .filter((a) => a.key),
-    variants: (() => {
-      // ProductVariant is the source of truth; legacy variants are fallback only.
-      const pv = (api.productVariants ?? []).map((variant) => ({
-        id: String(variant._id),
-        label: variant.attributes.map((a) => String(a.value)).join(" / "),
-        sku: variant.sku,
-        color: String(variant.attributes[0]?.value ?? ""),
-        size: variant.attributes[1] ? String(variant.attributes[1].value) : undefined,
-        inventory: variant.stock,
-        allowBackorder: undefined,
-        price: variant.price,
-        salePrice: variant.salePrice,
-        promotionPrice: variant.promotionPrice
-      }));
-      if (pv.length > 0) return pv;
-      // Fallback to legacy embedded variants for old products.
-      const legacy = api.variants ?? [];
-      return legacy.map((variant) => ({
-        id: String(variant._id),
-        label: variant.label,
-        sku: variant.sku,
-        color: variant.color,
-        size: variant.size,
-        inventory: variant.inventoryAvailable,
-        allowBackorder: variant.allowBackorder,
-        price: variant.priceOverride ?? api.price,
-        salePrice: variant.salePrice ?? api.salePrice
-      }));
-    })(),
-    productVariants: (api.productVariants ?? []).map((variant) => ({
-      id: String(variant._id),
-      sku: variant.sku,
-      price: variant.price,
-      salePrice: variant.salePrice,
-      stock: variant.stock,
-      active: variant.active,
-      allowBackorder: variant.allowBackorder,
-      attributes: variant.attributes.map((a) => {
-        const def = typeof a.attributeId === "object" && a.attributeId ? a.attributeId : null;
-        return { key: def?.key ?? "", name: def?.name ?? "", value: a.value };
-      })
+    media,
+    attributes,
+    variants: [],
+    productVariants,
+    variantAttributes: variantDimensions.map((d) => ({
+      attributeId: d.attributeId,
+      name: d.name,
+      options: d.options
     })),
-    variantAttributes: (api.variantDimensions ?? []).map((dimension) => {
-      const def = typeof dimension.attributeId === "object" && dimension.attributeId ? dimension.attributeId : null;
-      return {
-        attributeId: String(def?._id ?? dimension.attributeId),
-        name: def?.name ?? "",
-        options: dimension.values ?? []
-      };
-    }),
-    featured: api.featured
+    variantDimensions,
+    featured: api.featured,
+    newArrival: false,
+    codAvailable: false,
+    active: true,
+    status: "active"
   };
-}
-
-async function fetchJson<T>(path: string): Promise<T | null> {
-  try {
-    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
-    const baseUrl = siteUrl || "http://localhost:4000";
-    const url = path.startsWith("http") ? path : `${API_URL}${path}`;
-    const absoluteUrl = url.startsWith("/") ? `${baseUrl}${url}` : url;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch(absoluteUrl, {
-      signal: controller.signal,
-      next: { revalidate: 60 }
-    });
-    clearTimeout(timeout);
-    if (!response.ok) return null;
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
-export type CatalogFilters = {
-  category?: string;
-  q?: string;
-  priceMin?: number;
-  priceMax?: number;
-  attributes?: Record<string, string | string[]>;
-};
-
-function buildCatalogPath(filters?: CatalogFilters): string {
-  if (!filters) return "/products";
-  const params = new URLSearchParams();
-  if (filters.category) params.set("category", filters.category);
-  if (filters.q) params.set("q", filters.q);
-  if (filters.priceMin != null) params.set("priceMin", String(filters.priceMin));
-  if (filters.priceMax != null) params.set("priceMax", String(filters.priceMax));
-  for (const [key, value] of Object.entries(filters.attributes ?? {})) {
-    const v = Array.isArray(value) ? value.join(",") : value;
-    params.set(`filter[${key}]`, v);
-  }
-  const qs = params.toString();
-  return qs ? `/products?${qs}` : "/products";
 }
 
 let catalogCache: { data: Product[]; ts: number; key: string } | null = null;
 const CATALOG_CACHE_TTL = 60_000;
 
-export async function getCatalog(filters?: CatalogFilters): Promise<Product[]> {
+function buildCatalogPath(filters: Record<string, unknown> = {}): string {
+  const params = new URLSearchParams();
+  if (filters.q) params.set("q", String(filters.q));
+  if (filters.priceMin != null) params.set("priceMin", String(filters.priceMin));
+  if (filters.priceMax != null) params.set("priceMax", String(filters.priceMax));
+  for (const [key, value] of Object.entries(filters.attributes ?? {})) {
+    const v = Array.isArray(value) ? value.join(",") : value;
+    params.set("filter[" + key + "]", String(v));
+  }
+  const qs = params.toString();
+  return qs ? "/products?" + qs : "/products";
+}
+
+async function fetchJson<T>(path: string): Promise<T | null> {
+  try {
+    const res = await fetch(API_URL + path, { credentials: "include" });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function getCatalog(filters: Record<string, unknown> = {}): Promise<Product[]> {
   const key = buildCatalogPath(filters);
-  if (catalogCache && catalogCache.key === key && Date.now() - catalogCache.ts < CATALOG_CACHE_TTL) return catalogCache.data;
+  if (catalogCache && catalogCache.key === key && Date.now() - catalogCache.ts < CATALOG_CACHE_TTL) {
+    return catalogCache.data;
+  }
   const body = await fetchJson<{ data?: ApiProduct[] }>(key);
   if (!body?.data?.length) return [];
   const data = body.data.map(mapProduct);
@@ -272,9 +183,11 @@ export async function getCatalog(filters?: CatalogFilters): Promise<Product[]> {
 
 let productCache: { data: Product; ts: number } | null = null;
 
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  if (productCache && productCache.data.slug === slug && Date.now() - productCache.ts < CATALOG_CACHE_TTL) return productCache.data;
-  const body = await fetchJson<{ data?: ApiProduct }>(`/products/${slug}`);
+export async function productBySlug(slug: string): Promise<Product | null> {
+  if (productCache && productCache.data.slug === slug && Date.now() - productCache.ts < CATALOG_CACHE_TTL) {
+    return productCache.data;
+  }
+  const body = await fetchJson<{ data?: ApiProduct }>("/products/" + encodeURIComponent(slug));
   const product = body?.data?._id ? mapProduct(body.data) : null;
   if (product) productCache = { data: product, ts: Date.now() };
   return product;
@@ -289,7 +202,9 @@ let categoryListCache: { data: CategoryInfo[]; ts: number } | null = null;
 const CATEGORY_CACHE_TTL = 60_000;
 
 export async function getCategoryList(): Promise<CategoryInfo[]> {
-  if (categoryListCache && Date.now() - categoryListCache.ts < CATEGORY_CACHE_TTL) return categoryListCache.data;
+  if (categoryListCache && Date.now() - categoryListCache.ts < CATEGORY_CACHE_TTL) {
+    return categoryListCache.data;
+  }
   const body = await fetchJson<{ data?: CategoryInfo[] }>("/categories");
   const data = body?.data?.length ? body.data : [];
   if (data.length) categoryListCache = { data, ts: Date.now() };

@@ -14,7 +14,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
   const { addItem } = useCart();
   const inStockLegacy = product.variants.find(variantInStock);
   const inStockPv = !inStockLegacy ? (product.productVariants ?? []).find((pv) => pv.stock > 0 || Boolean(pv.allowBackorder)) : null;
-  const variant = inStockLegacy ?? (inStockPv ? { id: inStockPv.id, label: inStockPv.attributes.map((a) => String(a.value)).join(" / "), sku: inStockPv.sku, color: String(inStockPv.attributes[0]?.value ?? ""), inventory: inStockPv.stock, allowBackorder: inStockPv.allowBackorder, price: inStockPv.price, salePrice: inStockPv.salePrice, promotionPrice: (inStockPv as any).promotionPrice } : product.variants[0] ?? { id: "", label: "", sku: "", color: "", inventory: 0, price: 0 });
+  const variant = inStockLegacy ?? (inStockPv ? { id: inStockPv.id, label: inStockPv.attributes.map((a) => String(a.value)).join(" / "), sku: inStockPv.sku, color: String(inStockPv.attributes[0]?.value ?? ""), inventory: inStockPv.stock, allowBackorder: inStockPv.allowBackorder, price: inStockPv.price, salePrice: inStockPv.salePrice, promotionPrice: inStockPv.promotionPrice } : product.variants[0] ?? { id: "", label: "", sku: "", color: "", inventory: 0, price: 0 });
   const soldOut = !productInStock(product.variants) && !(product.productVariants ?? []).some((pv) => pv.stock > 0 || Boolean(pv.allowBackorder));
   const analyticsItem: AnalyticsItem = {
     item_id: product.id,
@@ -30,17 +30,17 @@ export function ProductCard({ product, priority = false }: { product: Product; p
       <div className="product-card__media">
         <SmoothLink href={`/product/${product.slug}`} ariaLabel={`View ${product.name}`} onClick={onSelect}>
           <SmartImage
-            src={product.images[0]}
-            alt={product.imageAlts?.[0] || product.name}
+            src={product.media[0]?.url || "/placeholder.jpg"}
+            alt={product.media[0]?.alt || product.name}
             priority={priority}
             sizes="(max-width: 700px) 82vw, (max-width: 1100px) 44vw, 31vw"
             className="product-card__image"
             style={{ viewTransitionName: `product-${product.slug}` }}
           />
-          {product.images[1] && (
+          {product.media[1] && (
             <SmartImage
-              src={product.images[1]}
-              alt={product.imageAlts?.[1] || `${product.name} alternate view`}
+              src={product.media[1].url}
+              alt={product.media[1].alt || `${product.name} alternate view`}
               crossfade={false}
               sizes="(max-width: 700px) 82vw, (max-width: 1100px) 44vw, 31vw"
               className="product-card__image product-card__image--alt"

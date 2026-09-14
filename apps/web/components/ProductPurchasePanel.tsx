@@ -18,7 +18,7 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
-  const hasAttrVariants = (product.productVariants?.length ?? 0) > 0 && (product.variantAttributes?.length ?? 0) > 0;
+    const hasAttrVariants = (product.productVariants?.length ?? 0) > 0 && (product.variantDimensions?.length ?? 0) > 0;
 
   // Legacy flow: pick from the embedded color/size variant buttons.
   const [variantId, setVariantId] = useState(product.variants.find(variantInStock)?.id ?? product.variants[0]?.id ?? "");
@@ -27,7 +27,7 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
   // Attribute flow: select one value per dimension, then resolve the matching SKU.
   const [selection, setSelection] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
-    for (const dim of product.variantAttributes ?? []) {
+        for (const dim of product.variantDimensions ?? []) {
       const first = product.productVariants?.find((v) => v.attributes.some((a) => a.name === dim.name))?.attributes.find((a) => a.name === dim.name)?.value;
       init[dim.name] = String(first ?? dim.options[0] ?? "");
     }
@@ -47,7 +47,7 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
 
   const variant: ProductVariant = useMemo(() => {
     if (!activeItem) return legacyVariant;
-    const labels = (product.variantAttributes ?? []).map((d) => selection[d.name]).filter(Boolean);
+        const labels = (product.variantDimensions ?? []).map((d) => selection[d.name]).filter(Boolean);
     const values = activeItem.attributes;
     return {
       id: activeItem.id,
@@ -109,8 +109,8 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
         <div className="variant-block__head"><span>Finish / size</span><small>{inStock ? `${variant.inventory} in stock` : "Sold out"}</small></div>
         {hasAttrVariants ? (
           <div className="variant-grid variant-grid--selects" style={{ flexDirection: "column", alignItems: "stretch", gap: 12 }}>
-            {(product.variantAttributes ?? []).map((dim) => (
-              <label key={dim.attributeId} className="variant-select">
+                        {(product.variantDimensions ?? []).map((dim) => (
+              <label key={dim.attributeId ? String(dim.attributeId) : dim.name} className="variant-select">
                 <span>{dim.name}</span>
                 <select
                   value={selection[dim.name] ?? ""}

@@ -31,6 +31,14 @@ export type ProductVariantItem = {
   attributes: { key: string; name: string; value: string | string[] }[];
 };
 
+export type MediaImage = {
+  url: string;
+  alt?: string;
+  publicId?: string;
+  variantId?: string;
+  position?: number;
+};
+
 export type Product = {
   id: string;
   slug: string;
@@ -42,40 +50,6 @@ export type Product = {
   hsn?: string;
   gst?: number;
   deliveryBy?: string;
-  articleNumber: string[];
-  styleCode?: string;
-  brandColor?: string;
-  brandSize?: string;
-  ukIndiaSize?: string;
-  euroSize?: string;
-  womenSandalType?: string;
-  color: string[];
-  typeForFlats?: string;
-  typeForHeels?: string;
-  occasion: string[];
-  outerMaterial: string[];
-  heelHeight?: string;
-  idealFor?: string;
-  ornamentationType?: string;
-  insoleMaterial: string[];
-  packOf?: string;
-  closure: string[];
-  heelPattern?: string;
-  soleMaterial: string[];
-  innerMaterial: string[];
-  upperPattern?: string;
-  careInstructions: string[];
-  removableInsole?: string;
-  searchKeywords: string[];
-  keyFeatures: string[];
-  videoUrl?: string;
-  eanUpc: string[];
-  cushioningLevel?: string;
-  otherDetails?: string;
-  includedInBox: string[];
-  returnReplacement?: string;
-  cashDelivery?: string;
-  customerSupport?: string;
   price: number;
   compareAtPrice?: number;
   salePrice?: number;
@@ -85,14 +59,17 @@ export type Product = {
   badge?: string;
   description: string;
   details: string[];
-  images: string[];
-  imageAlts: string[];
-  attributes?: { key: string; label: string; value: string | string[] }[];
+  media: MediaImage[];
+    attributes?: { key: string; label: string; value: string | string[] }[];
   variants: ProductVariant[];
-  variantAttributes?: VariantAttributeDef[];
   productVariants?: ProductVariantItem[];
+  variantAttributes?: VariantAttributeDef[];
+  variantDimensions?: { attributeId: string; name: string; key: string; options: string[]; values: string[] }[];
   featured?: boolean;
   newArrival?: boolean;
+  codAvailable?: boolean;
+  active?: boolean;
+  status?: "draft" | "active" | "inactive";
 };
 
 export type CartItem = {
