@@ -6,7 +6,6 @@ import express from "express";
 import { env } from "./config/env";
 import { accountRouter } from "./routes/account";
 import { adminRouter } from "./routes/admin";
-import { backofficeRouter } from "./routes/backoffice";
 import { authRouter } from "./routes/auth";
 import { cartRouter } from "./routes/cart";
 import { categoriesRouter } from "./routes/categories";
@@ -136,7 +135,6 @@ app.use("/api/v1/reviews", reviewsRouter);
 app.use("/api/v1/feedback", feedbackRouter);
 app.use("/api/v1/site", siteRouter);
 app.use("/api/v1/admin", adminRouter);
-app.use("/api/v1/admin", backofficeRouter);
 
 app.use(notFound);
 app.use(errorHandler);
