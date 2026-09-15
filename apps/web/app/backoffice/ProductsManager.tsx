@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { ArrowUpRight, Crop, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowUpRight, Crop, Search, X } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { type Attribute, type CategoryAttributeRef } from "@/lib/field-defs";
 import { AttributeFields } from "@/components/attributes/AttributeFields";
@@ -12,7 +12,6 @@ const TARGET_W = 1200;
 const TARGET_H = 1500;
 
 type ImageAsset = { url: string; publicId: string; alt?: string; local?: boolean; dataUri?: string };
-type Variant = { _id?: string; label: string; sku: string; color: string; size?: string; priceOverride?: number | null; salePrice?: number | null; inventoryTotal: number; inventoryStoreAllocated: number; lowStockThreshold: number; allowBackorder: boolean; active: boolean };
 type Product = {
   _id: string;
   slug: string;
@@ -32,7 +31,6 @@ type Product = {
   salePrice?: number;
   images?: ImageAsset[];
   media?: ImageAsset[];
-  variants?: Variant[];
   featured: boolean;
   codAvailable: boolean;
   active: boolean;
@@ -306,10 +304,6 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
     const imgs = product?.media ?? product?.images ?? [];
     return imgs.map((img) => ({ ...img, local: false }));
   });
-  const [variants, setVariantsBase] = useState<Variant[]>(() => {
-    try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).variants; if (v) return v; } } catch {}
-    return [];
-  });
   const [variantDims, setVariantDimsBase] = useState<VariantDim[]>(() => {
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).variantDims; if (v) return v; } } catch {}
     return (product?.variantDimensions ?? []).map((d) => {
@@ -364,7 +358,6 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
     (value) => { onDirty(); base(value); };
   const setForm = wrap(setFormBase);
   const setImages = wrap(setImagesBase);
-  const setVariants = wrap(setVariantsBase);
   const setVariantDims = wrap(setVariantDimsBase);
   const setVariantRows = wrap(setVariantRowsBase);
   const setAttrValues = wrap(setAttrValuesBase);
@@ -383,24 +376,12 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
   // Persist draft to localStorage so work is never lost on refresh/close.
   useEffect(() => {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, slugAuto, images, variants, variantDims, variantRows, attrValues }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, slugAuto, images, variantDims, variantRows, attrValues }));
     } catch {}
-  }, [form, slugAuto, images, variants, variantDims, variantRows, attrValues, DRAFT_KEY]);
+  }, [form, slugAuto, images, variantDims, variantRows, attrValues, DRAFT_KEY]);
 
   function setAttr(key: string, value: string | string[]) {
     setAttrValues((v) => ({ ...v, [key]: value }));
-  }
-
-  function setVariant(index: number, patch: Partial<Variant>) {
-    setVariants((list) => list.map((v, i) => (i === index ? { ...v, ...patch } : v)));
-  }
-
-  function addVariant() {
-    setVariants((list) => [...list, { label: "", sku: "", color: "", size: "", priceOverride: undefined, inventoryTotal: 0, inventoryStoreAllocated: 0, lowStockThreshold: 3, allowBackorder: false, active: true }]);
-  }
-
-  function removeVariant(index: number) {
-    setVariants((list) => list.filter((_, i) => i !== index));
   }
 
   const combos = useMemo(() => generateCombos(variantDims), [variantDims]);
@@ -452,6 +433,71 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
     setVariantRows((list) => list.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   }
 
+  // Label for a generated variant, used in the upload reference and alt text.
+  function variantLabel(row: VariantRow): string {
+    const joined = variantDims
+      .map((d) => row.attributes.find((a) => a.attributeId === d.attributeId)?.value ?? "")
+      .filter(Boolean)
+      .join(" / ");
+    return joined || row.sku;
+  }
+
+  // Upload one or more images for a specific variant. Any variant can carry its
+  // own gallery, which is what makes "Black variant shows black shoes" work.
+  async function uploadVariantImages(index: number, files: File[]) {
+    setError(null);
+    const current = variantRows[index]?.images ?? [];
+    const room = 5 - current.length;
+    if (room <= 0) { setError("Maximum 5 images per variant. Remove one before adding more."); return; }
+    const picked = files
+      .filter((file) => file.type.startsWith("image/"))
+      .filter((file) => file.size <= 10 * 1024 * 1024)
+      .slice(0, room);
+    if (picked.length === 0) { setError("Please choose image files under 10MB."); return; }
+
+    setUploading(true);
+    const added: { url: string; publicId: string; alt?: string }[] = [];
+    try {
+      for (const file of picked) {
+        const dataUri = await readAsDataUri(file);
+        const res = await fetch(`${API}/admin/media/upload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            dataUri,
+            category: "product",
+            referenceId: product?._id,
+            referenceLabel: `${product?.name ?? form.name} - ${variantLabel(variantRows[index])}`,
+            filename: file.name,
+            mimeType: file.type || "image/jpeg",
+            size: file.size
+          })
+        });
+        const body = await res.json();
+        if (!res.ok) { setError(body?.error || "Variant image upload failed"); break; }
+        added.push({ url: body.url, publicId: body.publicId });
+      }
+      if (added.length > 0) {
+        setVariantRows((rows) => rows.map((r, i) => (i === index ? { ...r, images: [...(r.images ?? []), ...added] } : r)));
+      }
+    } catch {
+      setError("Variant image upload failed. Is Cloudinary configured?");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeVariantImage(index: number, publicId?: string, url?: string) {
+    setVariantRows((rows) =>
+      rows.map((r, i) =>
+        i === index
+          ? { ...r, images: (r.images ?? []).filter((img) => (publicId ? img.publicId !== publicId : img.url !== url)) }
+          : r
+      )
+    );
+  }
+
   function readAsDataUri(file: File): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -498,10 +544,6 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
     setError(null);
-    const validVariants = variants.filter((v) => v.label.trim() && v.sku.trim() && v.color.trim());
-    if (variants.length > 0 && validVariants.length !== variants.length) {
-      return setError("Every variant needs a label, SKU and colour.");
-    }
     // Warn if variant dimensions are configured but no SKU combinations were generated.
     if (variantDims.length > 0 && variantRows.length === 0) {
       return setError("Variant attributes are selected but no SKU combinations were generated. Enter values for each attribute dimension, or remove the variant attributes.");
@@ -565,20 +607,6 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
           if (meta?.attributeId) return { attributeId: meta.attributeId, value };
           return { key, label: meta?.label ?? key, value };
         }),
-      variants: validVariants.map((v) => ({
-        ...(v._id ? { _id: v._id } : {}),
-        label: v.label.trim(),
-        sku: v.sku.trim(),
-        color: v.color.trim(),
-        size: v.size?.trim() || undefined,
-        priceOverride: v.priceOverride ? Number(v.priceOverride) : undefined,
-        salePrice: v.salePrice ? Number(v.salePrice) : undefined,
-        inventoryTotal: Math.max(0, Number(v.inventoryTotal) || 0),
-        inventoryStoreAllocated: Math.max(0, Number(v.inventoryStoreAllocated) || 0),
-        lowStockThreshold: Math.max(0, Number(v.lowStockThreshold) || 0),
-        allowBackorder: v.allowBackorder,
-        active: v.active
-      })),
       featured: form.featured,
       codAvailable: form.codAvailable,
       active: form.status !== "inactive",
@@ -706,36 +734,6 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
 
       <div style={{ marginTop: 8 }}>
         <div className="admin-panel__head">
-          <div><span className="eyebrow">Stock</span><h3 style={{ margin: 0 }}>Variants</h3></div>
-          <button type="button" className="button button--ghost" onClick={addVariant}><Plus size={14} /> Add variant</button>
-        </div>
-        {variants.length === 0 && <p className="muted" style={{ margin: "4px 0 12px" }}>No variants yet - add size/colour options and stock.</p>}
-        {variants.map((v, i) => (
-          <div key={i} className="variant-editor">
-            <div className="variant-editor__grid">
-              <label>Label <input value={v.label} onChange={(e) => setVariant(i, { label: e.target.value })} placeholder="Black / 32" required /></label>
-              <label>SKU <input value={v.sku} onChange={(e) => setVariant(i, { sku: e.target.value })} placeholder="BLK-32" required /></label>
-              <label>Colour <input value={v.color} onChange={(e) => setVariant(i, { color: e.target.value })} placeholder="Black" required /></label>
-              <label>Size <input value={v.size ?? ""} onChange={(e) => setVariant(i, { size: e.target.value })} placeholder="32" /></label>
-              <label>Price override <input type="number" min="0" value={v.priceOverride ?? ""} onChange={(e) => setVariant(i, { priceOverride: e.target.value ? Number(e.target.value) : undefined })} placeholder="Optional" /></label>
-              <label>Sale price <input type="number" min="0" value={v.salePrice ?? ""} onChange={(e) => setVariant(i, { salePrice: e.target.value ? Number(e.target.value) : undefined })} placeholder="Optional" /></label>
-              <label>Total stock <input type="number" min="0" value={v.inventoryTotal} onChange={(e) => setVariant(i, { inventoryTotal: Number(e.target.value) })} /></label>
-              <label>Store allocation <input type="number" min="0" value={v.inventoryStoreAllocated} onChange={(e) => setVariant(i, { inventoryStoreAllocated: Number(e.target.value) })} placeholder="For your store" /></label>
-              <label>Low-stock at <input type="number" min="0" value={v.lowStockThreshold} onChange={(e) => setVariant(i, { lowStockThreshold: Number(e.target.value) })} /></label>
-            </div>
-            <div className="variant-editor__foot">
-              <div style={{ display: "flex", gap: 16 }}>
-                <label className="toggle-label"><input type="checkbox" checked={v.allowBackorder} onChange={(e) => setVariant(i, { allowBackorder: e.target.checked })} /> Allow backorder</label>
-                <label className="toggle-label"><input type="checkbox" checked={v.active} onChange={(e) => setVariant(i, { active: e.target.checked })} /> Active</label>
-              </div>
-              <button type="button" className="text-button" style={{ color: "var(--danger, #b91c1c)" }} onClick={() => removeVariant(i)}><Trash2 size={13} /> Remove</button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ marginTop: 8 }}>
-        <div className="admin-panel__head">
           <div><span className="eyebrow">Category attributes</span><h3 style={{ margin: 0 }}>Generated from the category</h3></div>
         </div>
         {categoryAttrs.length === 0 && <p className="muted" style={{ margin: "4px 0 12px" }}>No attributes defined for this category yet.</p>}
@@ -782,11 +780,11 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
               <thead>
                 <tr>
                   {variantDims.map((d) => <th key={d.attributeId}>{d.name}</th>)}
-                  <th>SKU</th><th>Article no.</th><th>Price (₹)</th><th>Sale (₹)</th><th>Stock</th><th>Active</th><th>Backorder</th>
+                  <th>SKU</th><th>Article no.</th><th>Images</th><th>Price (₹)</th><th>Sale (₹)</th><th>Stock</th><th>Active</th><th>Backorder</th>
                 </tr>
               </thead>
               <tbody>
-                {variantRows.length === 0 && <tr><td colSpan={variantDims.length + 6} className="muted">Enter values for each attribute to generate SKU combinations.</td></tr>}
+                {variantRows.length === 0 && <tr><td colSpan={variantDims.length + 7} className="muted">Enter values for each attribute to generate SKU combinations.</td></tr>}
                 {variantRows.map((row, i) => (
                   <tr key={i}>
                     {variantDims.map((d) => {
@@ -795,6 +793,20 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
                     })}
                     <td><input value={row.sku} onChange={(e) => setVariantRow(i, { sku: e.target.value })} placeholder="SKU" /></td>
                     <td><input value={row.articleNumber ?? ""} onChange={(e) => setVariantRow(i, { articleNumber: e.target.value })} placeholder="Article no." /></td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 120 }}>
+                        {(row.images ?? []).map((img) => (
+                          <span key={img.publicId || img.url} style={{ position: "relative", display: "inline-block" }}>
+                            <img src={img.url} alt={variantLabel(row)} width={34} height={42} style={{ objectFit: "cover", borderRadius: 6 }} />
+                            <button type="button" title="Remove image" onClick={() => removeVariantImage(i, img.publicId, img.url)} style={{ position: "absolute", top: -6, right: -6, width: 16, height: 16, lineHeight: "13px", border: 0, borderRadius: 999, cursor: "pointer", background: "var(--danger, #b91c1c)", color: "#fff" }}>x</button>
+                          </span>
+                        ))}
+                        <label className="text-button" style={{ cursor: "pointer", whiteSpace: "nowrap" }}>
+                          <input type="file" accept="image/*" multiple hidden onChange={(e) => { if (e.target.files) uploadVariantImages(i, Array.from(e.target.files)); e.target.value = ""; }} />
+                          + Image
+                        </label>
+                      </div>
+                    </td>
                     <td><input type="number" min="0" value={row.price} onChange={(e) => setVariantRow(i, { price: Number(e.target.value) })} /></td>
                     <td><input type="number" min="0" value={row.salePrice ?? ""} onChange={(e) => setVariantRow(i, { salePrice: e.target.value ? Number(e.target.value) : undefined })} placeholder="—" /></td>
                     <td><input type="number" min="0" value={row.stock} onChange={(e) => setVariantRow(i, { stock: Number(e.target.value) })} /></td>
@@ -815,7 +827,7 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button type="button" className="button button--ghost" onClick={onClose}><X size={15} /> Cancel</button>
-          <button type="button" className="button button--ghost" style={{ color: "var(--danger, #b91c1c)" }} onClick={() => { try { localStorage.removeItem(DRAFT_KEY); } catch {} setForm({ ...emptyProduct(), compareAtPrice: undefined }); setSlugAuto(true); setImages([]); setVariants([]); setVariantDims([]); setVariantRows([]); setAttrValues({}); }}>Discard draft</button>
+          <button type="button" className="button button--ghost" style={{ color: "var(--danger, #b91c1c)" }} onClick={() => { try { localStorage.removeItem(DRAFT_KEY); } catch {} setForm({ ...emptyProduct(), compareAtPrice: undefined }); setSlugAuto(true); setImages([]); setVariantDims([]); setVariantRows([]); setAttrValues({}); }}>Discard draft</button>
           <button type="submit" className="button button--dark" disabled={saving || uploading}>{saving ? "Saving…" : product ? "Save changes" : "Create product"}</button>
         </div>
       </div>

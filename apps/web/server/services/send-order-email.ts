@@ -6,6 +6,7 @@ import { baseLayout, itemsTableWithImages, invoiceSection, type BaseLayoutOption
 import type { EmailTemplateKey } from "./email-templates/template-defaults";
 import { Product } from "../models/Product";
 import { SiteSetting } from "../models/SiteSetting";
+import { Media } from "../models/Media";
 
 type OrderLine = {
   productId: { toString(): string };
@@ -89,8 +90,27 @@ async function getLayoutOptions(): Promise<BaseLayoutOptions> {
 
 async function buildItemsHtmlWithImages(lines: OrderLine[]): Promise<string> {
   const productIds = [...new Set(lines.map((l) => String(l.productId)))];
-  const products = await Product.find({ _id: { $in: productIds } }).select("name images").lean();
-  const imageByProduct = new Map(products.map((p) => [String(p._id), p.images?.[0]?.url]));
+  const variantIds = [...new Set(lines.map((l) => String(l.variantId)).filter(Boolean))];
+
+  // Images live in the Media collection, so prefer the image of the exact
+  // variant that was ordered and fall back to the product-level gallery.
+  const [productMedia, variantMedia] = await Promise.all([
+    Media.find({ productId: { $in: productIds }, type: "PRODUCT_IMAGE" }).sort({ position: 1 }).lean(),
+    variantIds.length > 0
+      ? Media.find({ variantId: { $in: variantIds }, type: "VARIANT_IMAGE" }).sort({ position: 1 }).lean()
+      : Promise.resolve([] as { variantId?: unknown; url: string }[])
+  ]);
+
+  const imageByProduct = new Map<string, string>();
+  for (const m of productMedia) {
+    const key = String(m.productId);
+    if (!imageByProduct.has(key)) imageByProduct.set(key, m.url);
+  }
+  const imageByVariant = new Map<string, string>();
+  for (const m of variantMedia) {
+    const key = String(m.variantId);
+    if (!imageByVariant.has(key)) imageByVariant.set(key, m.url);
+  }
 
   const rows = lines.map((l) => ({
     name: l.nameSnapshot,
@@ -98,7 +118,7 @@ async function buildItemsHtmlWithImages(lines: OrderLine[]): Promise<string> {
     quantity: l.quantity,
     unitPrice: l.unitPrice,
     lineTotal: l.lineTotal,
-    imageUrl: imageByProduct.get(String(l.productId))
+    imageUrl: imageByVariant.get(String(l.variantId)) ?? imageByProduct.get(String(l.productId))
   }));
 
   return itemsTableWithImages(rows);
