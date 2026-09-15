@@ -1,4 +1,4 @@
-import type { Product, ProductVariantItem } from "./types";
+import type { Product, ProductVariant, ProductVariantItem } from "./types";
 import { API_URL } from "./api";
 
 type MediaItem = { url: string; alt?: string; publicId?: string; position?: number };
@@ -106,6 +106,27 @@ function mapProduct(api: ApiProduct): Product {
     };
   });
 
+  // Backward-compatibility layer: derive the legacy `variants` shape from the
+  // new ProductVariant documents. Storefront components, cart, and stock checks
+  // still read `variants`, so keeping it populated avoids a second rewrite.
+  const variants: ProductVariant[] = productVariants
+    .filter((v) => v.active !== false)
+    .map((v) => {
+      const colorAttr = v.attributes.find((a) => a.key === "color");
+      const sizeAttr = v.attributes.find((a) => a.key === "size");
+      return {
+        id: v.id,
+        label: v.attributes.map((a) => (Array.isArray(a.value) ? a.value.join(", ") : a.value)).filter(Boolean).join(" / ") || v.sku,
+        sku: v.sku,
+        color: typeof colorAttr?.value === "string" ? colorAttr.value : "",
+        size: typeof sizeAttr?.value === "string" ? sizeAttr.value : undefined,
+        inventory: v.stock,
+        allowBackorder: v.allowBackorder,
+        price: v.price,
+        salePrice: v.salePrice
+      };
+    });
+
   return {
     id: String(api._id),
     slug: api.slug,
@@ -127,7 +148,7 @@ function mapProduct(api: ApiProduct): Product {
     details: [],
     media,
     attributes,
-    variants: [],
+    variants,
     productVariants,
     variantAttributes: variantDimensions.map((d) => ({
       attributeId: d.attributeId,

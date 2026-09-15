@@ -30,15 +30,16 @@ type Product = {
   price: number;
   compareAtPrice?: number;
   salePrice?: number;
-  images: ImageAsset[];
-  variants: Variant[];
+  images?: ImageAsset[];
+  media?: ImageAsset[];
+  variants?: Variant[];
   featured: boolean;
   codAvailable: boolean;
   active: boolean;
   status?: "draft" | "active" | "inactive";
   attributes?: ProductAttribute[];
   variantDimensions?: { attributeId: string | Attribute; values: string[] }[];
-  productVariants?: { _id: string; sku: string; price: number; salePrice?: number; stock: number; active: boolean; allowBackorder?: boolean; attributes: { attributeId: string | Attribute; value: string }[]; images?: ImageAsset[] }[];
+  productVariants?: { _id: string; sku: string; articleNumber?: string; barcode?: string; price: number; salePrice?: number; stock: number; active: boolean; allowBackorder?: boolean; attributes: { attributeId: string | Attribute; value: string }[]; images?: ImageAsset[] }[];
 };
 
 type Category = { _id: string; name: string; attributes?: CategoryAttributeRef[] };
@@ -46,7 +47,7 @@ type Category = { _id: string; name: string; attributes?: CategoryAttributeRef[]
 type ProductAttribute = { attributeId?: string | Attribute; key?: string; label?: string; value: string | string[] };
 
 type VariantDim = { attributeId: string; key: string; name: string; values: string[] };
-type VariantRow = { attributes: { attributeId: string; value: string }[]; sku: string; price: number; salePrice?: number; stock: number; active: boolean; allowBackorder: boolean; images: { url: string; publicId?: string; alt?: string }[] };
+type VariantRow = { attributes: { attributeId: string; value: string }[]; sku: string; articleNumber?: string; price: number; salePrice?: number; stock: number; active: boolean; allowBackorder: boolean; images: { url: string; publicId?: string; alt?: string }[] };
 
 function comboKey(attrs: { attributeId: string; value: string }[]): string {
   return attrs
@@ -134,7 +135,7 @@ export function ProductsManager() {
 
   const q = query.trim().toLowerCase();
   const filtered = products.filter(
-    (p) => !q || p.name.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || (p.brand ?? "").toLowerCase().includes(q) || p.variants.some((v) => v.sku.toLowerCase().includes(q))
+    (p) => !q || p.name.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || (p.brand ?? "").toLowerCase().includes(q) || (p.productVariants ?? []).some((v) => v.sku.toLowerCase().includes(q))
   );
 
   function toggleSelect(id: string) {
@@ -227,11 +228,11 @@ export function ProductsManager() {
             {filtered.map((p) => (
               <tr key={p._id} className={selected.has(p._id) ? "row-selected" : ""}>
                 <td><input type="checkbox" checked={selected.has(p._id)} onChange={() => toggleSelect(p._id)} /></td>
-                <td>{p.images?.[0] ? <img src={p.images[0].url} alt="" width={44} height={52} style={{ objectFit: "cover", borderRadius: 8 }} /> : <span className="muted">-</span>}</td>
+                <td>{(p.media?.[0]?.url ?? p.images?.[0]?.url) ? <img src={(p.media?.[0]?.url ?? p.images?.[0]?.url) as string} alt="" width={44} height={52} style={{ objectFit: "cover", borderRadius: 8 }} /> : <span className="muted">-</span>}</td>
                 <td><strong>{p.name}</strong>{p.featured && <span className="featured-tag">Featured</span>}</td>
                 <td>{p.category}</td>
                 <td>{formatPrice(p.price)}{p.compareAtPrice ? <span className="muted" style={{ display: "block", fontSize: 11 }}>was {formatPrice(p.compareAtPrice)}</span> : null}</td>
-                <td>{p.variants.length + (p.productVariants?.length ?? 0)}</td>
+                <td>{(p.productVariants?.length ?? 0)}</td>
                 <td><span className={`status ${p.status === "active" ? "status--confirmed" : p.status === "draft" ? "status--pending" : ""}`}>{p.status ?? (p.active ? "active" : "inactive")}</span></td>
                 <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                   <button className="text-button" onClick={() => requestEdit(p)}>Edit</button>
@@ -302,11 +303,12 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
   });
   const [images, setImagesBase] = useState<ImageAsset[]>(() => {
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).images; if (v) return v; } } catch {}
-    return (product?.images ?? []).map((img) => ({ ...img, local: false }));
+    const imgs = product?.media ?? product?.images ?? [];
+    return imgs.map((img) => ({ ...img, local: false }));
   });
   const [variants, setVariantsBase] = useState<Variant[]>(() => {
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).variants; if (v) return v; } } catch {}
-    return product?.variants ?? [];
+    return [];
   });
   const [variantDims, setVariantDimsBase] = useState<VariantDim[]>(() => {
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).variantDims; if (v) return v; } } catch {}
@@ -319,7 +321,7 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
     try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const v = JSON.parse(saved).variantRows; if (v) return v; } } catch {}
     return (product?.productVariants ?? []).map((v) => ({
       attributes: v.attributes.map((a) => ({ attributeId: typeof a.attributeId === "object" ? a.attributeId._id : String(a.attributeId), value: String(a.value) })),
-      sku: v.sku, price: v.price, salePrice: v.salePrice, stock: v.stock, active: v.active, allowBackorder: Boolean(v.allowBackorder), images: v.images ?? []
+      sku: v.sku, articleNumber: v.articleNumber, price: v.price, salePrice: v.salePrice, stock: v.stock, active: v.active, allowBackorder: Boolean(v.allowBackorder), images: v.images ?? []
     }));
   });
   const [attrValues, setAttrValuesBase] = useState<Record<string, string | string[]>>(() => {
@@ -585,6 +587,7 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
       productVariants: variantRows.map((r) => ({
         attributes: r.attributes,
         sku: r.sku.trim(),
+        articleNumber: r.articleNumber?.trim() || undefined,
         price: Number(r.price) || 0,
         salePrice: r.salePrice ? Number(r.salePrice) : undefined,
         stock: Math.max(0, Number(r.stock) || 0),
@@ -779,11 +782,11 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
               <thead>
                 <tr>
                   {variantDims.map((d) => <th key={d.attributeId}>{d.name}</th>)}
-                  <th>SKU</th><th>Price (₹)</th><th>Sale (₹)</th><th>Stock</th><th>Active</th><th>Backorder</th>
+                  <th>SKU</th><th>Article no.</th><th>Price (₹)</th><th>Sale (₹)</th><th>Stock</th><th>Active</th><th>Backorder</th>
                 </tr>
               </thead>
               <tbody>
-                {variantRows.length === 0 && <tr><td colSpan={variantDims.length + 5} className="muted">Enter values for each attribute to generate SKU combinations.</td></tr>}
+                {variantRows.length === 0 && <tr><td colSpan={variantDims.length + 6} className="muted">Enter values for each attribute to generate SKU combinations.</td></tr>}
                 {variantRows.map((row, i) => (
                   <tr key={i}>
                     {variantDims.map((d) => {
@@ -791,6 +794,7 @@ function ProductForm({ product, categories, onSaved, onClose, onDirty, saveRef, 
                       return <td key={d.attributeId}><strong>{v?.value ?? ""}</strong></td>;
                     })}
                     <td><input value={row.sku} onChange={(e) => setVariantRow(i, { sku: e.target.value })} placeholder="SKU" /></td>
+                    <td><input value={row.articleNumber ?? ""} onChange={(e) => setVariantRow(i, { articleNumber: e.target.value })} placeholder="Article no." /></td>
                     <td><input type="number" min="0" value={row.price} onChange={(e) => setVariantRow(i, { price: Number(e.target.value) })} /></td>
                     <td><input type="number" min="0" value={row.salePrice ?? ""} onChange={(e) => setVariantRow(i, { salePrice: e.target.value ? Number(e.target.value) : undefined })} placeholder="—" /></td>
                     <td><input type="number" min="0" value={row.stock} onChange={(e) => setVariantRow(i, { stock: Number(e.target.value) })} /></td>

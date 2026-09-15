@@ -33,7 +33,7 @@ import { getTaxConfig } from "../services/tax";
 import { cloudName, deleteAsset, isCloudinaryConfigured, uploadImage } from "../services/cloudinary";
 import { attributeKey, FIELD_TYPES, findOrCreateAttribute, getAttributeById, searchAttributes, deleteAttribute, normalizeProductAttributes } from "../services/attributes";
 import { validateProductAttributes } from "../services/attributeValidation";
-import { reconcileProductVariants, productVariantLabel } from "../services/variants";
+import { reconcileProductVariants, productVariantLabel, syncProductMedia } from "../services/variants";
 import {
   sendOrderPackedEmail,
   sendOrderShippedEmail,
@@ -104,10 +104,16 @@ const productSchema = z.object({
         articleNumber: z.string().max(60).optional(),
         barcode: z.string().max(60).optional(),
         status: z.enum(["draft", "active", "inactive"]).optional(),
+        images: z
+          .array(z.object({ url: z.string().min(1), publicId: z.string().optional(), alt: z.string().optional() }))
+          .optional(),
         active: z.boolean().default(true),
         allowBackorder: z.boolean().default(false)
       })
     )
+    .default([]),
+  images: z
+    .array(z.object({ url: z.string().min(1), publicId: z.string().optional(), alt: z.string().optional() }))
     .default([]),
   featured: z.boolean().default(false),
   codAvailable: z.boolean().default(true),
@@ -269,10 +275,14 @@ adminRouter.post("/products", requireAdmin, requireFeature("products"), async (r
       const errors = await validateProductAttributes(category.attributes ?? [], attributes);
       if (errors.length) return next(new ApiError(400, "Invalid attribute values", errors));
     }
-    const product = await Product.create({ ...input, attributes });
+    const { images, productVariants: variantInputs, ...productFields } = input;
+    const product = await Product.create({ ...productFields, attributes });
     if (product.variantDimensions && product.variantDimensions.length > 0) {
-      await reconcileProductVariants(String(product._id), input.variantDimensions ?? [], input.productVariants ?? []);
+      await reconcileProductVariants(String(product._id), input.variantDimensions ?? [], variantInputs ?? []);
     }
+    // Media is the single source of truth for galleries: the product-level
+    // image set plus each variant's own images.
+    await syncProductMedia(String(product._id), images ?? [], variantInputs);
     return res.status(201).json({ ok: true, data: product });
   } catch (error) {
     if (error instanceof z.ZodError) return next(new ApiError(400, "Invalid product input", error.flatten()));
@@ -288,6 +298,7 @@ adminRouter.patch("/products/:productId", requireAdmin, requireFeature("products
     if (!product) return next(new ApiError(404, "Product not found"));
     const update: Record<string, unknown> = { ...input };
     delete update.productVariants;
+    delete update.images;
     if (input.attributes) {
       update.attributes = await normalizeProductAttributes(input.attributes);
       const categoryName = input.category ?? product.category;
@@ -305,6 +316,11 @@ adminRouter.patch("/products/:productId", requireAdmin, requireFeature("products
       } else {
         await ProductVariant.deleteMany({ productId: updated._id });
       }
+    }
+    // Only reconcile the scopes this save actually carried, so editing a field
+    // like price never clears the galleries.
+    if (input.images !== undefined || input.productVariants !== undefined) {
+      await syncProductMedia(String(updated._id), input.images ?? [], input.productVariants);
     }
     return res.json({ ok: true, data: updated });
   } catch (error) {

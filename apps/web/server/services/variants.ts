@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { ProductVariant } from "../models/ProductVariant";
 import { resolvePrice } from "./pricing";
+import { reconcileMediaForSave } from "./media";
 
 export type VariantDimensionInput = { attributeId: string; values: string[] };
 export type VariantAttributeValue = { attributeId: string; value: string | string[] };
@@ -239,4 +240,32 @@ export function resolveVariantById(
   }
 
   return null;
+}
+// Persist a product's galleries into the Media collection (the single source of
+// truth for images). Product-level images are shared by every variant; each
+// variant's own images are matched to its saved ProductVariant document through
+// the attribute combination key so re-generated variants keep their gallery.
+//
+// Passing `variantInputs` as undefined means "this save did not touch variant
+// galleries", so existing variant media is preserved instead of cleared.
+export async function syncProductMedia(
+  productId: string,
+  productImages: { url: string; publicId?: string; alt?: string }[],
+  variantInputs?: ProductVariantInput[]
+): Promise<void> {
+  const inputByKey = new Map<string, { url: string; publicId?: string; alt?: string }[]>();
+  for (const v of variantInputs ?? []) {
+    inputByKey.set(comboKey(v.attributes), v.images ?? []);
+  }
+
+  const saved = await ProductVariant.find({ productId: new mongoose.Types.ObjectId(productId) }).lean();
+  const variantImages: Record<string, { url: string; publicId?: string; alt?: string }[]> = {};
+  for (const doc of saved) {
+    variantImages[String(doc._id)] = inputByKey.get(comboKeyFromDoc(doc.attributes)) ?? [];
+  }
+
+  await reconcileMediaForSave(productId, productImages, variantImages, {
+    reconcileProduct: true,
+    reconcileVariants: variantInputs !== undefined
+  });
 }

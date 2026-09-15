@@ -131,8 +131,11 @@ export async function removeMedia(id: string): Promise<void> {
 export async function reconcileMediaForSave(
   productId: string,
   productImages: MediaItem[],
-  variantImages: Record<string, MediaItem[]>
+  variantImages: Record<string, MediaItem[]>,
+  options: { reconcileProduct?: boolean; reconcileVariants?: boolean } = {}
 ): Promise<void> {
+  const reconcileProduct = options.reconcileProduct !== false;
+  const reconcileVariants = options.reconcileVariants !== false;
   const productIdObj = new mongoose.Types.ObjectId(productId);
   const existing = await Media.find({ productId: productIdObj }).lean();
 
@@ -164,15 +167,20 @@ export async function reconcileMediaForSave(
     }
   };
 
-  upsertScoped("PRODUCT_IMAGE", productImages, null);
-  for (const [variantId, images] of Object.entries(variantImages)) {
-    upsertScoped("VARIANT_IMAGE", images, variantId);
+  if (reconcileProduct) upsertScoped("PRODUCT_IMAGE", productImages, null);
+  if (reconcileVariants) {
+    for (const [variantId, images] of Object.entries(variantImages)) {
+      upsertScoped("VARIANT_IMAGE", images, variantId);
+    }
   }
 
   for (const d of existing) {
-    if (!updatedIds.has(String(d._id))) {
-      ops.push({ deleteOne: { filter: { _id: d._id } } });
-    }
+    if (updatedIds.has(String(d._id))) continue;
+    // Leave untouched scopes alone, so a partial save (e.g. only the product
+    // gallery changed) never wipes variant images it did not receive.
+    if (!reconcileProduct && d.type === "PRODUCT_IMAGE") continue;
+    if (!reconcileVariants && d.type === "VARIANT_IMAGE") continue;
+    ops.push({ deleteOne: { filter: { _id: d._id } } });
   }
 
   if (ops.length > 0) {
