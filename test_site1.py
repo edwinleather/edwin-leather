@@ -43,7 +43,8 @@ def probe(method, path, body=None):
     })
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
-            return r.status, r.read()[:400], dict(r.headers)
+            body_bytes = r.read()
+            return r.status, body_bytes, dict(r.headers)
     except urllib.error.HTTPError as e:
         return e.code, e.read()[:400], dict(e.headers)
     except Exception as e:

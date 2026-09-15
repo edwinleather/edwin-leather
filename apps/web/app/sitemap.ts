@@ -1,11 +1,27 @@
-import type { MetadataRoute } from "next";
-import { getCatalog, getCategoryList } from "@/lib/catalog";
-import { siteUrl } from "@/lib/site-url";
+import { MetadataRoute } from "next";
+import { connectDatabase, ensureDatabase } from "../server/config/db";
+import { Product } from "../server/models/Product";
+import { Category } from "../server/models/Category";
+import { siteUrl } from "../lib/site-url";
 
 const SITE = siteUrl();
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [products, categories] = await Promise.all([getCatalog(), getCategoryList()]);
+  // Use direct database access so the sitemap always renders even when the
+  // HTTP API layer is slow to cold-start on Vercel.
+  let products: { slug: string }[] = [];
+  let categories: { slug: string }[] = [];
+  try {
+    if (await ensureDatabase()) {
+      products = await Product.find({ active: true }, { slug: 1, _id: 0 }).lean<{ slug: string }[]>();
+      categories = await Category.find({ active: true }, { slug: 1, _id: 0 }).lean<{ slug: string }[]>();
+    }
+  } catch {
+    // If the database is unavailable, ship the static pages only. Search
+    // engines will re-crawl and pick up product/category pages once the DB
+    // is back online.
+  }
+
   const now = new Date();
 
   const staticPages = [

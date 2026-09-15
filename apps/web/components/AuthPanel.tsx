@@ -14,7 +14,23 @@ type ResetPurpose = "verify" | "forgot";
 
 export function AuthPanel({ initialMode = "login" }: { initialMode?: Mode }) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={
+      <div className="auth-panel">
+        <div className="auth-panel__inner">
+          <form className="auth-form" onSubmit={(e) => e.preventDefault()}>
+            <input type="email" name="email" placeholder="Email address" required className="auth-input" />
+            <input type="password" name="password" placeholder="Password" required className="auth-input" />
+            <button type="submit" className="button button--dark button--full">Sign in</button>
+            <button type="button" className="text-button">Forgot your password?</button>
+            <p className="auth-switch">New here? <button type="button" className="text-button">Create an account</button></p>
+          </form>
+          <div className="auth-divider"><span>or</span></div>
+          <div className="auth-google">
+            <a href="/api/auth/google" className="button button--outline button--full">Sign in with Google</a>
+          </div>
+        </div>
+      </div>
+    }>
       <AuthPanelInner initialMode={initialMode} />
     </Suspense>
   );
