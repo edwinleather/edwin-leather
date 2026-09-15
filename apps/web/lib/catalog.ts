@@ -55,6 +55,23 @@ type ApiProduct = {
   media?: MediaItem[];
   productVariants?: ApiProductVariant[];
   variantDimensions?: ApiVariantDimension[];
+  // Legacy fields still present on documents created before the ProductVariant /
+  // Media catalogue. Read only as a fallback so older rows keep rendering.
+  images?: ({ url: string; alt?: string; publicId?: string } | string)[];
+  variants?: {
+    _id?: string;
+    label?: string;
+    sku?: string;
+    color?: string;
+    size?: string;
+    inventory?: number;
+    inventoryTotal?: number;
+    inventoryAvailable?: number;
+    priceOverride?: number | null;
+    salePrice?: number | null;
+    allowBackorder?: boolean;
+    active?: boolean;
+  }[];
   featured?: boolean;
   attributes?: {
     attributeId?: { _id: string; name: string; key: string; type?: string; options?: string[] } | string;
@@ -65,12 +82,15 @@ type ApiProduct = {
 };
 
 function mapProduct(api: ApiProduct): Product {
-  const media: MediaItem[] = (api.media ?? []).map((m) => ({
-    url: m.url,
-    alt: m.alt,
-    publicId: m.publicId,
-    position: m.position
-  }));
+  const apiMedia = api.media ?? [];
+  const media: MediaItem[] = apiMedia.length > 0
+    ? apiMedia.map((m) => ({ url: m.url, alt: m.alt, publicId: m.publicId, position: m.position }))
+    : (api.images ?? []).map((img, i) => ({
+        url: typeof img === "string" ? img : img.url,
+        alt: typeof img === "string" ? undefined : img.alt,
+        publicId: typeof img === "string" ? undefined : img.publicId,
+        position: i
+      }));
 
   const productVariants: ProductVariantItem[] = (api.productVariants ?? []).map((variant) => ({
     id: String(variant._id),
@@ -109,7 +129,7 @@ function mapProduct(api: ApiProduct): Product {
   // Backward-compatibility layer: derive the legacy `variants` shape from the
   // new ProductVariant documents. Storefront components, cart, and stock checks
   // still read `variants`, so keeping it populated avoids a second rewrite.
-  const variants: ProductVariant[] = productVariants
+  const derivedVariants: ProductVariant[] = productVariants
     .filter((v) => v.active !== false)
     .map((v) => {
       const colorAttr = v.attributes.find((a) => a.key === "color");
@@ -126,6 +146,25 @@ function mapProduct(api: ApiProduct): Product {
         salePrice: v.salePrice
       };
     });
+
+  // Rows created before the ProductVariant catalogue still carry an embedded
+  // `variants` array; surface those when no ProductVariant documents exist so
+  // the storefront keeps showing the right options and stock levels.
+  const legacyVariants: ProductVariant[] = (api.variants ?? [])
+    .filter((v) => v.active !== false)
+    .map((v) => ({
+      id: String(v._id ?? v.sku ?? v.label ?? ""),
+      label: v.label || [v.color, v.size].filter(Boolean).join(" / ") || v.sku || "",
+      sku: v.sku ?? "",
+      color: v.color ?? "",
+      size: v.size,
+      inventory: Number(v.inventory ?? v.inventoryAvailable ?? v.inventoryTotal ?? 0),
+      allowBackorder: Boolean(v.allowBackorder),
+      price: Number(v.priceOverride ?? 0),
+      salePrice: v.salePrice ?? undefined
+    }));
+
+  const variants: ProductVariant[] = derivedVariants.length > 0 ? derivedVariants : legacyVariants;
 
   return {
     id: String(api._id),
