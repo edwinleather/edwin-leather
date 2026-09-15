@@ -18,7 +18,31 @@ async function resolveAdmin(req: Request, _res: Response, next: NextFunction) {
       if (!ar.auth?.sub) return next(new ApiError(401, "Authentication required"));
       if (!(await ensureBackoffice())) return next(new ApiError(503, "Database unavailable"));
       const admin = await getAdminUser(ar.auth.sub);
-      if (!admin || admin.active === false) return next(new ApiError(403, "Insufficient permissions"));
+      if (!admin || admin.active === false) {
+        // Auto-provision a backoffice AdminUser for superadmins who were
+        // migrated before the backoffice DB existed. Only the main app's
+        // superadmin role is granted this automatic provisioning so that
+        // every newly-migrated superadmin can reach the backoffice without a
+        // separate manual seed step.
+        if (ar.auth.role === "superadmin") {
+          const conn = (await import("../config/backofficeDb")).backofficeDb();
+          const db = await import("../config/db");
+          const MainUser = db.mongoose.model("User");
+          const mainUser = await MainUser.findById(ar.auth.sub).select("email firstName lastName name role").lean();
+          if (mainUser?.role === "superadmin") {
+            admin = await conn.model("BackofficeUser").create({
+              email: mainUser.email,
+              role: "superadmin",
+              name: mainUser.name ?? `${mainUser.firstName ?? ""} ${mainUser.lastName ?? ""}`.trim(),
+              firstName: mainUser.firstName,
+              lastName: mainUser.lastName,
+              appUserId: mainUser._id,
+              active: true,
+            });
+          }
+        }
+        if (!admin || admin.active === false) return next(new ApiError(403, "Insufficient permissions"));
+      }
       ar.admin = {
         id: String(admin._id),
         role: admin.role,

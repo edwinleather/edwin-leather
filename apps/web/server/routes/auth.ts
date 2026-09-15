@@ -386,3 +386,17 @@ authRouter.post("/logout", (_req, res) => {
   res.clearCookie(env.cookieName, { path: "/", sameSite: "lax", secure: env.nodeEnv === "production" });
   res.json({ ok: true });
 });
+
+// GET /api/v1/auth/me — return the current session's user.
+// Mounted here so the frontend can call a single /auth/me endpoint regardless of
+// whether the underlying user data lives on the account router.
+authRouter.get("/me", async (req, res, next) => {
+  try {
+    if (!(await ensureDatabase())) return next(new ApiError(503, "Database unavailable"));
+    const user = await User.findById(req.auth!.sub).select("-passwordHash -passwordResetTokenHash").lean();
+    if (!user) return next(new ApiError(404, "Account not found"));
+    return res.json({ ok: true, user });
+  } catch (error) {
+    return next(error);
+  }
+});

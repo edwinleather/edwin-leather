@@ -25,6 +25,36 @@ export async function getAdminUser(appUserId: mongoose.Types.ObjectId | string) 
   return AdminUser.findOne({ appUserId }).lean();
 }
 
+export async function ensureSuperadminBackofficeAccess(
+  appUserId: mongoose.Types.ObjectId | string,
+  mainEmail: string,
+  mainFirstName?: string,
+  mainLastName?: string,
+  mainName?: string,
+): Promise<AdminUser | null> {
+  // If the superadmin already has a backoffice record, return it.
+  const existing = await getAdminUser(appUserId);
+  if (existing) return existing;
+
+  // Otherwise, auto-provision one. This covers migrated accounts where the
+  // backoffice database was created after the main user already existed, and
+  // lets the superadmin use the backoffice without a manual seed step.
+  try {
+    return AdminUser.create({
+      email: mainEmail,
+      role: "superadmin",
+      name: mainName ?? `${mainFirstName ?? ""} ${mainLastName ?? ""}`.trim(),
+      firstName: mainFirstName,
+      lastName: mainLastName,
+      provider: "local",
+      appUserId,
+      active: true,
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function getAllowedFeatures(admin: { role: AdminRole; permissions?: string[] }) {
   if (hasWildcard(admin.permissions)) return allFeatures();
   const rp = await RolePermission.findOne({ role: admin.role }).lean();
