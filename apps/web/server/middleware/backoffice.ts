@@ -17,7 +17,7 @@ async function resolveAdmin(req: Request, _res: Response, next: NextFunction) {
     try {
       if (!ar.auth?.sub) return next(new ApiError(401, "Authentication required"));
       if (!(await ensureBackoffice())) return next(new ApiError(503, "Database unavailable"));
-      const admin = await getAdminUser(ar.auth.sub);
+      let admin = await getAdminUser(ar.auth.sub);
       if (!admin || admin.active === false) {
         // Auto-provision a backoffice AdminUser for superadmins who were
         // migrated before the backoffice DB existed. Only the main app's
